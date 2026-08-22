@@ -183,6 +183,31 @@
       appearance:auto;
     }
 
+  
+    .date-wrap{
+      width:100%;
+      max-width:100%;
+      overflow:hidden;
+      border-radius:12px;
+    }
+    .date-wrap input[type="date"],
+    .date-wrap input[type="month"]{
+      display:block;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      box-sizing:border-box;
+      margin:0;
+    }
+    @supports (-webkit-touch-callout:none){
+      .date-wrap input[type="date"],
+      .date-wrap input[type="month"]{
+        width:100%;
+        max-width:100%;
+        min-inline-size:0;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -196,7 +221,7 @@
       <div class="card">
         <h2>まとめて人工入力</h2>
         <label>日付</label>
-        <input id="entryDate" type="date">
+        <div class="date-wrap"><input id="entryDate" type="date"></div>
 
         <label>現場</label>
         <select id="entrySite"></select>
@@ -338,7 +363,7 @@
       <div class="card">
         <h2>集計</h2>
         <label>月</label>
-        <input id="summaryMonth" type="month">
+        <div class="date-wrap"><input id="summaryMonth" type="month"></div>
         <label>現場</label>
         <select id="summarySite"></select>
       </div>
@@ -370,7 +395,7 @@
       <div class="card no-print" id="invoiceControls">
         <h2>請求書作成</h2>
         <label>請求月</label>
-        <input id="invoiceMonth" type="month">
+        <div class="date-wrap"><input id="invoiceMonth" type="month"></div>
 
         <label>元請け会社</label>
         <select id="invoiceClient"></select>
