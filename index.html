@@ -981,7 +981,8 @@
   }
 
 
-  function renderCalendar(entries, month){
+  function renderCalendar(entries, month, siteFilter){
+    siteFilter = siteFilter || "all";
     const box = $("summaryCalendar");
     if(!box) return;
 
@@ -1098,7 +1099,7 @@
     let entries = state.entries.filter(e=>e.date.startsWith(month));
     if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
 
-    renderCalendar(entries, month);
+    renderCalendar(entries, month, siteFilter);
 
     const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
     const labor = entries.reduce((a,e)=>{
