@@ -171,10 +171,6 @@
       width:100%;
       max-width:100%;
       min-width:0;
-      -webkit-appearance:menulist;
-      appearance:auto;
-      pointer-events:auto;
-      touch-action:manipulation;
       background-color:#fff;
     }
     input[type="date"],input[type="month"]{
@@ -982,11 +978,6 @@
     if(!el) return;
     el.addEventListener("change", ()=>{
       rememberRecent(id, el.value);
-      // Re-render only after the current selection has been stored.
-      if(id==="entrySite" || id==="summarySite" || id==="invoiceClient") renderSelects();
-      if(id==="siteClient") renderClients();
-      if(id==="workerCompany" || id==="bulkCompanyFilter") renderWorkerCompanies();
-      if(id==="bulkCompanyFilter") renderBulkWorkers();
     });
   });
 
