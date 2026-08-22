@@ -173,8 +173,8 @@
           <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
         </div>
 
-        <div class="helper">チェックしたメンバーだけ登録されます。人工と経費は一人ずつ変更できます。</div>
-        <button class="btn" id="addBulkEntryBtn">チェックしたメンバーをまとめて登録</button>
+        <div class="helper">メンバーなしでも、現場経費だけ登録できます。チェックしたメンバーだけ人工登録されます。</div>
+        <button class="btn" id="addBulkEntryBtn">人工・経費を登録</button>
       </div>
 
       <div class="card">
@@ -778,7 +778,14 @@
 
     if(!date){ alert("日付を選んでな"); return; }
     if(!siteId){ alert("現場を選んでな"); return; }
-    if(!checked.length){ alert("登録するメンバーをチェックしてな"); return; }
+
+    const siteExpense = Number($("siteDayExpense").value||0);
+    const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
+
+    if(!checked.length && siteExpense <= 0 && !siteExpenseMemo){
+      alert("メンバーか現場経費のどっちかを入力してな");
+      return;
+    }
 
     checked.forEach(chk=>{
       const workerId = chk.dataset.workerId;
@@ -794,8 +801,6 @@
       });
     });
 
-    const siteExpense = Number($("siteDayExpense").value||0);
-    const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
     if(siteExpense > 0 || siteExpenseMemo){
       state.siteExpenses.push({
         id:uid(),
@@ -813,7 +818,13 @@
     dismissKeyboard();
     renderRecent();
     renderSummary();
-    alert(checked.length + "人分まとめて登録したで");
+    if(checked.length && (siteExpense > 0 || siteExpenseMemo)){
+      alert(checked.length + "人分＋現場経費を登録したで");
+    }else if(checked.length){
+      alert(checked.length + "人分まとめて登録したで");
+    }else{
+      alert("現場経費を登録したで");
+    }
   });
 
   function renderSelects(){
