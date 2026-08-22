@@ -107,10 +107,6 @@
     .invoice-sheet.format-simple .invoice-title{font-size:22px;letter-spacing:.06em}
     .invoice-sheet.format-simple .invoice-head{grid-template-columns:1fr;gap:8px}
     .invoice-sheet.format-simple .invoice-right{text-align:left}
-    .invoice-sheet.format-simple .invoice-table th:nth-child(2),
-    .invoice-sheet.format-simple .invoice-table td:nth-child(2),
-    .invoice-sheet.format-simple .invoice-table th:nth-child(3),
-    .invoice-sheet.format-simple .invoice-table td:nth-child(3),
     .invoice-sheet.format-simple .invoice-table th:nth-child(4),
     .invoice-sheet.format-simple .invoice-table td:nth-child(4){display:none}
     .invoice-sheet.format-detail .invoice-title{text-align:left;letter-spacing:.04em}
@@ -118,6 +114,10 @@
     .invoice-sheet.format-detail .invoice-table th{background:#f3f4f6}
     .muted{color:var(--sub);font-size:12px}
     .section-title{font-size:13px;font-weight:800;margin:16px 0 8px}
+    .progress-row{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:10px;align-items:center}
+    .progress-row input{min-height:42px;text-align:right}
+    .progress-site-name{font-weight:700;font-size:13px}
+    .progress-contract{font-size:11px;color:var(--sub);margin-top:2px}
     .calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;max-width:100%;overflow:hidden}
     .cal-head{min-width:0;text-align:center;font-size:11px;color:var(--sub);font-weight:700;padding:4px 0;overflow:hidden}
     .cal-day{min-width:0;min-height:74px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px;cursor:pointer}
@@ -411,6 +411,12 @@
 
         <div class="helper" id="invoicePeriodHint"></div>
 
+        <div id="progressBillingBox" style="display:none">
+          <label>請負現場の出来高</label>
+          <div id="progressBillingList" class="list"></div>
+          <div class="helper">その月に請求する出来高率を入力。例：30なら請負金額の30%を請求します。</div>
+        </div>
+
         <label>請求書フォーマット</label>
         <select id="invoiceFormat">
           <option value="standard">標準</option>
@@ -472,7 +478,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [] };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -482,6 +488,7 @@
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+  if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
 
   function safeStorage(){
     try{
@@ -600,7 +607,10 @@
       document.querySelector("header").style.background = `linear-gradient(135deg,#ffffff 0%,${pair[1]} 100%)`;
 
       if(target==="summary") renderSummary();
-      if(target==="invoice") renderInvoice();
+      if(target==="invoice"){
+        renderProgressBillingInputs();
+        renderInvoice();
+      }
       window.scrollTo({top:0,behavior:"instant"});
     });
   });
@@ -691,6 +701,7 @@
     const data = {
       name,
       clientId:$("siteClient").value || "",
+      contractType:$("siteContractType").value || "常用",
       revenue:Number($("siteRevenue").value||0),
       billRate:Number($("siteBillRate").value||0)
     };
@@ -705,6 +716,7 @@
     $("addSiteBtn").textContent = "現場を追加";
     save();
     $("siteName").value="";
+    $("siteContractType").value="常用";
     $("siteRevenue").value="";
     $("siteBillRate").value="";
     renderAll();
@@ -837,6 +849,7 @@
     editingSiteId = id;
     $("siteName").value = s.name || "";
     $("siteClient").value = s.clientId || "";
+    $("siteContractType").value = s.contractType || "常用";
     $("siteRevenue").value = s.revenue || "";
     $("siteBillRate").value = s.billRate || "";
     $("addSiteBtn").textContent = "現場を更新";
@@ -1154,7 +1167,7 @@
     const entrySites = sortByRecent(state.sites, "entrySite", x=>x.id);
     const entrySiteOptions = entrySites.map(s=>{
       const c = s.clientId ? clientById(s.clientId) : null;
-      const label = c ? `${s.name}｜${c.name}` : s.name;
+      const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
       return `<option value="${s.id}">${escapeHtml(label)}</option>`;
     }).join("");
     const entrySite = $("entrySite");
@@ -1167,7 +1180,7 @@
     const summarySites = sortByRecent(state.sites, "summarySite", x=>x.id);
     const summarySiteOptions = summarySites.map(s=>{
       const c = s.clientId ? clientById(s.clientId) : null;
-      const label = c ? `${s.name}｜${c.name}` : s.name;
+      const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
       return `<option value="${s.id}">${escapeHtml(label)}</option>`;
     }).join("");
     const summarySite = $("summarySite");
@@ -1188,7 +1201,7 @@
         <div class="item-line">
           <div>
             <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
-            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}請負 ${s.revenue ? yen(s.revenue) : "未設定"}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
+            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
           </div>
           <div class="item-actions">
             <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
@@ -1558,6 +1571,69 @@
     return date >= start && date <= end;
   }
 
+  
+function getProgressBilling(siteId, month){
+    const item = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
+    return item ? Number(item.percent||0) : 0;
+  }
+
+  function setProgressBilling(siteId, month, percent){
+    percent = Math.max(0, Math.min(100, Number(percent||0)));
+    const existing = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
+    if(existing){
+      existing.percent = percent;
+    }else{
+      state.progressBillings.push({id:uid(), siteId, month, percent});
+    }
+    save();
+  }
+
+  function renderProgressBillingInputs(){
+    const box = $("progressBillingBox");
+    const list = $("progressBillingList");
+    if(!box || !list) return;
+
+    const clientId = $("invoiceClient")?.value || "";
+    const month = $("invoiceMonth")?.value || monthLocal();
+    const contractSites = state.sites.filter(s=>s.clientId===clientId && (s.contractType||"常用")==="請負");
+
+    if(!contractSites.length){
+      box.style.display = "none";
+      list.innerHTML = "";
+      return;
+    }
+
+    box.style.display = "block";
+    list.innerHTML = contractSites.map(s=>{
+      const percent = getProgressBilling(s.id, month);
+      return `<div class="item">
+        <div class="progress-row">
+          <div>
+            <div class="progress-site-name">${escapeHtml(s.name)}</div>
+            <div class="progress-contract">請負金額 ${s.revenue ? yen(s.revenue) : "未設定"}</div>
+          </div>
+          <div class="bulk-field">
+            <div class="bulk-field-label">出来高 %</div>
+            <input class="progress-input" data-site-id="${s.id}" type="number" min="0" max="100" step="1" inputmode="decimal" placeholder="0" value="${percent || ""}">
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    list.querySelectorAll(".progress-input").forEach(input=>{
+      input.addEventListener("change", ()=>{
+        let value = Number(input.value||0);
+        if(value < 0 || value > 100){
+          alert("出来高は0〜100%で入力してな");
+          value = Math.max(0, Math.min(100, value));
+          input.value = String(value);
+        }
+        setProgressBilling(input.dataset.siteId, month, value);
+        renderInvoice();
+      });
+    });
+  }
+
   function invoiceRowsFor(clientId, month){
     const client = clientById(clientId);
     const period = billingPeriodFor(client, month);
@@ -1568,22 +1644,37 @@
     return clientSites.map(site=>{
       const siteEntries = entries.filter(e=>e.siteId===site.id);
       const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
-      const sharedExpenses = state.siteExpenses
+      const expenses = state.siteExpenses
         .filter(x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end))
         .reduce((a,x)=>a+Number(x.amount||0),0);
-      const expenses = sharedExpenses;
+
+      const contractType = site.contractType || "常用";
+
+      if(contractType === "請負"){
+        const percent = getProgressBilling(site.id, month);
+        const contractAmount = Number(site.revenue||0);
+        const progressAmount = Math.floor(contractAmount * percent / 100);
+        return {
+          site, contractType, jinko,
+          rate:0, laborAmount:0,
+          expenses, percent, contractAmount, progressAmount,
+          amount: progressAmount
+        };
+      }
+
       const client = clientById(site.clientId);
       const rate = Number(site.billRate || client?.billRate || 0);
       const laborAmount = jinko * rate;
       return {
-        site,
-        jinko,
-        rate,
-        laborAmount,
-        expenses,
+        site, contractType, jinko, rate, laborAmount,
+        expenses, percent:0, contractAmount:0, progressAmount:0,
         amount: laborAmount + expenses
       };
-    }).filter(r=>r.jinko>0 || r.expenses>0);
+    }).filter(r=>{
+      return r.contractType==="請負"
+        ? (r.percent>0 || r.expenses>0)
+        : (r.jinko>0 || r.expenses>0);
+    });
   }
 
 
@@ -1633,17 +1724,28 @@
     const total = subtotal + tax;
     const [y,m] = month.split("-");
 
-    const trs = rows.map(r=>`
-      <tr>
+    const trs = rows.map(r=>{
+      if(r.contractType==="請負"){
+        return `<tr>
+          <td>${escapeHtml(r.site.name)}</td>
+          <td>請負</td>
+          <td>出来高 ${Number(r.percent||0).toFixed(Number(r.percent||0)%1 ? 1 : 0)}%</td>
+          <td>${yen(r.contractAmount)}</td>
+          <td>-</td>
+          <td>${yen(r.amount)}</td>
+          ${format==="detail" ? `<td>出来高請求（経費別）</td>` : ""}
+        </tr>`;
+      }
+      return `<tr>
         <td>${escapeHtml(r.site.name)}</td>
-        <td>${r.jinko.toFixed(2)}</td>
+        <td>常用</td>
+        <td>${r.jinko.toFixed(2)}人工</td>
         <td>${yen(r.rate)}</td>
-        <td>${yen(r.laborAmount)}</td>
         <td>${yen(r.expenses)}</td>
         <td>${yen(r.amount)}</td>
         ${format==="detail" ? `<td>${r.expenses ? "経費含む" : ""}</td>` : ""}
-      </tr>
-    `).join("");
+      </tr>`;
+    }).join("");
 
     $("invoicePreview").innerHTML = `
       <div class="invoice-sheet format-${format}">
@@ -1670,9 +1772,9 @@
           <thead>
             <tr>
               <th>現場</th>
-              <th>人工</th>
-              <th>単価</th>
-              <th>人工金額</th>
+              <th>区分</th>
+              <th>人工 / 出来高</th>
+              <th>単価 / 請負金額</th>
               <th>経費</th>
               <th>金額</th>
               ${format==="detail" ? "<th>備考</th>" : ""}
@@ -1701,10 +1803,12 @@
   });
   $("invoiceMonth").addEventListener("change", ()=>{
     updateInvoicePeriodHint();
+    renderProgressBillingInputs();
     renderInvoice();
   });
   $("invoiceClient").addEventListener("change", ()=>{
     updateInvoicePeriodHint();
+    renderProgressBillingInputs();
     renderInvoice();
   });
   $("invoiceTax").addEventListener("change", renderInvoice);
@@ -1719,7 +1823,9 @@
       sites: Array.isArray(clean.sites) ? clean.sites : [],
       workers: Array.isArray(clean.workers) ? clean.workers : [],
       entries: Array.isArray(clean.entries) ? clean.entries : [],
-      siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : []
+      siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : [],
+      recentSelects: clean.recentSelects && typeof clean.recentSelects==="object" ? clean.recentSelects : {},
+      progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : []
     };
   }
 
@@ -1793,7 +1899,10 @@
     renderWorkers();
     renderRecent();
     renderSummary();
-    if($("invoiceClient")) renderInvoice();
+    if($("invoiceClient")){
+      renderProgressBillingInputs();
+      renderInvoice();
+    }
   }
 
   renderAll();
