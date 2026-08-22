@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="人工管理" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>人工管理</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root{
+      --bg:#f5f6f8; --card:#fff; --text:#111827; --sub:#6b7280;
+      --line:#e5e7eb; --accent:#111827; --danger:#b91c1c;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Yu Gothic",sans-serif}
+    body{min-height:100vh;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+    header{
+      position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);
+      backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+      padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    }
+    header h1{margin:0;font-size:20px}
+    header p{margin:3px 0 0;color:var(--sub);font-size:12px}
+    main{padding:14px;max-width:720px;margin:0 auto}
+    .view{display:none}
+    .view.active{display:block}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+    .card h2{font-size:16px;margin:0 0 12px}
+    label{display:block;font-size:12px;color:var(--sub);margin:12px 0 6px}
+    input,select,button{
+      font:inherit;
+    }
+    input,select{
+      width:100%;min-height:46px;border:1px solid #d1d5db;border-radius:12px;
+      padding:10px 12px;background:white;color:var(--text);
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btn{
+      width:100%;min-height:48px;border:0;border-radius:12px;padding:12px 14px;
+      background:var(--accent);color:white;font-weight:700;margin-top:12px;
+    }
+    .btn.secondary{background:#eef0f3;color:#111827}
+    .btn.danger{background:#fee2e2;color:var(--danger)}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff}
+    .item strong{display:block;font-size:14px}
+    .item small{color:var(--sub)}
+    .item-line{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .pill{font-size:12px;background:#eef0f3;padding:4px 8px;border-radius:999px;white-space:nowrap}
+    .empty{color:var(--sub);font-size:13px;padding:10px 0}
+    .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .metric{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+    .metric span{display:block;color:var(--sub);font-size:11px}
+    .metric b{display:block;font-size:20px;margin-top:5px}
+    nav{
+      position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,255,255,.98);
+      border-top:1px solid var(--line);
+      padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+      display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+    }
+    nav button{
+      border:0;background:transparent;border-radius:12px;padding:10px 4px;
+      color:var(--sub);font-size:12px;font-weight:700;
+    }
+    nav button.active{background:#111827;color:#fff}
+    .notice{font-size:12px;color:var(--sub);line-height:1.6}
+    .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 0}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>人工管理</h1>
+    <p id="headerSub">今日の人工を入力</p>
+  </header>
+
+  <main>
+    <section id="view-input" class="view active">
+      <div class="card">
+        <h2>人工入力</h2>
+        <label>日付</label>
+        <input id="entryDate" type="date">
+
+        <label>現場</label>
+        <select id="entrySite"></select>
+
+        <label>作業員</label>
+        <select id="entryWorker"></select>
+
+        <div class="row">
+          <div>
+            <label>人工</label>
+            <select id="entryJinko">
+              <option value="1">1.0</option>
+              <option value="0.5">0.5</option>
+              <option value="0.25">0.25</option>
+            </select>
+          </div>
+          <div>
+            <label>経費</label>
+            <input id="entryExpense" inputmode="numeric" type="number" min="0" value="0">
+          </div>
+        </div>
+
+        <button class="btn" id="addEntryBtn">この内容で登録</button>
+      </div>
+
+      <div class="card">
+        <h2>最近の入力</h2>
+        <div id="recentEntries" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-sites" class="view">
+      <div class="card">
+        <h2>現場登録</h2>
+        <label>現場名</label>
+        <input id="siteName" placeholder="例：○○倉庫新築工事">
+        <label>請負金額（任意）</label>
+        <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
+        <button class="btn" id="addSiteBtn">現場を追加</button>
+      </div>
+      <div class="card">
+        <h2>現場一覧</h2>
+        <div id="siteList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-workers" class="view">
+      <div class="card">
+        <h2>作業員登録</h2>
+        <label>名前</label>
+        <input id="workerName" placeholder="例：田中">
+        <label>1人工単価</label>
+        <input id="workerRate" inputmode="numeric" type="number" min="0" placeholder="例：19000">
+        <button class="btn" id="addWorkerBtn">作業員を追加</button>
+      </div>
+      <div class="card">
+        <h2>作業員一覧</h2>
+        <div id="workerList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-summary" class="view">
+      <div class="card">
+        <h2>集計</h2>
+        <label>月</label>
+        <input id="summaryMonth" type="month">
+        <label>現場</label>
+        <select id="summarySite"></select>
+      </div>
+      <div class="summary-grid" id="metrics"></div>
+      <div class="card">
+        <h2>作業員別</h2>
+        <div id="workerSummary" class="list"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="notice">
+        データはこのSafari内に保存されます。Safariの履歴やWebサイトデータを消すと消える可能性があります。
+        実運用前に、必要なら次の版でバックアップ・共有機能も追加できます。
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-view="input" class="active">入力</button>
+    <button data-view="sites">現場</button>
+    <button data-view="workers">作業員</button>
+    <button data-view="summary">集計</button>
+  </nav>
+
+<script>
+(function(){
+  "use strict";
+
+  const KEY = "jinkou_app_v3";
+  const defaultState = { sites: [], workers: [], entries: [] };
+  let state = load();
+
+  function safeStorage(){
+    try{
+      localStorage.setItem("__test__","1");
+      localStorage.removeItem("__test__");
+      return true;
+    }catch(e){ return false; }
+  }
+  const hasStorage = safeStorage();
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(defaultState));
+    }catch(e){
+      return JSON.parse(JSON.stringify(defaultState));
+    }
+  }
+  function save(){
+    if(!hasStorage) return;
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  const $ = id => document.getElementById(id);
+  const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  function todayLocal(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function monthLocal(){
+    return todayLocal().slice(0,7);
+  }
+
+  $("entryDate").value = todayLocal();
+  $("summaryMonth").value = monthLocal();
+
+  const viewLabels = {
+    input:"今日の人工を入力",
+    sites:"現場の登録・確認",
+    workers:"作業員と単価",
+    summary:"人工と利益を集計"
+  };
+
+  document.querySelectorAll("nav button").forEach(btn=>{
+    btn.addEventListener("click", function(){
+      const target = this.getAttribute("data-view");
+      document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+      $("view-"+target).classList.add("active");
+      document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+      this.classList.add("active");
+      $("headerSub").textContent = viewLabels[target];
+      if(target==="summary") renderSummary();
+      window.scrollTo({top:0,behavior:"instant"});
+    });
+  });
+
+  $("addSiteBtn").addEventListener("click", ()=>{
+    const name = $("siteName").value.trim();
+    if(!name){ alert("現場名を入れてな"); return; }
+    state.sites.push({
+      id:uid(),
+      name,
+      revenue:Number($("siteRevenue").value||0)
+    });
+    save();
+    $("siteName").value="";
+    $("siteRevenue").value="";
+    renderAll();
+    alert("現場を追加したで");
+  });
+
+  $("addWorkerBtn").addEventListener("click", ()=>{
+    const name = $("workerName").value.trim();
+    const rate = Number($("workerRate").value||0);
+    if(!name){ alert("名前を入れてな"); return; }
+    state.workers.push({id:uid(),name,rate});
+    save();
+    $("workerName").value="";
+    $("workerRate").value="";
+    renderAll();
+    alert("作業員を追加したで");
+  });
+
+  $("addEntryBtn").addEventListener("click", ()=>{
+    if(!state.sites.length){ alert("先に現場を登録してな"); return; }
+    if(!state.workers.length){ alert("先に作業員を登録してな"); return; }
+
+    const entry = {
+      id:uid(),
+      date:$("entryDate").value,
+      siteId:$("entrySite").value,
+      workerId:$("entryWorker").value,
+      jinko:Number($("entryJinko").value||0),
+      expense:Number($("entryExpense").value||0)
+    };
+    state.entries.push(entry);
+    save();
+    $("entryExpense").value="0";
+    renderAll();
+    alert("人工を登録したで");
+  });
+
+  $("summaryMonth").addEventListener("change", renderSummary);
+  $("summarySite").addEventListener("change", renderSummary);
+
+  function siteById(id){ return state.sites.find(x=>x.id===id); }
+  function workerById(id){ return state.workers.find(x=>x.id===id); }
+
+  function removeSite(id){
+    if(!confirm("この現場を削除する？関連する人工入力も消えるで。")) return;
+    state.sites = state.sites.filter(x=>x.id!==id);
+    state.entries = state.entries.filter(x=>x.siteId!==id);
+    save(); renderAll();
+  }
+  function removeWorker(id){
+    if(!confirm("この作業員を削除する？関連する人工入力も消えるで。")) return;
+    state.workers = state.workers.filter(x=>x.id!==id);
+    state.entries = state.entries.filter(x=>x.workerId!==id);
+    save(); renderAll();
+  }
+  function removeEntry(id){
+    if(!confirm("この入力を削除する？")) return;
+    state.entries = state.entries.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
+  window.removeSite = removeSite;
+  window.removeWorker = removeWorker;
+  window.removeEntry = removeEntry;
+
+  function renderSelects(){
+    const siteOptions = state.sites.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+    $("entrySite").innerHTML = siteOptions || `<option value="">現場を登録してな</option>`;
+    $("summarySite").innerHTML = `<option value="all">すべての現場</option>` + siteOptions;
+
+    const workerOptions = state.workers.map(w=>`<option value="${w.id}">${escapeHtml(w.name)}</option>`).join("");
+    $("entryWorker").innerHTML = workerOptions || `<option value="">作業員を登録してな</option>`;
+  }
+
+  function renderSites(){
+    if(!state.sites.length){
+      $("siteList").innerHTML = `<div class="empty">まだ現場がないで。</div>`;
+      return;
+    }
+    $("siteList").innerHTML = state.sites.map(s=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(s.name)}</strong>
+            <small>請負 ${s.revenue ? yen(s.revenue) : "未設定"}</small>
+          </div>
+          <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function renderWorkers(){
+    if(!state.workers.length){
+      $("workerList").innerHTML = `<div class="empty">まだ作業員がないで。</div>`;
+      return;
+    }
+    $("workerList").innerHTML = state.workers.map(w=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(w.name)}</strong>
+            <small>${yen(w.rate)} / 1人工</small>
+          </div>
+          <button class="danger-link" onclick="removeWorker('${w.id}')">削除</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function renderRecent(){
+    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+    if(!list.length){
+      $("recentEntries").innerHTML = `<div class="empty">まだ入力がないで。</div>`;
+      return;
+    }
+    $("recentEntries").innerHTML = list.map(e=>{
+      const s = siteById(e.siteId);
+      const w = workerById(e.workerId);
+      return `<div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
+            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${e.expense?` / 経費 ${yen(e.expense)}`:""}</small>
+          </div>
+          <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderSummary(){
+    const month = $("summaryMonth").value || monthLocal();
+    const siteFilter = $("summarySite").value || "all";
+    let entries = state.entries.filter(e=>e.date.startsWith(month));
+    if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
+
+    const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
+    const labor = entries.reduce((a,e)=>{
+      const w = workerById(e.workerId);
+      return a + Number(e.jinko||0) * Number(w?.rate||0);
+    },0);
+    const expenses = entries.reduce((a,e)=>a+Number(e.expense||0),0);
+
+    let revenue = 0;
+    if(siteFilter!=="all"){
+      revenue = Number(siteById(siteFilter)?.revenue||0);
+    }else{
+      const used = new Set(entries.map(e=>e.siteId));
+      revenue = state.sites.filter(s=>used.has(s.id)).reduce((a,s)=>a+Number(s.revenue||0),0);
+    }
+    const gross = revenue - labor - expenses;
+
+    $("metrics").innerHTML = `
+      <div class="metric"><span>人工</span><b>${totalJinko.toFixed(2)}</b></div>
+      <div class="metric"><span>人件費</span><b>${yen(labor)}</b></div>
+      <div class="metric"><span>経費</span><b>${yen(expenses)}</b></div>
+      <div class="metric"><span>粗利</span><b>${yen(gross)}</b></div>
+    `;
+
+    const byWorker = {};
+    entries.forEach(e=>{
+      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0};
+      const w = workerById(e.workerId);
+      byWorker[e.workerId].jinko += Number(e.jinko||0);
+      byWorker[e.workerId].cost += Number(e.jinko||0)*Number(w?.rate||0);
+    });
+
+    const rows = Object.entries(byWorker).map(([wid,v])=>{
+      const w = workerById(wid);
+      return `<div class="item">
+        <div class="item-line">
+          <div><strong>${escapeHtml(w?.name||"不明")}</strong><small>${v.jinko.toFixed(2)}人工</small></div>
+          <b>${yen(v.cost)}</b>
+        </div>
+      </div>`;
+    }).join("");
+    $("workerSummary").innerHTML = rows || `<div class="empty">この条件の入力はないで。</div>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+    }[c]));
+  }
+
+  function renderAll(){
+    renderSelects();
+    renderSites();
+    renderWorkers();
+    renderRecent();
+    renderSummary();
+  }
+
+  renderAll();
+
+  if(!hasStorage){
+    setTimeout(()=>alert("この開き方ではSafariの保存機能が使えへんみたい。URLとして公開して開く必要があるで。"), 400);
+  }
+})();
+</script>
+</body>
+</html>
