@@ -51,7 +51,7 @@
     .item{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff}
     .item strong{display:block;font-size:14px}
     .item small{color:var(--sub)}
-    .item-line{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .item-line{display:flex;justify-content:space-between;gap:10px;align-items:center;min-width:0}.item-line>div:first-child{min-width:0;flex:1}
     .pill{font-size:12px;background:#eef0f3;padding:4px 8px;border-radius:999px;white-space:nowrap}
     .empty{color:var(--sub);font-size:13px;padding:10px 0}
     .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -93,9 +93,9 @@
     .metric:nth-child(4){background:var(--soft-green)}
     .cal-day{transition:.15s ease}
     .cal-day:active{transform:scale(.98);background:#f8fbff}
-    .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 0}
-    .edit-link{border:0;background:transparent;color:#2563eb;font-size:12px;padding:4px 6px}
-    .item-actions{display:flex;gap:4px;align-items:center}
+    .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 2px;white-space:nowrap;flex:0 0 auto}
+    .edit-link{border:0;background:transparent;color:#2563eb;font-size:12px;padding:4px 2px;white-space:nowrap;flex:0 0 auto}
+    .item-actions{display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end;flex-shrink:0;white-space:nowrap;min-width:max-content}
     .invoice-sheet{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
     .invoice-title{text-align:center;font-size:26px;font-weight:800;letter-spacing:.12em;margin:4px 0 20px}
     .invoice-head{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
@@ -164,6 +164,18 @@
       .member-row{grid-template-columns:34px 1fr 70px 122px;gap:6px;padding:9px 8px}
       .member-name{font-size:13px}
     }
+  
+    input,select,textarea{box-sizing:border-box;max-width:100%;min-width:0}
+    input[type="date"],input[type="month"]{
+      display:block;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      box-sizing:border-box;
+      -webkit-appearance:none;
+      appearance:none;
+    }
+
   </style>
 </head>
 <body>
@@ -419,7 +431,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [] };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -428,6 +440,7 @@
   if(!Array.isArray(state.clients)) state.clients = [];
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
+  if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
 
   function safeStorage(){
     try{
@@ -481,6 +494,25 @@
   }
 
   const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
+
+  function rememberRecent(key, value){
+    if(!key || !value || value==="all" || value==="none" || value==="custom" || value==="0") return;
+    const list = Array.isArray(state.recentSelects[key]) ? state.recentSelects[key] : [];
+    state.recentSelects[key] = [value, ...list.filter(v=>v!==value)].slice(0,20);
+    save();
+  }
+
+  function sortByRecent(items, key, getId){
+    const recent = Array.isArray(state.recentSelects[key]) ? state.recentSelects[key] : [];
+    const rank = new Map(recent.map((id,i)=>[String(id), i]));
+    return [...items].sort((a,b)=>{
+      const ar = rank.has(String(getId(a))) ? rank.get(String(getId(a))) : 9999;
+      const br = rank.has(String(getId(b))) ? rank.get(String(getId(b))) : 9999;
+      return ar - br;
+    });
+  }
+
+
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 
   function todayLocal(){
@@ -934,6 +966,19 @@
     renderBulkWorkers();
   });
 
+  ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener("change", ()=>{
+      rememberRecent(id, el.value);
+      // Re-render only after the current selection has been stored.
+      if(id==="entrySite" || id==="summarySite" || id==="invoiceClient") renderSelects();
+      if(id==="siteClient") renderClients();
+      if(id==="workerCompany" || id==="bulkCompanyFilter") renderWorkerCompanies();
+      if(id==="bulkCompanyFilter") renderBulkWorkers();
+    });
+  });
+
   $("selectAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
   });
@@ -948,6 +993,7 @@
 
     const date = $("entryDate").value;
     const siteId = $("entrySite").value;
+    rememberRecent("entrySite", siteId);
     const checked = [...document.querySelectorAll(".bulk-check:checked")];
 
     if(!date){ alert("日付を選んでな"); return; }
@@ -1024,49 +1070,39 @@
   function renderSelects(){
     const invoiceClient = $("invoiceClient");
     if(invoiceClient){
-      invoiceClient.innerHTML = state.clients.length
-        ? state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
+      const current = invoiceClient.value;
+      const clients = sortByRecent(state.clients, "invoiceClient", x=>x.id);
+      invoiceClient.innerHTML = clients.length
+        ? clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
         : `<option value="">元請け会社を登録してな</option>`;
+      if(current && clients.some(c=>c.id===current)) invoiceClient.value = current;
     }
 
-    const siteOptions = state.sites.map(s=>{
+    const entrySites = sortByRecent(state.sites, "entrySite", x=>x.id);
+    const entrySiteOptions = entrySites.map(s=>{
       const c = s.clientId ? clientById(s.clientId) : null;
       const label = c ? `${s.name}｜${c.name}` : s.name;
       return `<option value="${s.id}">${escapeHtml(label)}</option>`;
     }).join("");
-    $("entrySite").innerHTML = siteOptions || `<option value="">現場を登録してな</option>`;
-    $("summarySite").innerHTML = `<option value="all">すべての現場</option>` + siteOptions;
-
-    renderBulkWorkers();
-  }
-
-
-  function renderClients(){
-    const select = $("siteClient");
-    if(select){
-      const opts = state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
-      select.innerHTML = `<option value="">未選択</option>` + opts;
+    const entrySite = $("entrySite");
+    if(entrySite){
+      const current = entrySite.value;
+      entrySite.innerHTML = entrySiteOptions || `<option value="">現場を登録してな</option>`;
+      if(current && entrySites.some(s=>s.id===current)) entrySite.value = current;
     }
 
-    const list = $("clientList");
-    if(!list) return;
-    if(!state.clients.length){
-      list.innerHTML = `<div class="empty">まだ元請け会社がないで。</div>`;
-      return;
+    const summarySites = sortByRecent(state.sites, "summarySite", x=>x.id);
+    const summarySiteOptions = summarySites.map(s=>{
+      const c = s.clientId ? clientById(s.clientId) : null;
+      const label = c ? `${s.name}｜${c.name}` : s.name;
+      return `<option value="${s.id}">${escapeHtml(label)}</option>`;
+    }).join("");
+    const summarySite = $("summarySite");
+    if(summarySite){
+      const current = summarySite.value || "all";
+      summarySite.innerHTML = `<option value="all">すべての現場</option>` + summarySiteOptions;
+      if(current==="all" || summarySites.some(s=>s.id===current)) summarySite.value = current;
     }
-    list.innerHTML = state.clients.map(c=>`
-      <div class="item">
-        <div class="item-line">
-          <div>
-            <strong><span class="client-dot" style="background:${clientColor(c)}"></span>${escapeHtml(c.name)}</strong>
-            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "末日締め"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
-          </div>
-          <div class="item-actions">
-            <button class="edit-link" onclick="editClient('${c.id}')">編集</button>
-            <button class="danger-link" onclick="removeClient('${c.id}')">削除</button>
-          </div>
-        </div>
-      </div>`).join("");
   }
 
   function renderSites(){
@@ -1093,14 +1129,18 @@
   function renderWorkerCompanies(){
     const select = $("workerCompany");
     if(select){
-      const opts = state.workerCompanies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      const companies = sortByRecent(state.workerCompanies, "workerCompany", x=>x.id);
+      const current = select.value;
+      const opts = companies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
       select.innerHTML = `<option value="">未選択</option>` + opts;
+      if(current && companies.some(c=>c.id===current)) select.value = current;
     }
 
     const bulkFilter = $("bulkCompanyFilter");
     if(bulkFilter){
       const current = bulkFilter.value || "all";
-      const opts = state.workerCompanies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      const companies = sortByRecent(state.workerCompanies, "bulkCompanyFilter", x=>x.id);
+      const opts = companies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
       bulkFilter.innerHTML = `<option value="all">すべて</option><option value="none">所属未設定</option>` + opts;
       const exists = [...bulkFilter.options].some(o=>o.value===current);
       bulkFilter.value = exists ? current : "all";
@@ -1495,6 +1535,7 @@
   function renderInvoice(){
     updateInvoicePeriodHint();
     const clientId = $("invoiceClient").value;
+    rememberRecent("invoiceClient", clientId);
     const month = $("invoiceMonth").value || monthLocal();
     const taxRate = Number($("invoiceTax").value||0);
     const number = $("invoiceNumber").value.trim();
