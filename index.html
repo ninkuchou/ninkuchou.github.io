@@ -308,10 +308,27 @@
     try{
       const active = document.activeElement;
       if(active && typeof active.blur === "function") active.blur();
+      document.querySelectorAll("input, textarea, select").forEach(el=>{
+        if(el === document.activeElement && typeof el.blur === "function") el.blur();
+      });
+      document.body.setAttribute("tabindex","-1");
+      document.body.focus({preventScroll:true});
     }catch(e){}
     setTimeout(()=>{
+      try{
+        if(document.activeElement && typeof document.activeElement.blur === "function"){
+          document.activeElement.blur();
+        }
+      }catch(e){}
+    }, 100);
+  }
+
+  function finishRegistration(message){
+    dismissKeyboard();
+    setTimeout(()=>{
       try{ window.scrollTo({top:0, behavior:"smooth"}); }catch(e){}
-    }, 50);
+    }, 180);
+    setTimeout(()=>alert(message), 320);
   }
 
   const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
@@ -372,9 +389,8 @@
     $("clientBillRate").value="";
     $("clientClosingDay").value="";
     $("clientPayment").value="";
-    dismissKeyboard();
     renderAll();
-    alert("元請け会社を追加したで");
+    finishRegistration("元請け会社を追加したで");
   });
 
   $("addSiteBtn").addEventListener("click", ()=>{
@@ -391,9 +407,8 @@
     $("siteName").value="";
     $("siteRevenue").value="";
     $("siteBillRate").value="";
-    dismissKeyboard();
     renderAll();
-    alert("現場を追加したで");
+    finishRegistration("現場を追加したで");
   });
 
 
@@ -403,9 +418,8 @@
     state.workerCompanies.push({id:uid(), name});
     save();
     $("workerCompanyName").value="";
-    dismissKeyboard();
     renderAll();
-    alert("所属会社を追加したで");
+    finishRegistration("所属会社を追加したで");
   });
 
   $("addWorkerBtn").addEventListener("click", ()=>{
@@ -421,9 +435,8 @@
     save();
     $("workerName").value="";
     $("workerRate").value="";
-    dismissKeyboard();
     renderAll();
-    alert("作業員を追加したで");
+    finishRegistration("作業員を追加したで");
   });
 
   $("summaryMonth").addEventListener("change", renderSummary);
