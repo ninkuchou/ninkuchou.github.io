@@ -75,6 +75,8 @@
     nav button[data-view="summary"].active{background:var(--soft-orange);color:var(--summary)}
     nav button[data-view="invoice"].active{background:var(--soft-cyan);color:var(--invoice)}
     .notice{font-size:12px;color:var(--sub);line-height:1.6}
+    .data-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .file-input{display:none}
     #view-input .card:first-child{border-top:5px solid var(--input)}
     #view-sites .card:first-child{border-top:5px solid var(--sites)}
     #view-workers .card:first-child{border-top:5px solid var(--workers)}
@@ -109,7 +111,7 @@
     .cal-day{min-height:74px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px;cursor:pointer}
     .cal-day.empty{background:transparent;border-color:transparent;cursor:default}
     .cal-date{font-size:12px;font-weight:800;margin-bottom:5px}
-    .cal-chip{display:block;font-size:10px;line-height:1.15;background:#eef0f3;border-radius:7px;padding:3px 4px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cal-chip{display:block;font-size:10px;line-height:1.1;background:#eef0f3;border-radius:5px;padding:2px 3px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
     .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
@@ -137,6 +139,9 @@
     .member-row select,.member-row input[type="number"]{min-height:40px;padding:7px 8px}
     .member-name{font-weight:700;font-size:14px}
     .member-rate{font-size:11px;color:var(--sub);margin-top:2px}
+    .bulk-field{display:flex;flex-direction:column;gap:3px}
+    .bulk-field-label{font-size:10px;font-weight:700;color:var(--sub);text-align:center}
+    .bulk-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
     .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
     @media(max-width:430px){
@@ -162,7 +167,7 @@
         <select id="entrySite"></select>
 
         <label>その日の現場経費</label>
-        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" value="0" placeholder="例：高速・駐車場など">
+        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="例：高速・駐車場など">
         <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
 
         <label>メンバー</label>
@@ -342,6 +347,18 @@
       </div>
 
       <div id="invoicePreview"></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>データ入出力</h2>
+      <div class="notice" style="margin-bottom:10px">
+        全データをファイルに書き出して、別端末で読み込めます。
+      </div>
+      <div class="data-actions">
+        <button class="btn secondary" id="exportDataBtn" type="button">データを書き出す</button>
+        <button class="btn secondary" id="importDataBtn" type="button">データを読み込む</button>
+      </div>
+      <input class="file-input" id="importDataFile" type="file" accept=".json,application/json">
     </section>
 
     <section class="card">
@@ -796,14 +813,23 @@
           <div class="member-name">${escapeHtml(w.name)}</div>
           <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</div>
         </div>
-        <select class="bulk-jinko" data-worker-id="${w.id}">
-          <option value="1" selected>1.0</option>
-          <option value="0.5">0.5</option>
-          <option value="0.25">0.25</option>
-        </select>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-          <input class="bulk-early" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" value="0" placeholder="早出h">
-          <input class="bulk-overtime" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" value="0" placeholder="残業h">
+        <div class="bulk-field">
+          <div class="bulk-field-label">人工</div>
+          <select class="bulk-jinko" data-worker-id="${w.id}">
+            <option value="1" selected>1.0</option>
+            <option value="0.5">0.5</option>
+            <option value="0.25">0.25</option>
+          </select>
+        </div>
+        <div class="bulk-time-fields">
+          <div class="bulk-field">
+            <div class="bulk-field-label">早出</div>
+            <input class="bulk-early" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" placeholder="時間">
+          </div>
+          <div class="bulk-field">
+            <div class="bulk-field-label">残業</div>
+            <input class="bulk-overtime" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" placeholder="時間">
+          </div>
         </div>
       </div>
     `).join("");
@@ -881,8 +907,8 @@
     }
 
     save();
-    document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="0");
-    $("siteDayExpense").value="0";
+    document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
+    $("siteDayExpense").value="";
     $("siteDayExpenseMemo").value="";
     dismissKeyboard();
     renderRecent();
@@ -1085,7 +1111,7 @@
       const chips = siteRows.slice(0,3).map(([siteId,jinko])=>{
         const s = siteById(siteId);
         const c = s?.clientId ? clientById(s.clientId) : null;
-        return `<span class="cal-chip" style="border-left:4px solid ${clientColor(c)}">${escapeHtml(s?.name||"不明")} / ${jinko.toFixed(jinko % 1 ? 1 : 0)}</span>`;
+        return `<span class="cal-chip" style="border-bottom:3px solid ${clientColor(c)}">${escapeHtml(s?.name||"不明")} / ${jinko.toFixed(jinko % 1 ? 1 : 0)}</span>`;
       }).join("");
 
       const clientIds = [...new Set(dayEntries.map(e=>{
@@ -1387,6 +1413,80 @@
   $("invoiceMonth").addEventListener("change", renderInvoice);
   $("invoiceClient").addEventListener("change", renderInvoice);
   $("invoiceTax").addEventListener("change", renderInvoice);
+
+
+  function normalizeImportedState(data){
+    const clean = data && typeof data === "object" ? data : {};
+    return {
+      clients: Array.isArray(clean.clients) ? clean.clients : [],
+      workerCompanies: Array.isArray(clean.workerCompanies) ? clean.workerCompanies : [],
+      sites: Array.isArray(clean.sites) ? clean.sites : [],
+      workers: Array.isArray(clean.workers) ? clean.workers : [],
+      entries: Array.isArray(clean.entries) ? clean.entries : [],
+      siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : []
+    };
+  }
+
+  $("exportDataBtn").addEventListener("click", ()=>{
+    const payload = {
+      app:"人工管理",
+      version:1,
+      exportedAt:new Date().toISOString(),
+      data:state
+    };
+
+    const blob = new Blob(
+      [JSON.stringify(payload, null, 2)],
+      {type:"application/json"}
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = todayLocal().replaceAll("-","");
+    a.href = url;
+    a.download = `人工管理バックアップ_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  });
+
+  $("importDataBtn").addEventListener("click", ()=>{
+    $("importDataFile").value = "";
+    $("importDataFile").click();
+  });
+
+  $("importDataFile").addEventListener("change", async (event)=>{
+    const file = event.target.files && event.target.files[0];
+    if(!file) return;
+
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const incoming = parsed && parsed.data ? parsed.data : parsed;
+      const normalized = normalizeImportedState(incoming);
+
+      const counts = [
+        normalized.clients.length,
+        normalized.workerCompanies.length,
+        normalized.sites.length,
+        normalized.workers.length,
+        normalized.entries.length,
+        normalized.siteExpenses.length
+      ].reduce((a,b)=>a+b,0);
+
+      if(!confirm(`このファイルのデータ（${counts}件）で現在のデータを置き換える？`)){
+        return;
+      }
+
+      state = normalized;
+      save();
+      renderAll();
+      dismissKeyboard();
+      alert("データを読み込んだで");
+    }catch(e){
+      alert("このファイルは読み込めへんかった。人工管理アプリから書き出したJSONを選んでな");
+    }
+  });
 
   function renderAll(){
     renderClients();
