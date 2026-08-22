@@ -245,7 +245,16 @@
         <div class="row">
           <div>
             <label>締め日（任意）</label>
-            <input id="clientClosingDay" type="number" min="1" max="31" placeholder="例：20">
+            <select id="clientClosingDayPreset">
+              <option value="0">末日</option>
+              <option value="5">5日</option>
+              <option value="10">10日</option>
+              <option value="15">15日</option>
+              <option value="20">20日</option>
+              <option value="25">25日</option>
+              <option value="custom">その他（手入力）</option>
+            </select>
+            <input id="clientClosingDay" type="number" min="1" max="31" inputmode="numeric" placeholder="例：13" style="display:none;margin-top:6px">
           </div>
           <div>
             <label>支払日メモ</label>
@@ -533,16 +542,49 @@
     });
   });
 
+
+  function syncClosingDayPreset(){
+    const preset = $("clientClosingDayPreset");
+    const custom = $("clientClosingDay");
+    if(!preset || !custom) return;
+
+    if(preset.value === "custom"){
+      custom.style.display = "block";
+    }else{
+      custom.style.display = "none";
+      custom.value = preset.value === "0" ? "" : preset.value;
+    }
+  }
+
+  $("clientClosingDayPreset").addEventListener("change", ()=>{
+    syncClosingDayPreset();
+    if($("clientClosingDayPreset").value === "custom"){
+      setTimeout(()=>$("clientClosingDay").focus(), 50);
+    }
+  });
+
   $("addClientBtn").addEventListener("click", ()=>{
     const name = $("clientName").value.trim();
     if(!name){ alert("会社名を入れてな"); return; }
+    if($("clientClosingDayPreset").value === "custom"){
+      const customClosing = Number($("clientClosingDay").value||0);
+      if(customClosing < 1 || customClosing > 31){
+        alert("締め日は1〜31日で入力してな");
+        return;
+      }
+    }
 
     const data = {
       name,
       address:$("clientAddress").value.trim(),
       billRate:Number($("clientBillRate").value||0),
       color:$("clientColor").value || "#2563eb",
-      closingDay:Number($("clientClosingDay").value||0),
+      closingDay:(()=>{
+        const preset = $("clientClosingDayPreset").value;
+        if(preset === "0") return 0;
+        if(preset === "custom") return Number($("clientClosingDay").value||0);
+        return Number(preset||0);
+      })(),
       payment:$("clientPayment").value.trim()
     };
 
@@ -562,7 +604,9 @@
     $("clientBillRate").value="";
     $("clientColor").value="#2563eb";
     document.querySelectorAll("#clientColorPicker .color-choice").forEach((b,i)=>b.classList.toggle("selected", i===0));
+    $("clientClosingDayPreset").value="0";
     $("clientClosingDay").value="";
+    syncClosingDayPreset();
     $("clientPayment").value="";
     renderAll();
     finishRegistration(wasEdit ? "元請け会社を更新したで" : "元請け会社を追加したで");
@@ -694,7 +738,16 @@
     $("clientName").value = c.name || "";
     $("clientAddress").value = c.address || "";
     $("clientBillRate").value = c.billRate || "";
-    $("clientClosingDay").value = c.closingDay || "";
+    const closing = Number(c.closingDay||0);
+    const standardClosingDays = [0,5,10,15,20,25];
+    if(standardClosingDays.includes(closing)){
+      $("clientClosingDayPreset").value = String(closing);
+      $("clientClosingDay").value = closing ? String(closing) : "";
+    }else{
+      $("clientClosingDayPreset").value = "custom";
+      $("clientClosingDay").value = closing ? String(closing) : "";
+    }
+    syncClosingDayPreset();
     $("clientPayment").value = c.payment || "";
     $("clientColor").value = c.color || "#2563eb";
     document.querySelectorAll("#clientColorPicker .color-choice").forEach(b=>{
@@ -1006,7 +1059,7 @@
         <div class="item-line">
           <div>
             <strong><span class="client-dot" style="background:${clientColor(c)}"></span>${escapeHtml(c.name)}</strong>
-            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "締め日未設定"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
+            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "末日締め"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
           </div>
           <div class="item-actions">
             <button class="edit-link" onclick="editClient('${c.id}')">編集</button>
@@ -1436,7 +1489,7 @@
     const p = billingPeriodFor(c, month);
     box.textContent = c.closingDay
       ? `${c.closingDay}日締め：${p.start} 〜 ${p.end}`
-      : `締め日未設定：${p.start} 〜 ${p.end}`;
+      : `末日締め：${p.start} 〜 ${p.end}`;
   }
 
   function renderInvoice(){
