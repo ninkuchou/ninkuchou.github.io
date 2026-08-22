@@ -1,0 +1,1923 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="人工管理" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>人工管理</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root{
+      --bg:#f3f6fb; --card:#fff; --text:#142033; --sub:#6b7280;
+      --line:#dfe5ee; --accent:#2563eb; --danger:#b91c1c;
+      --input:#2563eb; --sites:#16a34a; --workers:#7c3aed; --summary:#ea580c; --invoice:#0891b2;
+      --soft-blue:#eaf2ff; --soft-green:#eaf8ef; --soft-purple:#f1ebff; --soft-orange:#fff0e6; --soft-cyan:#e7f8fb;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Yu Gothic",sans-serif}
+    body{min-height:100vh;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+    header{
+      position:sticky;top:0;z-index:10;background:linear-gradient(135deg,#ffffff 0%,#eef4ff 100%);
+      backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+      padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    }
+    header h1{margin:0;font-size:20px}
+    header p{margin:3px 0 0;color:var(--sub);font-size:12px}
+    main{padding:14px;max-width:720px;margin:0 auto}
+    .view{display:none}
+    .view.active{display:block}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 5px 18px rgba(30,64,175,.05)}
+    .card h2{font-size:16px;margin:0 0 12px}
+    label{display:block;font-size:12px;color:var(--sub);margin:12px 0 6px}
+    input,select,button{
+      font:inherit;
+    }
+    input,select{
+      width:100%;min-height:46px;border:1px solid #d1d5db;border-radius:12px;
+      padding:10px 12px;background:white;color:var(--text);
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btn{
+      width:100%;min-height:48px;border:0;border-radius:12px;padding:12px 14px;
+      background:linear-gradient(135deg,var(--accent),#1d4ed8);color:white;font-weight:700;margin-top:12px;
+      box-shadow:0 6px 14px rgba(37,99,235,.18);
+    }
+    .btn.secondary{background:#eef0f3;color:#111827}
+    .btn.danger{background:#fee2e2;color:var(--danger)}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff}
+    .item strong{display:block;font-size:14px}
+    .item small{color:var(--sub)}
+    .item-line{display:flex;justify-content:space-between;gap:10px;align-items:center;min-width:0}.item-line>div:first-child{min-width:0;flex:1}
+    .pill{font-size:12px;background:#eef0f3;padding:4px 8px;border-radius:999px;white-space:nowrap}
+    .empty{color:var(--sub);font-size:13px;padding:10px 0}
+    .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .metric{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+    .metric span{display:block;color:var(--sub);font-size:11px}
+    .metric b{display:block;font-size:20px;margin-top:5px}
+    nav{
+      position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,255,255,.98);
+      border-top:1px solid var(--line);
+      padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+      display:grid;grid-template-columns:repeat(5,1fr);gap:6px;
+    }
+    nav button{
+      border:0;background:transparent;border-radius:14px;padding:8px 2px 7px;
+      color:var(--sub);font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px;
+    }
+    nav button .nav-icon{font-size:20px;line-height:1}
+    nav button[data-view="input"].active{background:var(--soft-blue);color:var(--input)}
+    nav button[data-view="sites"].active{background:var(--soft-green);color:var(--sites)}
+    nav button[data-view="workers"].active{background:var(--soft-purple);color:var(--workers)}
+    nav button[data-view="summary"].active{background:var(--soft-orange);color:var(--summary)}
+    nav button[data-view="invoice"].active{background:var(--soft-cyan);color:var(--invoice)}
+    .notice{font-size:12px;color:var(--sub);line-height:1.6}
+    .data-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .file-input{display:none}
+    #view-input .card:first-child{border-top:5px solid var(--input)}
+    #view-sites .card:first-child{border-top:5px solid var(--sites)}
+    #view-workers .card:first-child{border-top:5px solid var(--workers)}
+    #view-summary .card:first-child{border-top:5px solid var(--summary)}
+    #view-invoice .card:first-child{border-top:5px solid var(--invoice)}
+    #view-input h2{color:var(--input)}
+    #view-sites h2{color:var(--sites)}
+    #view-workers h2{color:var(--workers)}
+    #view-summary h2{color:var(--summary)}
+    #view-invoice h2{color:var(--invoice)}
+    .metric:nth-child(1){background:var(--soft-blue)}
+    .metric:nth-child(2){background:var(--soft-purple)}
+    .metric:nth-child(3){background:var(--soft-orange)}
+    .metric:nth-child(4){background:var(--soft-green)}
+    .cal-day{transition:.15s ease}
+    .cal-day:active{transform:scale(.98);background:#f8fbff}
+    .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 2px;white-space:nowrap;flex:0 0 auto}
+    .edit-link{border:0;background:transparent;color:#2563eb;font-size:12px;padding:4px 2px;white-space:nowrap;flex:0 0 auto}
+    .item-actions{display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end;flex-shrink:0;white-space:nowrap;min-width:max-content}
+    .invoice-sheet{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
+    .invoice-title{text-align:center;font-size:26px;font-weight:800;letter-spacing:.12em;margin:4px 0 20px}
+    .invoice-head{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+    .invoice-right{text-align:right}
+    .invoice-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+    .invoice-table th,.invoice-table td{border:1px solid #d1d5db;padding:8px;text-align:right}
+    .invoice-table th:first-child,.invoice-table td:first-child{text-align:left}
+    .invoice-total{font-size:22px;font-weight:800;text-align:right;margin-top:18px}
+    .invoice-sheet.format-simple .invoice-title{font-size:22px;letter-spacing:.06em}
+    .invoice-sheet.format-simple .invoice-head{grid-template-columns:1fr;gap:8px}
+    .invoice-sheet.format-simple .invoice-right{text-align:left}
+    .invoice-sheet.format-simple .invoice-table th:nth-child(4),
+    .invoice-sheet.format-simple .invoice-table td:nth-child(4){display:none}
+    .invoice-sheet.format-detail .invoice-title{text-align:left;letter-spacing:.04em}
+    .invoice-sheet.format-detail .invoice-total{text-align:left;border-top:2px solid #111827;padding-top:12px}
+    .invoice-sheet.format-detail .invoice-table th{background:#f3f4f6}
+    .muted{color:var(--sub);font-size:12px}
+    .section-title{font-size:13px;font-weight:800;margin:16px 0 8px}
+    .progress-row{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:10px;align-items:center}
+    .progress-row input{min-height:42px;text-align:right}
+    .progress-site-name{font-weight:700;font-size:13px}
+    .progress-contract{font-size:11px;color:var(--sub);margin-top:2px}
+    .calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;max-width:100%;overflow:hidden}
+    .cal-head{min-width:0;text-align:center;font-size:11px;color:var(--sub);font-weight:700;padding:4px 0;overflow:hidden}
+    .cal-day{min-width:0;min-height:74px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px;cursor:pointer}
+    .cal-day.empty{background:transparent;border-color:transparent;cursor:default}
+    .cal-date{font-size:11px;font-weight:800;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:clip}
+    .cal-chip{display:block;width:100%;max-width:100%;min-width:0;font-size:9px;line-height:1.1;background:#eef0f3;border-radius:5px;padding:2px 2px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
+    .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
+    .color-choice.selected{border-color:#111827;box-shadow:0 0 0 2px #fff inset}
+    .client-dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;vertical-align:-1px}
+    .cal-client-bar{height:5px;border-radius:999px;margin-top:4px}
+    .cal-client-tags{display:flex;gap:2px;flex-wrap:wrap;margin-top:2px;max-width:100%;overflow:hidden}
+    .cal-client-tag{width:12px;height:12px;border-radius:4px;border:1px solid rgba(0,0,0,.08)}
+    .day-detail-title{font-weight:800;font-size:15px;margin-bottom:10px}
+    @media(max-width:430px){
+      #view-summary .card{padding:10px}
+      .calendar{gap:3px}
+      .cal-head{font-size:10px}
+      .cal-day{min-width:0;min-height:64px;padding:4px 3px;border-radius:9px}
+      .cal-date{font-size:10px;margin-bottom:2px}
+      .cal-chip{font-size:8px;padding:2px 1px;margin-top:1px;border-radius:4px}
+      .cal-client-tag{width:9px;height:9px;border-radius:3px}
+    }
+    @media print{
+      header,nav,.no-print,main>section:not(#view-invoice){display:none!important}
+      body{background:white;padding:0}
+      main{padding:0;max-width:none}
+      #view-invoice{display:block!important}
+      #invoiceControls{display:none!important}
+      .invoice-sheet{border:0;border-radius:0;margin:0;padding:20mm}
+    }
+    .member-row{display:grid;grid-template-columns:42px 1fr 78px 138px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+    .member-row input[type="checkbox"]{width:24px;height:24px;min-height:24px}
+    .member-row select,.member-row input[type="number"]{min-height:40px;padding:7px 8px}
+    .member-name{font-weight:700;font-size:14px}
+    .member-rate{font-size:11px;color:var(--sub);margin-top:2px}
+    .bulk-field{display:flex;flex-direction:column;gap:3px}
+    .bulk-field-label{font-size:10px;font-weight:700;color:var(--sub);text-align:center}
+    .bulk-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+    .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
+    .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    @media(max-width:430px){
+      .member-row{grid-template-columns:34px 1fr 70px 122px;gap:6px;padding:9px 8px}
+      .member-name{font-size:13px}
+    }
+  
+    input,textarea{box-sizing:border-box;max-width:100%;min-width:0}
+    select{
+      box-sizing:border-box;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      background-color:#fff;
+    }
+    input[type="date"],input[type="month"]{
+      display:block;
+      width:calc(100% - 2px);
+      max-width:calc(100% - 2px);
+      min-width:0;
+      box-sizing:border-box;
+      -webkit-appearance:auto;
+      appearance:auto;
+    }
+
+  
+    .date-wrap{
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      box-sizing:border-box;
+      border:1px solid #d1d5db;
+      border-radius:12px;
+      background:#fff;
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+    }
+    .date-wrap input[type="date"],
+    .date-wrap input[type="month"]{
+      flex:1 1 auto;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      box-sizing:border-box;
+      border:0 !important;
+      border-radius:0 !important;
+      background:transparent;
+      margin:0;
+      padding:10px 12px;
+      min-height:46px;
+      box-shadow:none !important;
+      outline:none;
+    }
+    .date-wrap input[type="date"]::-webkit-date-and-time-value,
+    .date-wrap input[type="month"]::-webkit-date-and-time-value{
+      text-align:center;
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>人工管理</h1>
+    <p id="headerSub">今日の人工を入力</p>
+  </header>
+
+  <main>
+    <section id="view-input" class="view active">
+      <div class="card">
+        <h2>まとめて人工入力</h2>
+        <label>日付</label>
+        <div class="date-wrap"><input id="entryDate" type="date"></div>
+
+        <label>現場</label>
+        <select id="entrySite"></select>
+
+        <label>その日の現場経費</label>
+        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
+        <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
+
+        <label>所属会社で絞り込み</label>
+        <select id="bulkCompanyFilter"></select>
+
+        <label>メンバー</label>
+        <div id="bulkWorkerList" class="list"></div>
+
+        <div class="bulk-actions">
+          <button class="btn secondary" id="selectAllBtn" type="button">全員チェック</button>
+          <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
+        </div>
+
+        <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業を時間単位で入力できます。</div>
+        <button class="btn" id="addBulkEntryBtn">人工・経費を登録</button>
+      </div>
+
+      <div class="card">
+        <h2>最近の入力</h2>
+        <div id="recentEntries" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-sites" class="view">
+      <div class="card">
+        <h2>現場登録</h2>
+        <label>現場名</label>
+        <input id="siteName" placeholder="例：○○倉庫新築工事">
+        <label>元請け会社</label>
+        <select id="siteClient"></select>
+
+        <label>契約区分</label>
+        <select id="siteContractType">
+          <option value="常用">常用</option>
+          <option value="請負">請負</option>
+        </select>
+
+        <label>請負金額（任意）</label>
+        <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
+        <label>現場別の例外単価 / 1人工（任意）</label>
+        <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
+        <button class="btn" id="addSiteBtn">現場を追加</button>
+      </div>
+      <div class="card">
+        <h2>元請け会社登録</h2>
+        <label>会社名</label>
+        <input id="clientName" placeholder="例：○○建設">
+        <label>請求先住所（任意）</label>
+        <input id="clientAddress" placeholder="例：兵庫県神戸市...">
+        <label>基本人工単価</label>
+        <input id="clientBillRate" inputmode="numeric" type="number" min="0" placeholder="例：30000">
+
+        <label>カレンダー表示色</label>
+        <div class="client-color-row" id="clientColorPicker">
+          <button type="button" class="color-choice selected" data-color="#2563eb" style="background:#2563eb" aria-label="青"></button>
+          <button type="button" class="color-choice" data-color="#16a34a" style="background:#16a34a" aria-label="緑"></button>
+          <button type="button" class="color-choice" data-color="#7c3aed" style="background:#7c3aed" aria-label="紫"></button>
+          <button type="button" class="color-choice" data-color="#ea580c" style="background:#ea580c" aria-label="オレンジ"></button>
+          <button type="button" class="color-choice" data-color="#dc2626" style="background:#dc2626" aria-label="赤"></button>
+          <button type="button" class="color-choice" data-color="#0891b2" style="background:#0891b2" aria-label="水色"></button>
+          <button type="button" class="color-choice" data-color="#ca8a04" style="background:#ca8a04" aria-label="黄"></button>
+          <button type="button" class="color-choice" data-color="#db2777" style="background:#db2777" aria-label="ピンク"></button>
+        </div>
+        <input id="clientColor" type="hidden" value="#2563eb">
+
+        <div class="row">
+          <div>
+            <label>締め日（任意）</label>
+            <select id="clientClosingDayPreset">
+              <option value="0">末日</option>
+              <option value="5">5日</option>
+              <option value="10">10日</option>
+              <option value="15">15日</option>
+              <option value="20">20日</option>
+              <option value="25">25日</option>
+              <option value="custom">その他（手入力）</option>
+            </select>
+            <input id="clientClosingDay" type="number" min="1" max="31" inputmode="numeric" placeholder="例：13" style="display:none;margin-top:6px">
+          </div>
+          <div>
+            <label>支払日メモ</label>
+            <input id="clientPayment" placeholder="例：翌月末">
+          </div>
+        </div>
+        <button class="btn" id="addClientBtn">元請け会社を追加</button>
+      </div>
+      <div class="card">
+        <h2>元請け会社一覧</h2>
+        <div id="clientList" class="list"></div>
+      </div>
+      <div class="card">
+        <h2>現場一覧</h2>
+        <div id="siteList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-workers" class="view">
+      <div class="card">
+        <h2>所属会社登録</h2>
+        <label>会社名</label>
+        <input id="workerCompanyName" placeholder="例：自社 / ○○興業">
+        <label>基本支払人工単価</label>
+        <input id="workerCompanyRate" inputmode="numeric" type="number" min="0" placeholder="例：20000">
+        <button class="btn" id="addWorkerCompanyBtn">所属会社を追加</button>
+      </div>
+      <div class="card">
+        <h2>所属会社一覧</h2>
+        <div id="workerCompanyList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h2>作業員登録</h2>
+        <label>名前</label>
+        <input id="workerName" placeholder="例：田中">
+        <label>所属会社</label>
+        <select id="workerCompany"></select>
+        <label>作業員別の例外単価（任意）</label>
+        <input id="workerRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら所属会社の基本単価">
+
+        <div class="row">
+          <div>
+            <label>早出単価 / 1時間</label>
+            <input id="workerEarlyRate" inputmode="numeric" type="number" min="0" placeholder="例：2500">
+          </div>
+          <div>
+            <label>残業単価 / 1時間</label>
+            <input id="workerOvertimeRate" inputmode="numeric" type="number" min="0" placeholder="例：3000">
+          </div>
+        </div>
+
+        <button class="btn" id="addWorkerBtn">作業員を追加</button>
+      </div>
+      <div class="card">
+        <h2>作業員一覧</h2>
+        <div id="workerList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-summary" class="view">
+      <div class="card">
+        <h2>集計</h2>
+        <label>月</label>
+        <div class="date-wrap"><input id="summaryMonth" type="month"></div>
+        <label>現場</label>
+        <select id="summarySite"></select>
+      </div>
+      <div class="summary-grid" id="metrics"></div>
+      <div class="helper">人件費には、人工代＋早出代＋残業代を含みます。</div>
+
+      <div class="card">
+        <h2>月間カレンダー</h2>
+        <div id="summaryCalendar"></div>
+      </div>
+
+      <div class="card" id="dayDetailCard">
+        <h2>日別詳細</h2>
+        <div id="dayDetail" class="empty">カレンダーの日付を押してな。</div>
+      </div>
+
+      <div class="card">
+        <h2>作業員別</h2>
+        <div id="workerSummary" class="list"></div>
+      </div>
+      <div class="card">
+        <h2>所属会社別</h2>
+        <div id="companySummary" class="list"></div>
+      </div>
+    </section>
+
+
+    <section id="view-invoice" class="view">
+      <div class="card no-print" id="invoiceControls">
+        <h2>請求書作成</h2>
+        <label>請求月</label>
+        <div class="date-wrap"><input id="invoiceMonth" type="month"></div>
+
+        <label>元請け会社</label>
+        <select id="invoiceClient"></select>
+
+        <div class="helper" id="invoicePeriodHint"></div>
+
+        <div id="progressBillingBox" style="display:none">
+          <label>請負現場の出来高</label>
+          <div id="progressBillingList" class="list"></div>
+          <div class="helper">その月に請求する出来高率を入力。例：30なら請負金額の30%を請求します。</div>
+        </div>
+
+        <label>請求書フォーマット</label>
+        <select id="invoiceFormat">
+          <option value="standard">標準</option>
+          <option value="simple">シンプル</option>
+          <option value="detail">明細重視</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label>消費税率</label>
+            <select id="invoiceTax">
+              <option value="10">10%</option>
+              <option value="0">0%</option>
+            </select>
+          </div>
+          <div>
+            <label>請求書番号</label>
+            <input id="invoiceNumber" placeholder="例：2026-08-001">
+          </div>
+        </div>
+
+        <button class="btn" id="makeInvoiceBtn">請求書を作成</button>
+        <button class="btn secondary" id="printInvoiceBtn">PDF保存・印刷</button>
+      </div>
+
+      <div id="invoicePreview"></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>データ入出力</h2>
+      <div class="notice" style="margin-bottom:10px">
+        全データをファイルに書き出して、別端末で読み込めます。
+      </div>
+      <div class="data-actions">
+        <button class="btn secondary" id="exportDataBtn" type="button">データを書き出す</button>
+        <button class="btn secondary" id="importDataBtn" type="button">データを読み込む</button>
+      </div>
+      <input class="file-input" id="importDataFile" type="file" accept=".json,application/json">
+    </section>
+
+    <section class="card">
+      <div class="notice">
+        データはこのSafari内に保存されます。Safariの履歴やWebサイトデータを消すと消える可能性があります。
+        実運用前に、必要なら次の版でバックアップ・共有機能も追加できます。
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-view="input" class="active"><span class="nav-icon">✍️</span><span>入力</span></button>
+    <button data-view="sites"><span class="nav-icon">🏗️</span><span>現場</span></button>
+    <button data-view="workers"><span class="nav-icon">👷</span><span>作業員</span></button>
+    <button data-view="summary"><span class="nav-icon">📊</span><span>集計</span></button>
+    <button data-view="invoice"><span class="nav-icon">🧾</span><span>請求</span></button>
+  </nav>
+
+<script>
+(function(){
+  "use strict";
+
+  const KEY = "jinkou_app_v3";
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [] };
+  let state = load();
+  let editingClientId = "";
+  let editingSiteId = "";
+  let editingWorkerCompanyId = "";
+  let editingWorkerId = "";
+  if(!Array.isArray(state.clients)) state.clients = [];
+  if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
+  if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
+  if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+  if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
+
+  function safeStorage(){
+    try{
+      localStorage.setItem("__test__","1");
+      localStorage.removeItem("__test__");
+      return true;
+    }catch(e){ return false; }
+  }
+  const hasStorage = safeStorage();
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(defaultState));
+    }catch(e){
+      return JSON.parse(JSON.stringify(defaultState));
+    }
+  }
+  function save(){
+    if(!hasStorage) return;
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  const $ = id => document.getElementById(id);
+
+  function dismissKeyboard(){
+    try{
+      const active = document.activeElement;
+      if(active && typeof active.blur === "function") active.blur();
+      document.querySelectorAll("input, textarea, select").forEach(el=>{
+        if(el === document.activeElement && typeof el.blur === "function") el.blur();
+      });
+      document.body.setAttribute("tabindex","-1");
+      document.body.focus({preventScroll:true});
+    }catch(e){}
+    setTimeout(()=>{
+      try{
+        if(document.activeElement && typeof document.activeElement.blur === "function"){
+          document.activeElement.blur();
+        }
+      }catch(e){}
+    }, 100);
+  }
+
+  function finishRegistration(message){
+    dismissKeyboard();
+    setTimeout(()=>{
+      try{ window.scrollTo({top:0, behavior:"smooth"}); }catch(e){}
+    }, 180);
+    setTimeout(()=>alert(message), 320);
+  }
+
+  const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
+
+  function rememberRecent(key, value){
+    if(!key || !value || value==="all" || value==="none" || value==="custom" || value==="0") return;
+    const list = Array.isArray(state.recentSelects[key]) ? state.recentSelects[key] : [];
+    state.recentSelects[key] = [value, ...list.filter(v=>v!==value)].slice(0,20);
+    save();
+  }
+
+  function sortByRecent(items, key, getId){
+    const recent = Array.isArray(state.recentSelects[key]) ? state.recentSelects[key] : [];
+    const rank = new Map(recent.map((id,i)=>[String(id), i]));
+    return [...items].sort((a,b)=>{
+      const ar = rank.has(String(getId(a))) ? rank.get(String(getId(a))) : 9999;
+      const br = rank.has(String(getId(b))) ? rank.get(String(getId(b))) : 9999;
+      return ar - br;
+    });
+  }
+
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  function todayLocal(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function monthLocal(){
+    return todayLocal().slice(0,7);
+  }
+
+  $("entryDate").value = todayLocal();
+  $("summaryMonth").value = monthLocal();
+  $("invoiceMonth").value = monthLocal();
+
+  const viewLabels = {
+    input:"今日の人工を入力",
+    sites:"現場の登録・確認",
+    workers:"作業員と単価",
+    summary:"人工と利益を集計",
+    invoice:"元請けごとの請求書を作成"
+  };
+
+  document.querySelectorAll("nav button").forEach(btn=>{
+    btn.addEventListener("click", function(){
+      const target = this.getAttribute("data-view");
+      document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+      $("view-"+target).classList.add("active");
+      document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+      this.classList.add("active");
+      $("headerSub").textContent = viewLabels[target];
+
+      const accentMap = {
+        input:["#2563eb","#eaf2ff"],
+        sites:["#16a34a","#eaf8ef"],
+        workers:["#7c3aed","#f1ebff"],
+        summary:["#ea580c","#fff0e6"],
+        invoice:["#0891b2","#e7f8fb"]
+      };
+      const pair = accentMap[target] || accentMap.input;
+      document.documentElement.style.setProperty("--accent", pair[0]);
+      document.querySelector("header").style.background = `linear-gradient(135deg,#ffffff 0%,${pair[1]} 100%)`;
+
+      if(target==="summary") renderSummary();
+      if(target==="invoice"){
+        renderProgressBillingInputs();
+        renderInvoice();
+      }
+      window.scrollTo({top:0,behavior:"instant"});
+    });
+  });
+
+
+
+  document.querySelectorAll("#clientColorPicker .color-choice").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("#clientColorPicker .color-choice").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      $("clientColor").value = btn.dataset.color || "#2563eb";
+    });
+  });
+
+
+  function syncClosingDayPreset(){
+    const preset = $("clientClosingDayPreset");
+    const custom = $("clientClosingDay");
+    if(!preset || !custom) return;
+
+    if(preset.value === "custom"){
+      custom.style.display = "block";
+    }else{
+      custom.style.display = "none";
+      custom.value = preset.value === "0" ? "" : preset.value;
+    }
+  }
+
+  $("clientClosingDayPreset").addEventListener("change", ()=>{
+    syncClosingDayPreset();
+    if($("clientClosingDayPreset").value === "custom"){
+      setTimeout(()=>$("clientClosingDay").focus(), 50);
+    }
+  });
+
+  $("addClientBtn").addEventListener("click", ()=>{
+    const name = $("clientName").value.trim();
+    if(!name){ alert("会社名を入れてな"); return; }
+    if($("clientClosingDayPreset").value === "custom"){
+      const customClosing = Number($("clientClosingDay").value||0);
+      if(customClosing < 1 || customClosing > 31){
+        alert("締め日は1〜31日で入力してな");
+        return;
+      }
+    }
+
+    const data = {
+      name,
+      address:$("clientAddress").value.trim(),
+      billRate:Number($("clientBillRate").value||0),
+      color:$("clientColor").value || "#2563eb",
+      closingDay:(()=>{
+        const preset = $("clientClosingDayPreset").value;
+        if(preset === "0") return 0;
+        if(preset === "custom") return Number($("clientClosingDay").value||0);
+        return Number(preset||0);
+      })(),
+      payment:$("clientPayment").value.trim()
+    };
+
+    if(editingClientId){
+      const c = clientById(editingClientId);
+      if(c) Object.assign(c, data);
+    }else{
+      state.clients.push({id:uid(), ...data});
+    }
+
+    const wasEdit = !!editingClientId;
+    editingClientId = "";
+    $("addClientBtn").textContent = "元請け会社を追加";
+    save();
+    $("clientName").value="";
+    $("clientAddress").value="";
+    $("clientBillRate").value="";
+    $("clientColor").value="#2563eb";
+    document.querySelectorAll("#clientColorPicker .color-choice").forEach((b,i)=>b.classList.toggle("selected", i===0));
+    $("clientClosingDayPreset").value="0";
+    $("clientClosingDay").value="";
+    syncClosingDayPreset();
+    $("clientPayment").value="";
+    renderAll();
+    finishRegistration(wasEdit ? "元請け会社を更新したで" : "元請け会社を追加したで");
+  });
+
+  $("addSiteBtn").addEventListener("click", ()=>{
+    const name = $("siteName").value.trim();
+    if(!name){ alert("現場名を入れてな"); return; }
+    const data = {
+      name,
+      clientId:$("siteClient").value || "",
+      contractType:$("siteContractType") ? ($("siteContractType").value || "常用") : "常用",
+      revenue:Number($("siteRevenue").value||0),
+      billRate:Number($("siteBillRate").value||0)
+    };
+    if(editingSiteId){
+      const s = siteById(editingSiteId);
+      if(s) Object.assign(s, data);
+    }else{
+      state.sites.push({id:uid(), ...data});
+    }
+    const wasEdit = !!editingSiteId;
+    editingSiteId = "";
+    $("addSiteBtn").textContent = "現場を追加";
+    save();
+    $("siteName").value="";
+    if($("siteContractType")) $("siteContractType").value="常用";
+    $("siteRevenue").value="";
+    $("siteBillRate").value="";
+    renderAll();
+    finishRegistration(wasEdit ? "現場を更新したで" : "現場を追加したで");
+  });
+
+
+  $("addWorkerCompanyBtn").addEventListener("click", ()=>{
+    const name = $("workerCompanyName").value.trim();
+    if(!name){ alert("会社名を入れてな"); return; }
+
+    const rate = Number($("workerCompanyRate").value||0);
+    const editId = editingWorkerCompanyId;
+
+    if(editId){
+      const index = state.workerCompanies.findIndex(c=>c.id===editId);
+      if(index >= 0){
+        state.workerCompanies[index] = {
+          ...state.workerCompanies[index],
+          name,
+          rate
+        };
+      }else{
+        alert("編集対象が見つからへんかった。画面を更新してもう一回試してな");
+        return;
+      }
+    }else{
+      state.workerCompanies.push({
+        id:uid(),
+        name,
+        rate
+      });
+    }
+
+    editingWorkerCompanyId = "";
+    $("addWorkerCompanyBtn").textContent = "所属会社を追加";
+    $("workerCompanyName").value="";
+    $("workerCompanyRate").value="";
+    save();
+    renderAll();
+    finishRegistration(editId ? "所属会社を更新したで" : "所属会社を追加したで");
+  });
+
+  $("addWorkerBtn").addEventListener("click", ()=>{
+    const name = $("workerName").value.trim();
+    const rate = Number($("workerRate").value||0);
+    if(!name){ alert("名前を入れてな"); return; }
+    const data = {
+      name,
+      companyId:$("workerCompany").value || "",
+      rate,
+      earlyRate:Number($("workerEarlyRate").value||0),
+      overtimeRate:Number($("workerOvertimeRate").value||0)
+    };
+    if(editingWorkerId){
+      const w = workerById(editingWorkerId);
+      if(w) Object.assign(w, data);
+    }else{
+      state.workers.push({id:uid(), ...data});
+    }
+    const wasEdit = !!editingWorkerId;
+    editingWorkerId = "";
+    $("addWorkerBtn").textContent = "作業員を追加";
+    save();
+    $("workerName").value="";
+    $("workerRate").value="";
+    $("workerEarlyRate").value="";
+    $("workerOvertimeRate").value="";
+    renderAll();
+    finishRegistration(wasEdit ? "作業員を更新したで" : "作業員を追加したで");
+  });
+
+  $("summaryMonth").addEventListener("change", renderSummary);
+  $("summarySite").addEventListener("change", renderSummary);
+
+  function clientById(id){ return state.clients.find(x=>x.id===id); }
+  function clientColor(client){
+    return client?.color || "#64748b";
+  }
+  function workerCompanyById(id){ return state.workerCompanies.find(x=>x.id===id); }
+  function effectiveWorkerRate(worker){
+    if(!worker) return 0;
+    if(Number(worker.rate||0) > 0) return Number(worker.rate||0);
+    const company = worker.companyId ? workerCompanyById(worker.companyId) : null;
+    return Number(company?.rate||0);
+  }
+
+  function workerEntryCost(entry){
+    const w = workerById(entry.workerId);
+    const base = Number(entry.jinko||0) * effectiveWorkerRate(w);
+    const earlyCost = Number(entry.early||0) * Number(w?.earlyRate||0);
+    const overtimeCost = Number(entry.overtime||0) * Number(w?.overtimeRate||0);
+    return base + earlyCost + overtimeCost;
+  }
+  function siteById(id){ return state.sites.find(x=>x.id===id); }
+  function workerById(id){ return state.workers.find(x=>x.id===id); }
+
+
+
+  function editClient(id){
+    const c = clientById(id);
+    if(!c) return;
+    editingClientId = id;
+    $("clientName").value = c.name || "";
+    $("clientAddress").value = c.address || "";
+    $("clientBillRate").value = c.billRate || "";
+    const closing = Number(c.closingDay||0);
+    const standardClosingDays = [0,5,10,15,20,25];
+    if(standardClosingDays.includes(closing)){
+      $("clientClosingDayPreset").value = String(closing);
+      $("clientClosingDay").value = closing ? String(closing) : "";
+    }else{
+      $("clientClosingDayPreset").value = "custom";
+      $("clientClosingDay").value = closing ? String(closing) : "";
+    }
+    syncClosingDayPreset();
+    $("clientPayment").value = c.payment || "";
+    $("clientColor").value = c.color || "#2563eb";
+    document.querySelectorAll("#clientColorPicker .color-choice").forEach(b=>{
+      b.classList.toggle("selected", b.dataset.color === $("clientColor").value);
+    });
+    $("addClientBtn").textContent = "元請け会社を更新";
+    try{$("clientName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("clientName").focus();
+  }
+
+  function editSite(id){
+    const s = siteById(id);
+    if(!s) return;
+    editingSiteId = id;
+    $("siteName").value = s.name || "";
+    $("siteClient").value = s.clientId || "";
+    if($("siteContractType")) $("siteContractType").value = s.contractType || "常用";
+    $("siteRevenue").value = s.revenue || "";
+    $("siteBillRate").value = s.billRate || "";
+    $("addSiteBtn").textContent = "現場を更新";
+    try{$("siteName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("siteName").focus();
+  }
+
+  function editWorkerCompany(id){
+    const c = workerCompanyById(id);
+    if(!c) return;
+
+    editingWorkerCompanyId = String(id);
+    $("workerCompanyName").value = c.name || "";
+    $("workerCompanyRate").value = c.rate || "";
+    $("addWorkerCompanyBtn").textContent = "所属会社を更新";
+
+    try{
+      $("workerCompanyName").scrollIntoView({behavior:"smooth",block:"center"});
+    }catch(e){}
+    setTimeout(()=>$("workerCompanyName").focus(), 250);
+  }
+
+  function editWorker(id){
+    const w = workerById(id);
+    if(!w) return;
+    editingWorkerId = id;
+    $("workerName").value = w.name || "";
+    $("workerCompany").value = w.companyId || "";
+    $("workerRate").value = w.rate || "";
+    $("workerEarlyRate").value = w.earlyRate || "";
+    $("workerOvertimeRate").value = w.overtimeRate || "";
+    $("addWorkerBtn").textContent = "作業員を更新";
+    try{$("workerName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("workerName").focus();
+  }
+
+  function removeClient(id){
+    const used = state.sites.some(s=>s.clientId===id);
+    if(used){
+      alert("この元請け会社は現場で使われてるから、先に現場側を変更してな");
+      return;
+    }
+    if(!confirm("この元請け会社を削除する？")) return;
+    state.clients = state.clients.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
+  function removeSite(id){
+    if(!confirm("この現場を削除する？関連する人工入力も消えるで。")) return;
+    state.sites = state.sites.filter(x=>x.id!==id);
+    state.entries = state.entries.filter(x=>x.siteId!==id);
+    state.siteExpenses = state.siteExpenses.filter(x=>x.siteId!==id);
+    save(); renderAll();
+  }
+
+  function removeWorkerCompany(id){
+    const used = state.workers.some(w=>w.companyId===id);
+    if(used){
+      alert("この会社は作業員で使われてるから、先に作業員側を変更してな");
+      return;
+    }
+    if(!confirm("この所属会社を削除する？")) return;
+    state.workerCompanies = state.workerCompanies.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
+  function removeWorker(id){
+    if(!confirm("この作業員を削除する？関連する人工入力も消えるで。")) return;
+    state.workers = state.workers.filter(x=>x.id!==id);
+    state.entries = state.entries.filter(x=>x.workerId!==id);
+    save(); renderAll();
+  }
+
+
+  function removeEntryFromDay(id, date){
+    if(!confirm("この人工入力を削除する？")) return;
+    state.entries = state.entries.filter(x=>x.id!==id);
+    save();
+    renderAll();
+    showDayDetail(date);
+  }
+
+  function removeSiteExpenseFromDay(id, date){
+    if(!confirm("この現場経費を削除する？")) return;
+    state.siteExpenses = state.siteExpenses.filter(x=>x.id!==id);
+    save();
+    renderAll();
+    showDayDetail(date);
+  }
+
+  function removeSiteExpense(id){
+    if(!confirm("この現場経費を削除する？")) return;
+    state.siteExpenses = state.siteExpenses.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
+  function removeEntry(id){
+    if(!confirm("この入力を削除する？")) return;
+    state.entries = state.entries.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
+  window.editClient = editClient;
+  window.editSite = editSite;
+  window.editWorkerCompany = editWorkerCompany;
+  window.editWorker = editWorker;
+  window.removeClient = removeClient;
+  window.removeSite = removeSite;
+  window.removeWorkerCompany = removeWorkerCompany;
+  window.removeWorker = removeWorker;
+  window.removeEntryFromDay = removeEntryFromDay;
+  window.removeSiteExpenseFromDay = removeSiteExpenseFromDay;
+  window.removeSiteExpense = removeSiteExpense;
+  window.removeEntry = removeEntry;
+
+
+  function renderBulkWorkers(){
+    const box = $("bulkWorkerList");
+    if(!box) return;
+
+    const filter = $("bulkCompanyFilter")?.value || "all";
+    let workers = [...state.workers];
+
+    if(filter !== "all"){
+      if(filter === "none"){
+        workers = workers.filter(w=>!w.companyId);
+      }else{
+        workers = workers.filter(w=>w.companyId===filter);
+      }
+    }
+
+    if(!workers.length){
+      box.innerHTML = `<div class="empty">この所属会社の作業員はまだ登録されてないで。</div>`;
+      return;
+    }
+
+    box.innerHTML = workers.map(w=>`
+      <div class="member-row">
+        <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" checked>
+        <div>
+          <div class="member-name">${escapeHtml(w.name)}</div>
+          <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</div>
+        </div>
+        <div class="bulk-field">
+          <div class="bulk-field-label">人工</div>
+          <select class="bulk-jinko" data-worker-id="${w.id}">
+            <option value="1" selected>1.0</option>
+            <option value="0.5">0.5</option>
+            <option value="0.25">0.25</option>
+          </select>
+        </div>
+        <div class="bulk-time-fields">
+          <div class="bulk-field">
+            <div class="bulk-field-label">早出</div>
+            <input class="bulk-early" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" placeholder="時間">
+          </div>
+          <div class="bulk-field">
+            <div class="bulk-field-label">残業</div>
+            <input class="bulk-overtime" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" placeholder="時間">
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+
+  $("bulkCompanyFilter").addEventListener("change", ()=>{
+    renderBulkWorkers();
+  });
+
+  ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener("change", ()=>{
+      rememberRecent(id, el.value);
+    });
+  });
+
+  $("selectAllBtn").addEventListener("click", ()=>{
+    document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
+  });
+
+  $("clearAllBtn").addEventListener("click", ()=>{
+    document.querySelectorAll(".bulk-check").forEach(x=>x.checked=false);
+  });
+
+  $("addBulkEntryBtn").addEventListener("click", ()=>{
+    if(!state.sites.length){ alert("先に現場を登録してな"); return; }
+    if(!state.workers.length){ alert("先に作業員を登録してな"); return; }
+
+    const date = $("entryDate").value;
+    const siteId = $("entrySite").value;
+    rememberRecent("entrySite", siteId);
+    const checked = [...document.querySelectorAll(".bulk-check:checked")];
+
+    if(!date){ alert("日付を選んでな"); return; }
+    if(!siteId){ alert("現場を選んでな"); return; }
+
+    const siteExpense = Number($("siteDayExpense").value||0);
+    const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
+
+    if(!checked.length && siteExpense <= 0 && !siteExpenseMemo){
+      alert("メンバーか現場経費のどっちかを入力してな");
+      return;
+    }
+
+    checked.forEach(chk=>{
+      const workerId = chk.dataset.workerId;
+      const jinkoEl = document.querySelector(`.bulk-jinko[data-worker-id="${workerId}"]`);
+      const earlyEl = document.querySelector(`.bulk-early[data-worker-id="${workerId}"]`);
+      const overtimeEl = document.querySelector(`.bulk-overtime[data-worker-id="${workerId}"]`);
+      const jinko = Number(jinkoEl?.value||1);
+      const early = Number(earlyEl?.value||0);
+      const overtime = Number(overtimeEl?.value||0);
+
+      const existing = state.entries.find(e =>
+        e.date === date &&
+        e.siteId === siteId &&
+        e.workerId === workerId
+      );
+
+      if(existing){
+        existing.jinko = jinko;
+        existing.early = early;
+        existing.overtime = overtime;
+        existing.expense = 0;
+      }else{
+        state.entries.push({
+          id:uid(),
+          date,
+          siteId,
+          workerId,
+          jinko,
+          early,
+          overtime,
+          expense:0
+        });
+      }
+    });
+
+    if(siteExpense > 0 || siteExpenseMemo){
+      state.siteExpenses.push({
+        id:uid(),
+        date,
+        siteId,
+        amount:siteExpense,
+        memo:siteExpenseMemo
+      });
+    }
+
+    save();
+    document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
+    $("siteDayExpense").value="";
+    $("siteDayExpenseMemo").value="";
+    dismissKeyboard();
+    renderRecent();
+    renderSummary();
+    if(checked.length && (siteExpense > 0 || siteExpenseMemo)){
+      alert(checked.length + "人分＋現場経費を登録・更新したで");
+    }else if(checked.length){
+      alert(checked.length + "人分を登録・更新したで");
+    }else{
+      alert("現場経費を登録したで");
+    }
+  });
+
+
+  function renderClients(){
+    const select = $("siteClient");
+    if(select){
+      const current = select.value;
+      const clients = sortByRecent(state.clients, "siteClient", x=>x.id);
+      const opts = clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      select.innerHTML = `<option value="">未選択</option>` + opts;
+      if(current && clients.some(c=>c.id===current)){
+        select.value = current;
+      }
+    }
+
+    const list = $("clientList");
+    if(!list) return;
+
+    if(!state.clients.length){
+      list.innerHTML = `<div class="empty">まだ元請け会社がないで。</div>`;
+      return;
+    }
+
+    list.innerHTML = state.clients.map(c=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong><span class="client-dot" style="background:${clientColor(c)}"></span>${escapeHtml(c.name)}</strong>
+            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "末日締め"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
+          </div>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editClient('${c.id}')">編集</button>
+            <button class="danger-link" onclick="removeClient('${c.id}')">削除</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function renderSelects(){
+    const invoiceClient = $("invoiceClient");
+    if(invoiceClient){
+      const current = invoiceClient.value;
+      const clients = sortByRecent(state.clients, "invoiceClient", x=>x.id);
+      invoiceClient.innerHTML = clients.length
+        ? clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
+        : `<option value="">元請け会社を登録してな</option>`;
+      if(current && clients.some(c=>c.id===current)) invoiceClient.value = current;
+    }
+
+    const entrySites = sortByRecent(state.sites, "entrySite", x=>x.id);
+    const entrySiteOptions = entrySites.map(s=>{
+      const c = s.clientId ? clientById(s.clientId) : null;
+      const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
+      return `<option value="${s.id}">${escapeHtml(label)}</option>`;
+    }).join("");
+    const entrySite = $("entrySite");
+    if(entrySite){
+      const current = entrySite.value;
+      entrySite.innerHTML = entrySiteOptions || `<option value="">現場を登録してな</option>`;
+      if(current && entrySites.some(s=>s.id===current)) entrySite.value = current;
+    }
+
+    const summarySites = sortByRecent(state.sites, "summarySite", x=>x.id);
+    const summarySiteOptions = summarySites.map(s=>{
+      const c = s.clientId ? clientById(s.clientId) : null;
+      const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
+      return `<option value="${s.id}">${escapeHtml(label)}</option>`;
+    }).join("");
+    const summarySite = $("summarySite");
+    if(summarySite){
+      const current = summarySite.value || "all";
+      summarySite.innerHTML = `<option value="all">すべての現場</option>` + summarySiteOptions;
+      if(current==="all" || summarySites.some(s=>s.id===current)) summarySite.value = current;
+    }
+  }
+
+  function renderSites(){
+    if(!state.sites.length){
+      $("siteList").innerHTML = `<div class="empty">まだ現場がないで。</div>`;
+      return;
+    }
+    $("siteList").innerHTML = state.sites.map(s=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
+            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
+          </div>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
+            <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+          </div>
+        </div>
+      </div>`).join("");
+  }
+
+
+  function renderWorkerCompanies(){
+    const select = $("workerCompany");
+    if(select){
+      const companies = sortByRecent(state.workerCompanies, "workerCompany", x=>x.id);
+      const current = select.value;
+      const opts = companies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      select.innerHTML = `<option value="">未選択</option>` + opts;
+      if(current && companies.some(c=>c.id===current)) select.value = current;
+    }
+
+    const bulkFilter = $("bulkCompanyFilter");
+    if(bulkFilter){
+      const current = bulkFilter.value || "all";
+      const companies = sortByRecent(state.workerCompanies, "bulkCompanyFilter", x=>x.id);
+      const opts = companies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      bulkFilter.innerHTML = `<option value="all">すべて</option><option value="none">所属未設定</option>` + opts;
+      const exists = [...bulkFilter.options].some(o=>o.value===current);
+      bulkFilter.value = exists ? current : "all";
+    }
+
+    const list = $("workerCompanyList");
+    if(!list) return;
+    if(!state.workerCompanies.length){
+      list.innerHTML = `<div class="empty">まだ所属会社がないで。</div>`;
+      return;
+    }
+    list.innerHTML = state.workerCompanies.map(c=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(c.name)}</strong>
+            <small>${c.rate ? "基本単価 " + yen(c.rate) + " / 1人工" : "基本単価 未設定"}</small>
+          </div>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editWorkerCompany('${c.id}')">編集</button>
+            <button class="danger-link" onclick="removeWorkerCompany('${c.id}')">削除</button>
+          </div>
+        </div>
+      </div>`).join("");
+  }
+
+  function renderWorkers(){
+    if(!state.workers.length){
+      $("workerList").innerHTML = `<div class="empty">まだ作業員がないで。</div>`;
+      return;
+    }
+    $("workerList").innerHTML = state.workers.map(w=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(w.name)}</strong>
+            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}${w.earlyRate ? " / 早出 " + yen(w.earlyRate) + "/h" : ""}${w.overtimeRate ? " / 残業 " + yen(w.overtimeRate) + "/h" : ""}</small>
+          </div>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editWorker('${w.id}')">編集</button>
+            <button class="danger-link" onclick="removeWorker('${w.id}')">削除</button>
+          </div>
+        </div>
+      </div>`).join("");
+  }
+
+  function renderRecent(){
+    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+    if(!list.length){
+      $("recentEntries").innerHTML = `<div class="empty">まだ入力がないで。</div>`;
+      return;
+    }
+    const entryRows = list.map(e=>{
+      const s = siteById(e.siteId);
+      const w = workerById(e.workerId);
+      return `<div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
+            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}</small>
+          </div>
+          <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    const recentShared = [...state.siteExpenses].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(x=>{
+      const s = siteById(x.siteId);
+      return `<div class="item">
+        <div class="item-line">
+          <div>
+            <strong>現場経費 ${yen(x.amount)}</strong>
+            <small>${x.date} / ${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
+          </div>
+          <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    $("recentEntries").innerHTML = entryRows + recentShared;
+  }
+
+
+  function renderCalendar(entries, month, siteFilter){
+    siteFilter = siteFilter || "all";
+    const box = $("summaryCalendar");
+    if(!box) return;
+
+    const [year, mon] = month.split("-").map(Number);
+    const first = new Date(year, mon-1, 1);
+    const lastDay = new Date(year, mon, 0).getDate();
+    const startWeekday = first.getDay();
+
+    const heads = ["日","月","火","水","木","金","土"]
+      .map(d=>`<div class="cal-head">${d}</div>`).join("");
+
+    let cells = "";
+    for(let i=0;i<startWeekday;i++){
+      cells += `<div class="cal-day empty"></div>`;
+    }
+
+    for(let day=1; day<=lastDay; day++){
+      const date = `${year}-${String(mon).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      const dayEntries = entries.filter(e=>e.date===date);
+      const total = dayEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
+      const daySharedExpenses = state.siteExpenses.filter(x=>x.date===date && (siteFilter==="all" || x.siteId===siteFilter));
+      const daySharedExpenseTotal = daySharedExpenses.reduce((a,x)=>a+Number(x.amount||0),0);
+
+      const bySite = {};
+      dayEntries.forEach(e=>{
+        if(!bySite[e.siteId]) bySite[e.siteId] = 0;
+        bySite[e.siteId] += Number(e.jinko||0);
+      });
+
+      const siteRows = Object.entries(bySite);
+      const chips = siteRows.slice(0,3).map(([siteId,jinko])=>{
+        const s = siteById(siteId);
+        const c = s?.clientId ? clientById(s.clientId) : null;
+        return `<span class="cal-chip" style="border-bottom:3px solid ${clientColor(c)}">${escapeHtml(s?.name||"不明")} / ${jinko.toFixed(jinko % 1 ? 1 : 0)}</span>`;
+      }).join("");
+
+      const clientIds = [...new Set(dayEntries.map(e=>{
+        const s = siteById(e.siteId);
+        return s?.clientId || "";
+      }).filter(Boolean))];
+
+      const clientTags = clientIds.map(cid=>{
+        const c = clientById(cid);
+        return `<span class="cal-client-tag" title="${escapeHtml(c?.name||"")}" style="background:${clientColor(c)}"></span>`;
+      }).join("");
+
+      const more = siteRows.length > 3 ? `<div class="cal-more">ほか${siteRows.length-3}現場</div>` : "";
+      cells += `
+        <div class="cal-day" onclick="showDayDetail('${date}')">
+          <div class="cal-date">${day}日</div>
+          ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
+          ${chips}${more}
+        </div>`;
+    }
+
+    box.innerHTML = `<div class="calendar">${heads}${cells}</div>`;
+  }
+
+  function showDayDetail(date){
+    const month = $("summaryMonth").value || monthLocal();
+    const siteFilter = $("summarySite").value || "all";
+    let entries = state.entries.filter(e=>e.date===date);
+    if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
+
+    const detail = $("dayDetail");
+    let daySiteExpenses = state.siteExpenses.filter(x=>x.date===date);
+    if(siteFilter!=="all") daySiteExpenses = daySiteExpenses.filter(x=>x.siteId===siteFilter);
+
+    if(!entries.length && !daySiteExpenses.length){
+      detail.className = "empty";
+      detail.innerHTML = `${date} の入力はないで。`;
+      return;
+    }
+
+    const siteIds = [...new Set([
+      ...entries.map(e=>e.siteId),
+      ...daySiteExpenses.map(x=>x.siteId)
+    ])];
+
+    const siteBlocks = siteIds.map(siteId=>{
+      const s = siteById(siteId);
+      const client = s?.clientId ? clientById(s.clientId) : null;
+      const siteEntries = entries.filter(e=>e.siteId===siteId);
+      const siteExpenseRows = daySiteExpenses.filter(x=>x.siteId===siteId);
+
+      const workersHtml = siteEntries.length
+        ? siteEntries.map(e=>{
+            const w = workerById(e.workerId);
+            const company = w?.companyId ? workerCompanyById(w.companyId) : null;
+            return `<div class="item-line" style="padding:6px 0;border-bottom:1px solid var(--line)">
+              <div>
+                <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
+                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}</small>
+              </div>
+              <button class="danger-link" onclick="removeEntryFromDay('${e.id}','${date}')">削除</button>
+            </div>`;
+          }).join("")
+        : `<div class="empty">人工入力なし</div>`;
+
+      const expensesHtml = siteExpenseRows.length
+        ? `<div style="margin-top:8px">${siteExpenseRows.map(x=>`
+            <div class="item-line" style="padding:5px 0">
+              <div>
+                <strong>現場経費 ${yen(x.amount)}</strong>
+                <small>${x.memo ? escapeHtml(x.memo) : "メモなし"}</small>
+              </div>
+              <button class="danger-link" onclick="removeSiteExpenseFromDay('${x.id}','${date}')">削除</button>
+            </div>
+          `).join("")}</div>`
+        : "";
+
+      return `<div class="item" style="border-left:5px solid ${clientColor(client)}">
+        <div style="margin-bottom:8px">
+          <strong>${client ? `<span class="client-dot" style="background:${clientColor(client)}"></span>` : ""}${escapeHtml(s?.name||"不明")}</strong>
+          <small>${client ? "元請け " + escapeHtml(client.name) : "元請け未設定"}</small>
+        </div>
+        ${workersHtml}
+        ${expensesHtml}
+      </div>`;
+    }).join("");
+
+    detail.className = "list";
+    detail.innerHTML = `<div class="day-detail-title">${date}</div>${siteBlocks}`;
+    try{$("dayDetailCard").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}
+  }
+
+  window.showDayDetail = showDayDetail;
+
+  function renderSummary(){
+    const month = $("summaryMonth").value || monthLocal();
+    const siteFilter = $("summarySite").value || "all";
+    let entries = state.entries.filter(e=>e.date.startsWith(month));
+    if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
+
+    renderCalendar(entries, month, siteFilter);
+
+    const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
+    const totalEarly = entries.reduce((a,e)=>a+Number(e.early||0),0);
+    const totalOvertime = entries.reduce((a,e)=>a+Number(e.overtime||0),0);
+    const labor = entries.reduce((a,e)=>a + workerEntryCost(e),0);
+    let siteExpenses = state.siteExpenses.filter(x=>x.date.startsWith(month));
+    if(siteFilter!=="all") siteExpenses = siteExpenses.filter(x=>x.siteId===siteFilter);
+
+    const sharedExpenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
+    const expenses = sharedExpenses;
+
+    let revenue = 0;
+    if(siteFilter!=="all"){
+      revenue = Number(siteById(siteFilter)?.revenue||0);
+    }else{
+      const used = new Set(entries.map(e=>e.siteId));
+      revenue = state.sites.filter(s=>used.has(s.id)).reduce((a,s)=>a+Number(s.revenue||0),0);
+    }
+    const gross = revenue - labor - expenses;
+
+    $("metrics").innerHTML = `
+      <div class="metric"><span>人工</span><b>${totalJinko.toFixed(2)}</b></div>
+      <div class="metric"><span>早出</span><b>${totalEarly.toFixed(1)}h</b></div>
+      <div class="metric"><span>残業</span><b>${totalOvertime.toFixed(1)}h</b></div>
+      <div class="metric"><span>人件費</span><b>${yen(labor)}</b></div>
+      <div class="metric"><span>経費</span><b>${yen(expenses)}</b></div>
+      <div class="metric"><span>粗利</span><b>${yen(gross)}</b></div>
+    `;
+
+    const byWorker = {};
+    entries.forEach(e=>{
+      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0};
+      const w = workerById(e.workerId);
+      byWorker[e.workerId].jinko += Number(e.jinko||0);
+      byWorker[e.workerId].early += Number(e.early||0);
+      byWorker[e.workerId].overtime += Number(e.overtime||0);
+      byWorker[e.workerId].cost += workerEntryCost(e);
+    });
+
+    const rows = Object.entries(byWorker).map(([wid,v])=>{
+      const w = workerById(wid);
+      return `<div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(w?.name||"不明")}</strong>
+            <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""}</small>
+          </div>
+          <b>${yen(v.cost)}</b>
+        </div>
+      </div>`;
+    }).join("");
+    $("workerSummary").innerHTML = rows || `<div class="empty">この条件の入力はないで。</div>`;
+
+    const byCompany = {};
+    entries.forEach(e=>{
+      const w = workerById(e.workerId);
+      const cid = w?.companyId || "none";
+      if(!byCompany[cid]) byCompany[cid]={jinko:0,cost:0};
+      byCompany[cid].jinko += Number(e.jinko||0);
+      byCompany[cid].cost += workerEntryCost(e);
+    });
+
+    const companyRows = Object.entries(byCompany).map(([cid,v])=>{
+      const c = cid==="none" ? null : workerCompanyById(cid);
+      return `<div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(c?.name || "未設定")}</strong>
+            <small>${v.jinko.toFixed(2)}人工</small>
+          </div>
+          <b>${yen(v.cost)}</b>
+        </div>
+      </div>`;
+    }).join("");
+    $("companySummary").innerHTML = companyRows || `<div class="empty">この条件の入力はないで。</div>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+    }[c]));
+  }
+
+
+
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  function daysInMonth(year, monthIndex1){
+    return new Date(year, monthIndex1, 0).getDate();
+  }
+
+  function billingPeriodFor(client, month){
+    const [year, mon] = month.split("-").map(Number);
+    const closingDay = Number(client?.closingDay||0);
+
+    // 締め日未設定は暦月
+    if(!closingDay){
+      const start = `${year}-${pad2(mon)}-01`;
+      const end = `${year}-${pad2(mon)}-${pad2(daysInMonth(year, mon))}`;
+      return {start,end};
+    }
+
+    const endDay = Math.min(closingDay, daysInMonth(year, mon));
+    const end = `${year}-${pad2(mon)}-${pad2(endDay)}`;
+
+    let prevYear = year;
+    let prevMon = mon - 1;
+    if(prevMon === 0){
+      prevMon = 12;
+      prevYear -= 1;
+    }
+
+    const prevClosingDay = Math.min(closingDay, daysInMonth(prevYear, prevMon));
+    const prevClosing = new Date(prevYear, prevMon - 1, prevClosingDay);
+    prevClosing.setDate(prevClosing.getDate() + 1);
+
+    const start = `${prevClosing.getFullYear()}-${pad2(prevClosing.getMonth()+1)}-${pad2(prevClosing.getDate())}`;
+    return {start,end};
+  }
+
+  function dateInRange(date, start, end){
+    return date >= start && date <= end;
+  }
+
+  
+function getProgressBilling(siteId, month){
+    const item = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
+    return item ? Number(item.percent||0) : 0;
+  }
+
+  function setProgressBilling(siteId, month, percent){
+    percent = Math.max(0, Math.min(100, Number(percent||0)));
+    const existing = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
+    if(existing){
+      existing.percent = percent;
+    }else{
+      state.progressBillings.push({id:uid(), siteId, month, percent});
+    }
+    save();
+  }
+
+  function renderProgressBillingInputs(){
+    const box = $("progressBillingBox");
+    const list = $("progressBillingList");
+    if(!box || !list) return;
+
+    const clientId = $("invoiceClient")?.value || "";
+    const month = $("invoiceMonth")?.value || monthLocal();
+    const contractSites = state.sites.filter(s=>s.clientId===clientId && (s.contractType||"常用")==="請負");
+
+    if(!contractSites.length){
+      box.style.display = "none";
+      list.innerHTML = "";
+      return;
+    }
+
+    box.style.display = "block";
+    list.innerHTML = contractSites.map(s=>{
+      const percent = getProgressBilling(s.id, month);
+      return `<div class="item">
+        <div class="progress-row">
+          <div>
+            <div class="progress-site-name">${escapeHtml(s.name)}</div>
+            <div class="progress-contract">請負金額 ${s.revenue ? yen(s.revenue) : "未設定"}</div>
+          </div>
+          <div class="bulk-field">
+            <div class="bulk-field-label">出来高 %</div>
+            <input class="progress-input" data-site-id="${s.id}" type="number" min="0" max="100" step="1" inputmode="decimal" placeholder="0" value="${percent || ""}">
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    list.querySelectorAll(".progress-input").forEach(input=>{
+      input.addEventListener("change", ()=>{
+        let value = Number(input.value||0);
+        if(value < 0 || value > 100){
+          alert("出来高は0〜100%で入力してな");
+          value = Math.max(0, Math.min(100, value));
+          input.value = String(value);
+        }
+        setProgressBilling(input.dataset.siteId, month, value);
+        renderInvoice();
+      });
+    });
+  }
+
+  function invoiceRowsFor(clientId, month){
+    const client = clientById(clientId);
+    const period = billingPeriodFor(client, month);
+    const clientSites = state.sites.filter(s=>s.clientId===clientId);
+    const siteIds = new Set(clientSites.map(s=>s.id));
+    const entries = state.entries.filter(e=>dateInRange(e.date, period.start, period.end) && siteIds.has(e.siteId));
+
+    return clientSites.map(site=>{
+      const siteEntries = entries.filter(e=>e.siteId===site.id);
+      const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
+      const expenses = state.siteExpenses
+        .filter(x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end))
+        .reduce((a,x)=>a+Number(x.amount||0),0);
+
+      const contractType = site.contractType || "常用";
+
+      if(contractType === "請負"){
+        const percent = getProgressBilling(site.id, month);
+        const contractAmount = Number(site.revenue||0);
+        const progressAmount = Math.floor(contractAmount * percent / 100);
+        return {
+          site, contractType, jinko,
+          rate:0, laborAmount:0,
+          expenses, percent, contractAmount, progressAmount,
+          amount: progressAmount
+        };
+      }
+
+      const client = clientById(site.clientId);
+      const rate = Number(site.billRate || client?.billRate || 0);
+      const laborAmount = jinko * rate;
+      return {
+        site, contractType, jinko, rate, laborAmount,
+        expenses, percent:0, contractAmount:0, progressAmount:0,
+        amount: laborAmount + expenses
+      };
+    }).filter(r=>{
+      return r.contractType==="請負"
+        ? (r.percent>0 || r.expenses>0)
+        : (r.jinko>0 || r.expenses>0);
+    });
+  }
+
+
+  function updateInvoicePeriodHint(){
+    const clientId = $("invoiceClient")?.value;
+    const month = $("invoiceMonth")?.value || monthLocal();
+    const c = clientId ? clientById(clientId) : null;
+    const box = $("invoicePeriodHint");
+    if(!box) return;
+
+    if(!c){
+      box.textContent = "";
+      return;
+    }
+
+    const p = billingPeriodFor(c, month);
+    box.textContent = c.closingDay
+      ? `${c.closingDay}日締め：${p.start} 〜 ${p.end}`
+      : `末日締め：${p.start} 〜 ${p.end}`;
+  }
+
+  function renderInvoice(){
+    updateInvoicePeriodHint();
+    const clientId = $("invoiceClient").value;
+    rememberRecent("invoiceClient", clientId);
+    const month = $("invoiceMonth").value || monthLocal();
+    const taxRate = Number($("invoiceTax").value||0);
+    const number = $("invoiceNumber").value.trim();
+    const format = $("invoiceFormat")?.value || "standard";
+
+    if(!clientId){
+      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選んでな。</div></div>`;
+      return;
+    }
+
+    const client = clientById(clientId);
+    const period = billingPeriodFor(client, month);
+    const rows = invoiceRowsFor(clientId, month);
+
+    if(!rows.length){
+      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">この月の請求対象データがないで。</div></div>`;
+      return;
+    }
+
+    const subtotal = rows.reduce((a,r)=>a+r.amount,0);
+    const tax = Math.floor(subtotal * taxRate / 100);
+    const total = subtotal + tax;
+    const [y,m] = month.split("-");
+
+    const trs = rows.map(r=>{
+      if(r.contractType==="請負"){
+        return `<tr>
+          <td>${escapeHtml(r.site.name)}</td>
+          <td>請負</td>
+          <td>出来高 ${Number(r.percent||0).toFixed(Number(r.percent||0)%1 ? 1 : 0)}%</td>
+          <td>${yen(r.contractAmount)}</td>
+          <td>-</td>
+          <td>${yen(r.amount)}</td>
+          ${format==="detail" ? `<td>出来高請求（経費別）</td>` : ""}
+        </tr>`;
+      }
+      return `<tr>
+        <td>${escapeHtml(r.site.name)}</td>
+        <td>常用</td>
+        <td>${r.jinko.toFixed(2)}人工</td>
+        <td>${yen(r.rate)}</td>
+        <td>${yen(r.expenses)}</td>
+        <td>${yen(r.amount)}</td>
+        ${format==="detail" ? `<td>${r.expenses ? "経費含む" : ""}</td>` : ""}
+      </tr>`;
+    }).join("");
+
+    $("invoicePreview").innerHTML = `
+      <div class="invoice-sheet format-${format}">
+        <div class="invoice-title">請 求 書</div>
+
+        <div class="invoice-head">
+          <div>
+            <div style="font-size:20px;font-weight:800">${escapeHtml(client?.name||"")} 御中</div>
+            <div class="muted" style="margin-top:6px">${escapeHtml(client?.address||"")}</div>
+            <div style="margin-top:22px;font-size:14px">${y}年${Number(m)}月分</div>
+            <div class="muted" style="margin-top:4px">集計期間：${period.start} 〜 ${period.end}</div>
+          </div>
+          <div class="invoice-right">
+            <div>請求書番号：${escapeHtml(number||"-")}</div>
+            <div style="margin-top:8px">発行日：${todayLocal()}</div>
+            <div style="margin-top:18px;font-weight:800">株式会社REFISE</div>
+          </div>
+        </div>
+
+        ${format==="simple" ? "" : `<div class="section-title">下記の通りご請求申し上げます。</div>`}
+        <div class="invoice-total">${format==="detail" ? "請求合計：" : "ご請求金額　"}${yen(total)}（税込）</div>
+
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th>現場</th>
+              <th>区分</th>
+              <th>人工 / 出来高</th>
+              <th>単価 / 請負金額</th>
+              <th>経費</th>
+              <th>金額</th>
+              ${format==="detail" ? "<th>備考</th>" : ""}
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+
+        <table class="invoice-table" style="margin-left:auto;width:360px;max-width:100%">
+          <tbody>
+            <tr><th>小計</th><td>${yen(subtotal)}</td></tr>
+            <tr><th>消費税 ${taxRate}%</th><td>${yen(tax)}</td></tr>
+            <tr><th>合計</th><td><strong>${yen(total)}</strong></td></tr>
+          </tbody>
+        </table>
+
+        ${client?.payment ? `<div class="muted" style="margin-top:18px">支払条件：${escapeHtml(client.payment)}</div>` : ""}
+      </div>
+    `;
+  }
+
+  $("makeInvoiceBtn").addEventListener("click", renderInvoice);
+  $("printInvoiceBtn").addEventListener("click", ()=>{
+    renderInvoice();
+    setTimeout(()=>window.print(), 50);
+  });
+  $("invoiceMonth").addEventListener("change", ()=>{
+    updateInvoicePeriodHint();
+    renderProgressBillingInputs();
+    renderInvoice();
+  });
+  $("invoiceClient").addEventListener("change", ()=>{
+    updateInvoicePeriodHint();
+    renderProgressBillingInputs();
+    renderInvoice();
+  });
+  $("invoiceTax").addEventListener("change", renderInvoice);
+  $("invoiceFormat").addEventListener("change", renderInvoice);
+
+
+  function normalizeImportedState(data){
+    const clean = data && typeof data === "object" ? data : {};
+    return {
+      clients: Array.isArray(clean.clients) ? clean.clients : [],
+      workerCompanies: Array.isArray(clean.workerCompanies) ? clean.workerCompanies : [],
+      sites: Array.isArray(clean.sites) ? clean.sites : [],
+      workers: Array.isArray(clean.workers) ? clean.workers : [],
+      entries: Array.isArray(clean.entries) ? clean.entries : [],
+      siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : [],
+      recentSelects: clean.recentSelects && typeof clean.recentSelects==="object" ? clean.recentSelects : {},
+      progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : []
+    };
+  }
+
+  $("exportDataBtn").addEventListener("click", ()=>{
+    const payload = {
+      app:"人工管理",
+      version:1,
+      exportedAt:new Date().toISOString(),
+      data:state
+    };
+
+    const blob = new Blob(
+      [JSON.stringify(payload, null, 2)],
+      {type:"application/json"}
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = todayLocal().replaceAll("-","");
+    a.href = url;
+    a.download = `人工管理バックアップ_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  });
+
+  $("importDataBtn").addEventListener("click", ()=>{
+    $("importDataFile").value = "";
+    $("importDataFile").click();
+  });
+
+  $("importDataFile").addEventListener("change", async (event)=>{
+    const file = event.target.files && event.target.files[0];
+    if(!file) return;
+
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const incoming = parsed && parsed.data ? parsed.data : parsed;
+      const normalized = normalizeImportedState(incoming);
+
+      const counts = [
+        normalized.clients.length,
+        normalized.workerCompanies.length,
+        normalized.sites.length,
+        normalized.workers.length,
+        normalized.entries.length,
+        normalized.siteExpenses.length
+      ].reduce((a,b)=>a+b,0);
+
+      if(!confirm(`このファイルのデータ（${counts}件）で現在のデータを置き換える？`)){
+        return;
+      }
+
+      state = normalized;
+      save();
+      renderAll();
+      dismissKeyboard();
+      alert("データを読み込んだで");
+    }catch(e){
+      alert("このファイルは読み込めへんかった。人工管理アプリから書き出したJSONを選んでな");
+    }
+  });
+
+  function renderAll(){
+    renderClients();
+    renderWorkerCompanies();
+    renderSelects();
+    renderBulkWorkers();
+    renderSites();
+    renderWorkers();
+    renderRecent();
+    renderSummary();
+    if($("invoiceClient")){
+      renderProgressBillingInputs();
+      renderInvoice();
+    }
+  }
+
+  renderAll();
+
+  if(!hasStorage){
+    setTimeout(()=>alert("この開き方ではSafariの保存機能が使えへんみたい。URLとして公開して開く必要があるで。"), 400);
+  }
+})();
+</script>
+</body>
+</html>
