@@ -59,7 +59,7 @@
       position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,255,255,.98);
       border-top:1px solid var(--line);
       padding:8px 8px calc(8px + env(safe-area-inset-bottom));
-      display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+      display:grid;grid-template-columns:repeat(5,1fr);gap:6px;
     }
     nav button{
       border:0;background:transparent;border-radius:12px;padding:10px 4px;
@@ -68,6 +68,35 @@
     nav button.active{background:#111827;color:#fff}
     .notice{font-size:12px;color:var(--sub);line-height:1.6}
     .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 0}
+    .invoice-sheet{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
+    .invoice-title{text-align:center;font-size:26px;font-weight:800;letter-spacing:.12em;margin:4px 0 20px}
+    .invoice-head{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+    .invoice-right{text-align:right}
+    .invoice-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+    .invoice-table th,.invoice-table td{border:1px solid #d1d5db;padding:8px;text-align:right}
+    .invoice-table th:first-child,.invoice-table td:first-child{text-align:left}
+    .invoice-total{font-size:22px;font-weight:800;text-align:right;margin-top:18px}
+    .muted{color:var(--sub);font-size:12px}
+    .section-title{font-size:13px;font-weight:800;margin:16px 0 8px}
+    @media print{
+      header,nav,.no-print,main>section:not(#view-invoice){display:none!important}
+      body{background:white;padding:0}
+      main{padding:0;max-width:none}
+      #view-invoice{display:block!important}
+      #invoiceControls{display:none!important}
+      .invoice-sheet{border:0;border-radius:0;margin:0;padding:20mm}
+    }
+    .member-row{display:grid;grid-template-columns:42px 1fr 86px 100px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+    .member-row input[type="checkbox"]{width:24px;height:24px;min-height:24px}
+    .member-row select,.member-row input[type="number"]{min-height:40px;padding:7px 8px}
+    .member-name{font-weight:700;font-size:14px}
+    .member-rate{font-size:11px;color:var(--sub);margin-top:2px}
+    .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
+    .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    @media(max-width:430px){
+      .member-row{grid-template-columns:36px 1fr 78px 86px;gap:6px;padding:9px 8px}
+      .member-name{font-size:13px}
+    }
   </style>
 </head>
 <body>
@@ -79,32 +108,23 @@
   <main>
     <section id="view-input" class="view active">
       <div class="card">
-        <h2>人工入力</h2>
+        <h2>まとめて人工入力</h2>
         <label>日付</label>
         <input id="entryDate" type="date">
 
         <label>現場</label>
         <select id="entrySite"></select>
 
-        <label>作業員</label>
-        <select id="entryWorker"></select>
+        <label>メンバー</label>
+        <div id="bulkWorkerList" class="list"></div>
 
-        <div class="row">
-          <div>
-            <label>人工</label>
-            <select id="entryJinko">
-              <option value="1">1.0</option>
-              <option value="0.5">0.5</option>
-              <option value="0.25">0.25</option>
-            </select>
-          </div>
-          <div>
-            <label>経費</label>
-            <input id="entryExpense" inputmode="numeric" type="number" min="0" value="0">
-          </div>
+        <div class="bulk-actions">
+          <button class="btn secondary" id="selectAllBtn" type="button">全員チェック</button>
+          <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
         </div>
 
-        <button class="btn" id="addEntryBtn">この内容で登録</button>
+        <div class="helper">チェックしたメンバーだけ登録されます。人工と経費は一人ずつ変更できます。</div>
+        <button class="btn" id="addBulkEntryBtn">チェックしたメンバーをまとめて登録</button>
       </div>
 
       <div class="card">
@@ -118,9 +138,37 @@
         <h2>現場登録</h2>
         <label>現場名</label>
         <input id="siteName" placeholder="例：○○倉庫新築工事">
+        <label>元請け会社</label>
+        <select id="siteClient"></select>
         <label>請負金額（任意）</label>
         <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
+        <label>現場別の例外単価 / 1人工（任意）</label>
+        <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
         <button class="btn" id="addSiteBtn">現場を追加</button>
+      </div>
+      <div class="card">
+        <h2>元請け会社登録</h2>
+        <label>会社名</label>
+        <input id="clientName" placeholder="例：○○建設">
+        <label>請求先住所（任意）</label>
+        <input id="clientAddress" placeholder="例：兵庫県神戸市...">
+        <label>基本人工単価</label>
+        <input id="clientBillRate" inputmode="numeric" type="number" min="0" placeholder="例：30000">
+        <div class="row">
+          <div>
+            <label>締め日（任意）</label>
+            <input id="clientClosingDay" type="number" min="1" max="31" placeholder="例：20">
+          </div>
+          <div>
+            <label>支払日メモ</label>
+            <input id="clientPayment" placeholder="例：翌月末">
+          </div>
+        </div>
+        <button class="btn" id="addClientBtn">元請け会社を追加</button>
+      </div>
+      <div class="card">
+        <h2>元請け会社一覧</h2>
+        <div id="clientList" class="list"></div>
       </div>
       <div class="card">
         <h2>現場一覧</h2>
@@ -158,6 +206,37 @@
       </div>
     </section>
 
+
+    <section id="view-invoice" class="view">
+      <div class="card no-print" id="invoiceControls">
+        <h2>請求書作成</h2>
+        <label>請求月</label>
+        <input id="invoiceMonth" type="month">
+
+        <label>元請け会社</label>
+        <select id="invoiceClient"></select>
+
+        <div class="row">
+          <div>
+            <label>消費税率</label>
+            <select id="invoiceTax">
+              <option value="10">10%</option>
+              <option value="0">0%</option>
+            </select>
+          </div>
+          <div>
+            <label>請求書番号</label>
+            <input id="invoiceNumber" placeholder="例：2026-08-001">
+          </div>
+        </div>
+
+        <button class="btn" id="makeInvoiceBtn">請求書を作成</button>
+        <button class="btn secondary" id="printInvoiceBtn">PDF保存・印刷</button>
+      </div>
+
+      <div id="invoicePreview"></div>
+    </section>
+
     <section class="card">
       <div class="notice">
         データはこのSafari内に保存されます。Safariの履歴やWebサイトデータを消すと消える可能性があります。
@@ -171,6 +250,7 @@
     <button data-view="sites">現場</button>
     <button data-view="workers">作業員</button>
     <button data-view="summary">集計</button>
+    <button data-view="invoice">請求</button>
   </nav>
 
 <script>
@@ -178,8 +258,9 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { sites: [], workers: [], entries: [] };
+  const defaultState = { clients: [], sites: [], workers: [], entries: [] };
   let state = load();
+  if(!Array.isArray(state.clients)) state.clients = [];
 
   function safeStorage(){
     try{
@@ -220,12 +301,14 @@
 
   $("entryDate").value = todayLocal();
   $("summaryMonth").value = monthLocal();
+  $("invoiceMonth").value = monthLocal();
 
   const viewLabels = {
     input:"今日の人工を入力",
     sites:"現場の登録・確認",
     workers:"作業員と単価",
-    summary:"人工と利益を集計"
+    summary:"人工と利益を集計",
+    invoice:"元請けごとの請求書を作成"
   };
 
   document.querySelectorAll("nav button").forEach(btn=>{
@@ -237,8 +320,31 @@
       this.classList.add("active");
       $("headerSub").textContent = viewLabels[target];
       if(target==="summary") renderSummary();
+      if(target==="invoice") renderInvoice();
       window.scrollTo({top:0,behavior:"instant"});
     });
+  });
+
+
+  $("addClientBtn").addEventListener("click", ()=>{
+    const name = $("clientName").value.trim();
+    if(!name){ alert("会社名を入れてな"); return; }
+    state.clients.push({
+      id:uid(),
+      name,
+      address:$("clientAddress").value.trim(),
+      billRate:Number($("clientBillRate").value||0),
+      closingDay:Number($("clientClosingDay").value||0),
+      payment:$("clientPayment").value.trim()
+    });
+    save();
+    $("clientName").value="";
+    $("clientAddress").value="";
+    $("clientBillRate").value="";
+    $("clientClosingDay").value="";
+    $("clientPayment").value="";
+    renderAll();
+    alert("元請け会社を追加したで");
   });
 
   $("addSiteBtn").addEventListener("click", ()=>{
@@ -247,11 +353,14 @@
     state.sites.push({
       id:uid(),
       name,
-      revenue:Number($("siteRevenue").value||0)
+      clientId:$("siteClient").value || "",
+      revenue:Number($("siteRevenue").value||0),
+      billRate:Number($("siteBillRate").value||0)
     });
     save();
     $("siteName").value="";
     $("siteRevenue").value="";
+    $("siteBillRate").value="";
     renderAll();
     alert("現場を追加したで");
   });
@@ -268,30 +377,24 @@
     alert("作業員を追加したで");
   });
 
-  $("addEntryBtn").addEventListener("click", ()=>{
-    if(!state.sites.length){ alert("先に現場を登録してな"); return; }
-    if(!state.workers.length){ alert("先に作業員を登録してな"); return; }
-
-    const entry = {
-      id:uid(),
-      date:$("entryDate").value,
-      siteId:$("entrySite").value,
-      workerId:$("entryWorker").value,
-      jinko:Number($("entryJinko").value||0),
-      expense:Number($("entryExpense").value||0)
-    };
-    state.entries.push(entry);
-    save();
-    $("entryExpense").value="0";
-    renderAll();
-    alert("人工を登録したで");
-  });
-
   $("summaryMonth").addEventListener("change", renderSummary);
   $("summarySite").addEventListener("change", renderSummary);
 
+  function clientById(id){ return state.clients.find(x=>x.id===id); }
   function siteById(id){ return state.sites.find(x=>x.id===id); }
   function workerById(id){ return state.workers.find(x=>x.id===id); }
+
+
+  function removeClient(id){
+    const used = state.sites.some(s=>s.clientId===id);
+    if(used){
+      alert("この元請け会社は現場で使われてるから、先に現場側を変更してな");
+      return;
+    }
+    if(!confirm("この元請け会社を削除する？")) return;
+    state.clients = state.clients.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
 
   function removeSite(id){
     if(!confirm("この現場を削除する？関連する人工入力も消えるで。")) return;
@@ -311,17 +414,120 @@
     save(); renderAll();
   }
 
+  window.removeClient = removeClient;
   window.removeSite = removeSite;
   window.removeWorker = removeWorker;
   window.removeEntry = removeEntry;
 
+
+  function renderBulkWorkers(){
+    const box = $("bulkWorkerList");
+    if(!box) return;
+    if(!state.workers.length){
+      box.innerHTML = `<div class="empty">先に作業員を登録してな。</div>`;
+      return;
+    }
+    box.innerHTML = state.workers.map(w=>`
+      <div class="member-row">
+        <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" checked>
+        <div>
+          <div class="member-name">${escapeHtml(w.name)}</div>
+          <div class="member-rate">${yen(w.rate)} / 1人工</div>
+        </div>
+        <select class="bulk-jinko" data-worker-id="${w.id}">
+          <option value="1" selected>1.0</option>
+          <option value="0.5">0.5</option>
+          <option value="0.25">0.25</option>
+        </select>
+        <input class="bulk-expense" data-worker-id="${w.id}" type="number" min="0" inputmode="numeric" value="0" placeholder="経費">
+      </div>
+    `).join("");
+  }
+
+  $("selectAllBtn").addEventListener("click", ()=>{
+    document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
+  });
+
+  $("clearAllBtn").addEventListener("click", ()=>{
+    document.querySelectorAll(".bulk-check").forEach(x=>x.checked=false);
+  });
+
+  $("addBulkEntryBtn").addEventListener("click", ()=>{
+    if(!state.sites.length){ alert("先に現場を登録してな"); return; }
+    if(!state.workers.length){ alert("先に作業員を登録してな"); return; }
+
+    const date = $("entryDate").value;
+    const siteId = $("entrySite").value;
+    const checked = [...document.querySelectorAll(".bulk-check:checked")];
+
+    if(!date){ alert("日付を選んでな"); return; }
+    if(!siteId){ alert("現場を選んでな"); return; }
+    if(!checked.length){ alert("登録するメンバーをチェックしてな"); return; }
+
+    checked.forEach(chk=>{
+      const workerId = chk.dataset.workerId;
+      const jinkoEl = document.querySelector(`.bulk-jinko[data-worker-id="${workerId}"]`);
+      const expenseEl = document.querySelector(`.bulk-expense[data-worker-id="${workerId}"]`);
+      state.entries.push({
+        id:uid(),
+        date,
+        siteId,
+        workerId,
+        jinko:Number(jinkoEl?.value||1),
+        expense:Number(expenseEl?.value||0)
+      });
+    });
+
+    save();
+    document.querySelectorAll(".bulk-expense").forEach(x=>x.value="0");
+    renderRecent();
+    renderSummary();
+    alert(checked.length + "人分まとめて登録したで");
+  });
+
   function renderSelects(){
-    const siteOptions = state.sites.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+    const invoiceClient = $("invoiceClient");
+    if(invoiceClient){
+      invoiceClient.innerHTML = state.clients.length
+        ? state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
+        : `<option value="">元請け会社を登録してな</option>`;
+    }
+
+    const siteOptions = state.sites.map(s=>{
+      const c = s.clientId ? clientById(s.clientId) : null;
+      const label = c ? `${s.name}｜${c.name}` : s.name;
+      return `<option value="${s.id}">${escapeHtml(label)}</option>`;
+    }).join("");
     $("entrySite").innerHTML = siteOptions || `<option value="">現場を登録してな</option>`;
     $("summarySite").innerHTML = `<option value="all">すべての現場</option>` + siteOptions;
 
-    const workerOptions = state.workers.map(w=>`<option value="${w.id}">${escapeHtml(w.name)}</option>`).join("");
-    $("entryWorker").innerHTML = workerOptions || `<option value="">作業員を登録してな</option>`;
+    renderBulkWorkers();
+  }
+
+
+  function renderClients(){
+    const select = $("siteClient");
+    if(select){
+      const opts = state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      select.innerHTML = `<option value="">未選択</option>` + opts;
+    }
+
+    const list = $("clientList");
+    if(!list) return;
+    if(!state.clients.length){
+      list.innerHTML = `<div class="empty">まだ元請け会社がないで。</div>`;
+      return;
+    }
+    list.innerHTML = state.clients.map(c=>`
+      <div class="item">
+        <div class="item-line">
+          <div>
+            <strong>${escapeHtml(c.name)}</strong>
+            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "締め日未設定"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
+          </div>
+          <button class="danger-link" onclick="removeClient('${c.id}')">削除</button>
+        </div>
+      </div>`).join("");
   }
 
   function renderSites(){
@@ -334,7 +540,7 @@
         <div class="item-line">
           <div>
             <strong>${escapeHtml(s.name)}</strong>
-            <small>請負 ${s.revenue ? yen(s.revenue) : "未設定"}</small>
+            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}請負 ${s.revenue ? yen(s.revenue) : "未設定"}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
           </div>
           <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
         </div>
@@ -434,12 +640,129 @@
     }[c]));
   }
 
+
+  function invoiceRowsFor(clientId, month){
+    const clientSites = state.sites.filter(s=>s.clientId===clientId);
+    const siteIds = new Set(clientSites.map(s=>s.id));
+    const entries = state.entries.filter(e=>e.date.startsWith(month) && siteIds.has(e.siteId));
+
+    return clientSites.map(site=>{
+      const siteEntries = entries.filter(e=>e.siteId===site.id);
+      const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
+      const expenses = siteEntries.reduce((a,e)=>a+Number(e.expense||0),0);
+      const client = clientById(site.clientId);
+      const rate = Number(site.billRate || client?.billRate || 0);
+      const laborAmount = jinko * rate;
+      return {
+        site,
+        jinko,
+        rate,
+        laborAmount,
+        expenses,
+        amount: laborAmount + expenses
+      };
+    }).filter(r=>r.jinko>0 || r.expenses>0);
+  }
+
+  function renderInvoice(){
+    const clientId = $("invoiceClient").value;
+    const month = $("invoiceMonth").value || monthLocal();
+    const taxRate = Number($("invoiceTax").value||0);
+    const number = $("invoiceNumber").value.trim();
+
+    if(!clientId){
+      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選んでな。</div></div>`;
+      return;
+    }
+
+    const client = clientById(clientId);
+    const rows = invoiceRowsFor(clientId, month);
+
+    if(!rows.length){
+      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">この月の請求対象データがないで。</div></div>`;
+      return;
+    }
+
+    const subtotal = rows.reduce((a,r)=>a+r.amount,0);
+    const tax = Math.floor(subtotal * taxRate / 100);
+    const total = subtotal + tax;
+    const [y,m] = month.split("-");
+
+    const trs = rows.map(r=>`
+      <tr>
+        <td>${escapeHtml(r.site.name)}</td>
+        <td>${r.jinko.toFixed(2)}</td>
+        <td>${yen(r.rate)}</td>
+        <td>${yen(r.laborAmount)}</td>
+        <td>${yen(r.expenses)}</td>
+        <td>${yen(r.amount)}</td>
+      </tr>
+    `).join("");
+
+    $("invoicePreview").innerHTML = `
+      <div class="invoice-sheet">
+        <div class="invoice-title">請 求 書</div>
+
+        <div class="invoice-head">
+          <div>
+            <div style="font-size:20px;font-weight:800">${escapeHtml(client?.name||"")} 御中</div>
+            <div class="muted" style="margin-top:6px">${escapeHtml(client?.address||"")}</div>
+            <div style="margin-top:22px;font-size:14px">${y}年${Number(m)}月分</div>
+          </div>
+          <div class="invoice-right">
+            <div>請求書番号：${escapeHtml(number||"-")}</div>
+            <div style="margin-top:8px">発行日：${todayLocal()}</div>
+            <div style="margin-top:18px;font-weight:800">株式会社REFISE</div>
+          </div>
+        </div>
+
+        <div class="section-title">下記の通りご請求申し上げます。</div>
+        <div class="invoice-total">ご請求金額　${yen(total)}（税込）</div>
+
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th>現場</th>
+              <th>人工</th>
+              <th>単価</th>
+              <th>人工金額</th>
+              <th>経費</th>
+              <th>金額</th>
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+
+        <table class="invoice-table" style="margin-left:auto;width:360px;max-width:100%">
+          <tbody>
+            <tr><th>小計</th><td>${yen(subtotal)}</td></tr>
+            <tr><th>消費税 ${taxRate}%</th><td>${yen(tax)}</td></tr>
+            <tr><th>合計</th><td><strong>${yen(total)}</strong></td></tr>
+          </tbody>
+        </table>
+
+        ${client?.payment ? `<div class="muted" style="margin-top:18px">支払条件：${escapeHtml(client.payment)}</div>` : ""}
+      </div>
+    `;
+  }
+
+  $("makeInvoiceBtn").addEventListener("click", renderInvoice);
+  $("printInvoiceBtn").addEventListener("click", ()=>{
+    renderInvoice();
+    setTimeout(()=>window.print(), 50);
+  });
+  $("invoiceMonth").addEventListener("change", renderInvoice);
+  $("invoiceClient").addEventListener("change", renderInvoice);
+  $("invoiceTax").addEventListener("change", renderInvoice);
+
   function renderAll(){
+    renderClients();
     renderSelects();
     renderSites();
     renderWorkers();
     renderRecent();
     renderSummary();
+    if($("invoiceClient")) renderInvoice();
   }
 
   renderAll();
