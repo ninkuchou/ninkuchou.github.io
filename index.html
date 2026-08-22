@@ -1034,7 +1034,6 @@
         <div class="cal-day" onclick="showDayDetail('${date}')">
           <div class="cal-date">${day}日</div>
           ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
-          ${daySharedExpenseTotal ? `<span class="cal-chip">経費 ${yen(daySharedExpenseTotal)}</span>` : ""}
           ${chips}${more}
         </div>`;
     }
@@ -1058,36 +1057,53 @@
       return;
     }
 
-    const rows = entries.map(e=>{
-      const w = workerById(e.workerId);
-      const s = siteById(e.siteId);
-      const c = w?.companyId ? workerCompanyById(w.companyId) : null;
-      const client = s?.clientId ? clientById(s.clientId) : null;
-      return `<div class="item" style="border-left:5px solid ${clientColor(client)}">
-        <div class="item-line">
-          <div>
-            <strong>${client ? `<span class="client-dot" style="background:${clientColor(client)}"></span>` : ""}${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-            <small>${client ? escapeHtml(client.name) + " / " : ""}${c ? escapeHtml(c.name) + " / " : ""}${escapeHtml(s?.name||"不明")}${e.expense ? " / 経費 " + yen(e.expense) : ""}</small>
-          </div>
-        </div>
-      </div>`;
-    }).join("");
+    const siteIds = [...new Set([
+      ...entries.map(e=>e.siteId),
+      ...daySiteExpenses.map(x=>x.siteId)
+    ])];
 
-    const expenseRows = daySiteExpenses.map(x=>{
-      const s = siteById(x.siteId);
+    const siteBlocks = siteIds.map(siteId=>{
+      const s = siteById(siteId);
       const client = s?.clientId ? clientById(s.clientId) : null;
+      const siteEntries = entries.filter(e=>e.siteId===siteId);
+      const siteExpenseRows = daySiteExpenses.filter(x=>x.siteId===siteId);
+
+      const workersHtml = siteEntries.length
+        ? siteEntries.map(e=>{
+            const w = workerById(e.workerId);
+            const company = w?.companyId ? workerCompanyById(w.companyId) : null;
+            return `<div class="item-line" style="padding:6px 0;border-bottom:1px solid var(--line)">
+              <div>
+                <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
+                <small>${company ? escapeHtml(company.name) : "所属未設定"}${e.expense ? " / 個人経費 " + yen(e.expense) : ""}</small>
+              </div>
+            </div>`;
+          }).join("")
+        : `<div class="empty">人工入力なし</div>`;
+
+      const expensesHtml = siteExpenseRows.length
+        ? `<div style="margin-top:8px">${siteExpenseRows.map(x=>`
+            <div class="item-line" style="padding:5px 0">
+              <div>
+                <strong>現場経費 ${yen(x.amount)}</strong>
+                <small>${x.memo ? escapeHtml(x.memo) : "メモなし"}</small>
+              </div>
+            </div>
+          `).join("")}</div>`
+        : "";
+
       return `<div class="item" style="border-left:5px solid ${clientColor(client)}">
-        <div class="item-line">
-          <div>
-            <strong>現場経費 ${yen(x.amount)}</strong>
-            <small>${client ? escapeHtml(client.name) + " / " : ""}${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
-          </div>
+        <div style="margin-bottom:8px">
+          <strong>${client ? `<span class="client-dot" style="background:${clientColor(client)}"></span>` : ""}${escapeHtml(s?.name||"不明")}</strong>
+          <small>${client ? "元請け " + escapeHtml(client.name) : "元請け未設定"}</small>
         </div>
+        ${workersHtml}
+        ${expensesHtml}
       </div>`;
     }).join("");
 
     detail.className = "list";
-    detail.innerHTML = `<div class="day-detail-title">${date}</div>${rows}${expenseRows}`;
+    detail.innerHTML = `<div class="day-detail-title">${date}</div>${siteBlocks}`;
     try{$("dayDetailCard").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}
   }
 
