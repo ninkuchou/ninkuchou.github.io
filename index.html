@@ -109,7 +109,7 @@
     .cal-day{min-height:92px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px;cursor:pointer}
     .cal-day.empty{background:transparent;border-color:transparent;cursor:default}
     .cal-date{font-size:12px;font-weight:800;margin-bottom:5px}
-    .cal-chip{display:block;font-size:10px;line-height:1.25;background:#eef0f3;border-radius:7px;padding:4px 5px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cal-chip{display:block;font-size:10px;line-height:1.15;background:#eef0f3;border-radius:7px;padding:3px 4px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
     .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
@@ -994,11 +994,17 @@
       const daySharedExpenses = state.siteExpenses.filter(x=>x.date===date && (siteFilter==="all" || x.siteId===siteFilter));
       const daySharedExpenseTotal = daySharedExpenses.reduce((a,x)=>a+Number(x.amount||0),0);
 
-      const chips = dayEntries.slice(0,3).map(e=>{
-        const w = workerById(e.workerId);
-        const s = siteById(e.siteId);
+      const bySite = {};
+      dayEntries.forEach(e=>{
+        if(!bySite[e.siteId]) bySite[e.siteId] = 0;
+        bySite[e.siteId] += Number(e.jinko||0);
+      });
+
+      const siteRows = Object.entries(bySite);
+      const chips = siteRows.slice(0,3).map(([siteId,jinko])=>{
+        const s = siteById(siteId);
         const c = s?.clientId ? clientById(s.clientId) : null;
-        return `<span class="cal-chip" style="border-left:4px solid ${clientColor(c)}">${escapeHtml(w?.name||"不明")} ${e.jinko}人 / ${escapeHtml(s?.name||"")}</span>`;
+        return `<span class="cal-chip" style="border-left:4px solid ${clientColor(c)}">${escapeHtml(s?.name||"不明")} / ${jinko.toFixed(jinko % 1 ? 1 : 0)}人</span>`;
       }).join("");
 
       const clientIds = [...new Set(dayEntries.map(e=>{
@@ -1011,7 +1017,7 @@
         return `<span class="cal-client-tag" title="${escapeHtml(c?.name||"")}" style="background:${clientColor(c)}"></span>`;
       }).join("");
 
-      const more = dayEntries.length > 3 ? `<div class="cal-more">ほか${dayEntries.length-3}件</div>` : "";
+      const more = siteRows.length > 3 ? `<div class="cal-more">ほか${siteRows.length-3}現場</div>` : "";
       cells += `
         <div class="cal-day" onclick="showDayDetail('${date}')">
           <div class="cal-date">${day}日${total ? `・${total.toFixed(1)}人工` : ""}</div>
