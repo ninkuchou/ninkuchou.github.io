@@ -285,6 +285,17 @@
   }
 
   const $ = id => document.getElementById(id);
+
+  function dismissKeyboard(){
+    try{
+      const active = document.activeElement;
+      if(active && typeof active.blur === "function") active.blur();
+    }catch(e){}
+    setTimeout(()=>{
+      try{ window.scrollTo({top:0, behavior:"smooth"}); }catch(e){}
+    }, 50);
+  }
+
   const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 
@@ -343,6 +354,7 @@
     $("clientBillRate").value="";
     $("clientClosingDay").value="";
     $("clientPayment").value="";
+    dismissKeyboard();
     renderAll();
     alert("元請け会社を追加したで");
   });
@@ -361,6 +373,7 @@
     $("siteName").value="";
     $("siteRevenue").value="";
     $("siteBillRate").value="";
+    dismissKeyboard();
     renderAll();
     alert("現場を追加したで");
   });
@@ -373,6 +386,7 @@
     save();
     $("workerName").value="";
     $("workerRate").value="";
+    dismissKeyboard();
     renderAll();
     alert("作業員を追加したで");
   });
@@ -480,6 +494,7 @@
 
     save();
     document.querySelectorAll(".bulk-expense").forEach(x=>x.value="0");
+    dismissKeyboard();
     renderRecent();
     renderSummary();
     alert(checked.length + "人分まとめて登録したで");
