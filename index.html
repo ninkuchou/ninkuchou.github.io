@@ -181,6 +181,8 @@
         <h2>所属会社登録</h2>
         <label>会社名</label>
         <input id="workerCompanyName" placeholder="例：自社 / ○○興業">
+        <label>基本支払人工単価</label>
+        <input id="workerCompanyRate" inputmode="numeric" type="number" min="0" placeholder="例：20000">
         <button class="btn" id="addWorkerCompanyBtn">所属会社を追加</button>
       </div>
       <div class="card">
@@ -194,8 +196,8 @@
         <input id="workerName" placeholder="例：田中">
         <label>所属会社</label>
         <select id="workerCompany"></select>
-        <label>1人工単価</label>
-        <input id="workerRate" inputmode="numeric" type="number" min="0" placeholder="例：19000">
+        <label>作業員別の例外単価（任意）</label>
+        <input id="workerRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら所属会社の基本単価">
         <button class="btn" id="addWorkerBtn">作業員を追加</button>
       </div>
       <div class="card">
@@ -415,7 +417,11 @@
   $("addWorkerCompanyBtn").addEventListener("click", ()=>{
     const name = $("workerCompanyName").value.trim();
     if(!name){ alert("会社名を入れてな"); return; }
-    state.workerCompanies.push({id:uid(), name});
+    state.workerCompanies.push({
+      id:uid(),
+      name,
+      rate:Number($("workerCompanyRate").value||0)
+    });
     save();
     $("workerCompanyName").value="";
     renderAll();
@@ -444,6 +450,12 @@
 
   function clientById(id){ return state.clients.find(x=>x.id===id); }
   function workerCompanyById(id){ return state.workerCompanies.find(x=>x.id===id); }
+  function effectiveWorkerRate(worker){
+    if(!worker) return 0;
+    if(Number(worker.rate||0) > 0) return Number(worker.rate||0);
+    const company = worker.companyId ? workerCompanyById(worker.companyId) : null;
+    return Number(company?.rate||0);
+  }
   function siteById(id){ return state.sites.find(x=>x.id===id); }
   function workerById(id){ return state.workers.find(x=>x.id===id); }
 
@@ -508,7 +520,7 @@
         <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" checked>
         <div>
           <div class="member-name">${escapeHtml(w.name)}</div>
-          <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(w.rate)} / 1人工</div>
+          <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</div>
         </div>
         <select class="bulk-jinko" data-worker-id="${w.id}">
           <option value="1" selected>1.0</option>
@@ -641,7 +653,10 @@
     list.innerHTML = state.workerCompanies.map(c=>`
       <div class="item">
         <div class="item-line">
-          <div><strong>${escapeHtml(c.name)}</strong></div>
+          <div>
+            <strong>${escapeHtml(c.name)}</strong>
+            <small>${c.rate ? "基本単価 " + yen(c.rate) + " / 1人工" : "基本単価 未設定"}</small>
+          </div>
           <button class="danger-link" onclick="removeWorkerCompany('${c.id}')">削除</button>
         </div>
       </div>`).join("");
@@ -657,7 +672,7 @@
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w.name)}</strong>
-            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(w.rate)} / 1人工</small>
+            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</small>
           </div>
           <button class="danger-link" onclick="removeWorker('${w.id}')">削除</button>
         </div>
@@ -694,7 +709,7 @@
     const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
     const labor = entries.reduce((a,e)=>{
       const w = workerById(e.workerId);
-      return a + Number(e.jinko||0) * Number(w?.rate||0);
+      return a + Number(e.jinko||0) * effectiveWorkerRate(w);
     },0);
     const expenses = entries.reduce((a,e)=>a+Number(e.expense||0),0);
 
@@ -719,7 +734,7 @@
       if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0};
       const w = workerById(e.workerId);
       byWorker[e.workerId].jinko += Number(e.jinko||0);
-      byWorker[e.workerId].cost += Number(e.jinko||0)*Number(w?.rate||0);
+      byWorker[e.workerId].cost += Number(e.jinko||0)*effectiveWorkerRate(w);
     });
 
     const rows = Object.entries(byWorker).map(([wid,v])=>{
@@ -742,7 +757,7 @@
       const cid = w?.companyId || "none";
       if(!byCompany[cid]) byCompany[cid]={jinko:0,cost:0};
       byCompany[cid].jinko += Number(e.jinko||0);
-      byCompany[cid].cost += Number(e.jinko||0)*Number(w?.rate||0);
+      byCompany[cid].cost += Number(e.jinko||0)*effectiveWorkerRate(w);
     });
 
     const companyRows = Object.entries(byCompany).map(([cid,v])=>{
