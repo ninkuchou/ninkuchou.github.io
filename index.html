@@ -712,6 +712,23 @@
     save(); renderAll();
   }
 
+
+  function removeEntryFromDay(id, date){
+    if(!confirm("この人工入力を削除する？")) return;
+    state.entries = state.entries.filter(x=>x.id!==id);
+    save();
+    renderAll();
+    showDayDetail(date);
+  }
+
+  function removeSiteExpenseFromDay(id, date){
+    if(!confirm("この現場経費を削除する？")) return;
+    state.siteExpenses = state.siteExpenses.filter(x=>x.id!==id);
+    save();
+    renderAll();
+    showDayDetail(date);
+  }
+
   function removeSiteExpense(id){
     if(!confirm("この現場経費を削除する？")) return;
     state.siteExpenses = state.siteExpenses.filter(x=>x.id!==id);
@@ -732,6 +749,8 @@
   window.removeSite = removeSite;
   window.removeWorkerCompany = removeWorkerCompany;
   window.removeWorker = removeWorker;
+  window.removeEntryFromDay = removeEntryFromDay;
+  window.removeSiteExpenseFromDay = removeSiteExpenseFromDay;
   window.removeSiteExpense = removeSiteExpense;
   window.removeEntry = removeEntry;
 
@@ -791,14 +810,28 @@
       const workerId = chk.dataset.workerId;
       const jinkoEl = document.querySelector(`.bulk-jinko[data-worker-id="${workerId}"]`);
       const expenseEl = document.querySelector(`.bulk-expense[data-worker-id="${workerId}"]`);
-      state.entries.push({
-        id:uid(),
-        date,
-        siteId,
-        workerId,
-        jinko:Number(jinkoEl?.value||1),
-        expense:Number(expenseEl?.value||0)
-      });
+      const jinko = Number(jinkoEl?.value||1);
+      const expense = Number(expenseEl?.value||0);
+
+      const existing = state.entries.find(e =>
+        e.date === date &&
+        e.siteId === siteId &&
+        e.workerId === workerId
+      );
+
+      if(existing){
+        existing.jinko = jinko;
+        existing.expense = expense;
+      }else{
+        state.entries.push({
+          id:uid(),
+          date,
+          siteId,
+          workerId,
+          jinko,
+          expense
+        });
+      }
     });
 
     if(siteExpense > 0 || siteExpenseMemo){
@@ -819,9 +852,9 @@
     renderRecent();
     renderSummary();
     if(checked.length && (siteExpense > 0 || siteExpenseMemo)){
-      alert(checked.length + "人分＋現場経費を登録したで");
+      alert(checked.length + "人分＋現場経費を登録・更新したで");
     }else if(checked.length){
-      alert(checked.length + "人分まとめて登録したで");
+      alert(checked.length + "人分を登録・更新したで");
     }else{
       alert("現場経費を登録したで");
     }
@@ -1077,6 +1110,7 @@
                 <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
                 <small>${company ? escapeHtml(company.name) : "所属未設定"}${e.expense ? " / 個人経費 " + yen(e.expense) : ""}</small>
               </div>
+              <button class="danger-link" onclick="removeEntryFromDay('${e.id}','${date}')">削除</button>
             </div>`;
           }).join("")
         : `<div class="empty">人工入力なし</div>`;
@@ -1088,6 +1122,7 @@
                 <strong>現場経費 ${yen(x.amount)}</strong>
                 <small>${x.memo ? escapeHtml(x.memo) : "メモなし"}</small>
               </div>
+              <button class="danger-link" onclick="removeSiteExpenseFromDay('${x.id}','${date}')">削除</button>
             </div>
           `).join("")}</div>`
         : "";
