@@ -104,6 +104,18 @@
     .invoice-table th,.invoice-table td{border:1px solid #d1d5db;padding:8px;text-align:right}
     .invoice-table th:first-child,.invoice-table td:first-child{text-align:left}
     .invoice-total{font-size:22px;font-weight:800;text-align:right;margin-top:18px}
+    .invoice-sheet.format-simple .invoice-title{font-size:22px;letter-spacing:.06em}
+    .invoice-sheet.format-simple .invoice-head{grid-template-columns:1fr;gap:8px}
+    .invoice-sheet.format-simple .invoice-right{text-align:left}
+    .invoice-sheet.format-simple .invoice-table th:nth-child(2),
+    .invoice-sheet.format-simple .invoice-table td:nth-child(2),
+    .invoice-sheet.format-simple .invoice-table th:nth-child(3),
+    .invoice-sheet.format-simple .invoice-table td:nth-child(3),
+    .invoice-sheet.format-simple .invoice-table th:nth-child(4),
+    .invoice-sheet.format-simple .invoice-table td:nth-child(4){display:none}
+    .invoice-sheet.format-detail .invoice-title{text-align:left;letter-spacing:.04em}
+    .invoice-sheet.format-detail .invoice-total{text-align:left;border-top:2px solid #111827;padding-top:12px}
+    .invoice-sheet.format-detail .invoice-table th{background:#f3f4f6}
     .muted{color:var(--sub);font-size:12px}
     .section-title{font-size:13px;font-weight:800;margin:16px 0 8px}
     .calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;max-width:100%;overflow:hidden}
@@ -171,7 +183,7 @@
         <select id="entrySite"></select>
 
         <label>その日の現場経費</label>
-        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="例：高速・駐車場など">
+        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
         <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
 
         <label>所属会社で絞り込み</label>
@@ -334,6 +346,15 @@
 
         <label>元請け会社</label>
         <select id="invoiceClient"></select>
+
+        <div class="helper" id="invoicePeriodHint"></div>
+
+        <label>請求書フォーマット</label>
+        <select id="invoiceFormat">
+          <option value="standard">標準</option>
+          <option value="simple">シンプル</option>
+          <option value="detail">明細重視</option>
+        </select>
 
         <div class="row">
           <div>
@@ -1331,16 +1352,58 @@
   }
 
 
+
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  function daysInMonth(year, monthIndex1){
+    return new Date(year, monthIndex1, 0).getDate();
+  }
+
+  function billingPeriodFor(client, month){
+    const [year, mon] = month.split("-").map(Number);
+    const closingDay = Number(client?.closingDay||0);
+
+    // 締め日未設定は暦月
+    if(!closingDay){
+      const start = `${year}-${pad2(mon)}-01`;
+      const end = `${year}-${pad2(mon)}-${pad2(daysInMonth(year, mon))}`;
+      return {start,end};
+    }
+
+    const endDay = Math.min(closingDay, daysInMonth(year, mon));
+    const end = `${year}-${pad2(mon)}-${pad2(endDay)}`;
+
+    let prevYear = year;
+    let prevMon = mon - 1;
+    if(prevMon === 0){
+      prevMon = 12;
+      prevYear -= 1;
+    }
+
+    const prevClosingDay = Math.min(closingDay, daysInMonth(prevYear, prevMon));
+    const prevClosing = new Date(prevYear, prevMon - 1, prevClosingDay);
+    prevClosing.setDate(prevClosing.getDate() + 1);
+
+    const start = `${prevClosing.getFullYear()}-${pad2(prevClosing.getMonth()+1)}-${pad2(prevClosing.getDate())}`;
+    return {start,end};
+  }
+
+  function dateInRange(date, start, end){
+    return date >= start && date <= end;
+  }
+
   function invoiceRowsFor(clientId, month){
+    const client = clientById(clientId);
+    const period = billingPeriodFor(client, month);
     const clientSites = state.sites.filter(s=>s.clientId===clientId);
     const siteIds = new Set(clientSites.map(s=>s.id));
-    const entries = state.entries.filter(e=>e.date.startsWith(month) && siteIds.has(e.siteId));
+    const entries = state.entries.filter(e=>dateInRange(e.date, period.start, period.end) && siteIds.has(e.siteId));
 
     return clientSites.map(site=>{
       const siteEntries = entries.filter(e=>e.siteId===site.id);
       const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
       const sharedExpenses = state.siteExpenses
-        .filter(x=>x.siteId===site.id && x.date.startsWith(month))
+        .filter(x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end))
         .reduce((a,x)=>a+Number(x.amount||0),0);
       const expenses = sharedExpenses;
       const client = clientById(site.clientId);
@@ -1357,11 +1420,32 @@
     }).filter(r=>r.jinko>0 || r.expenses>0);
   }
 
+
+  function updateInvoicePeriodHint(){
+    const clientId = $("invoiceClient")?.value;
+    const month = $("invoiceMonth")?.value || monthLocal();
+    const c = clientId ? clientById(clientId) : null;
+    const box = $("invoicePeriodHint");
+    if(!box) return;
+
+    if(!c){
+      box.textContent = "";
+      return;
+    }
+
+    const p = billingPeriodFor(c, month);
+    box.textContent = c.closingDay
+      ? `${c.closingDay}日締め：${p.start} 〜 ${p.end}`
+      : `締め日未設定：${p.start} 〜 ${p.end}`;
+  }
+
   function renderInvoice(){
+    updateInvoicePeriodHint();
     const clientId = $("invoiceClient").value;
     const month = $("invoiceMonth").value || monthLocal();
     const taxRate = Number($("invoiceTax").value||0);
     const number = $("invoiceNumber").value.trim();
+    const format = $("invoiceFormat")?.value || "standard";
 
     if(!clientId){
       $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選んでな。</div></div>`;
@@ -1369,6 +1453,7 @@
     }
 
     const client = clientById(clientId);
+    const period = billingPeriodFor(client, month);
     const rows = invoiceRowsFor(clientId, month);
 
     if(!rows.length){
@@ -1389,11 +1474,12 @@
         <td>${yen(r.laborAmount)}</td>
         <td>${yen(r.expenses)}</td>
         <td>${yen(r.amount)}</td>
+        ${format==="detail" ? `<td>${r.expenses ? "経費含む" : ""}</td>` : ""}
       </tr>
     `).join("");
 
     $("invoicePreview").innerHTML = `
-      <div class="invoice-sheet">
+      <div class="invoice-sheet format-${format}">
         <div class="invoice-title">請 求 書</div>
 
         <div class="invoice-head">
@@ -1401,6 +1487,7 @@
             <div style="font-size:20px;font-weight:800">${escapeHtml(client?.name||"")} 御中</div>
             <div class="muted" style="margin-top:6px">${escapeHtml(client?.address||"")}</div>
             <div style="margin-top:22px;font-size:14px">${y}年${Number(m)}月分</div>
+            <div class="muted" style="margin-top:4px">集計期間：${period.start} 〜 ${period.end}</div>
           </div>
           <div class="invoice-right">
             <div>請求書番号：${escapeHtml(number||"-")}</div>
@@ -1409,8 +1496,8 @@
           </div>
         </div>
 
-        <div class="section-title">下記の通りご請求申し上げます。</div>
-        <div class="invoice-total">ご請求金額　${yen(total)}（税込）</div>
+        ${format==="simple" ? "" : `<div class="section-title">下記の通りご請求申し上げます。</div>`}
+        <div class="invoice-total">${format==="detail" ? "請求合計：" : "ご請求金額　"}${yen(total)}（税込）</div>
 
         <table class="invoice-table">
           <thead>
@@ -1421,6 +1508,7 @@
               <th>人工金額</th>
               <th>経費</th>
               <th>金額</th>
+              ${format==="detail" ? "<th>備考</th>" : ""}
             </tr>
           </thead>
           <tbody>${trs}</tbody>
@@ -1444,9 +1532,16 @@
     renderInvoice();
     setTimeout(()=>window.print(), 50);
   });
-  $("invoiceMonth").addEventListener("change", renderInvoice);
-  $("invoiceClient").addEventListener("change", renderInvoice);
+  $("invoiceMonth").addEventListener("change", ()=>{
+    updateInvoicePeriodHint();
+    renderInvoice();
+  });
+  $("invoiceClient").addEventListener("change", ()=>{
+    updateInvoicePeriodHint();
+    renderInvoice();
+  });
   $("invoiceTax").addEventListener("change", renderInvoice);
+  $("invoiceFormat").addEventListener("change", renderInvoice);
 
 
   function normalizeImportedState(data){
