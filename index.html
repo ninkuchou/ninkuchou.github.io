@@ -106,7 +106,7 @@
     .section-title{font-size:13px;font-weight:800;margin:16px 0 8px}
     .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
     .cal-head{text-align:center;font-size:11px;color:var(--sub);font-weight:700;padding:4px 0}
-    .cal-day{min-height:92px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px;cursor:pointer}
+    .cal-day{min-height:74px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px;cursor:pointer}
     .cal-day.empty{background:transparent;border-color:transparent;cursor:default}
     .cal-date{font-size:12px;font-weight:800;margin-bottom:5px}
     .cal-chip{display:block;font-size:10px;line-height:1.15;background:#eef0f3;border-radius:7px;padding:3px 4px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -121,7 +121,7 @@
     .day-detail-title{font-weight:800;font-size:15px;margin-bottom:10px}
     @media(max-width:430px){
       .calendar{gap:4px}
-      .cal-day{min-height:82px;padding:5px}
+      .cal-day{min-height:68px;padding:5px}
       .cal-chip{font-size:9px;padding:3px 4px}
     }
     @media print{
@@ -1004,7 +1004,7 @@
       const chips = siteRows.slice(0,3).map(([siteId,jinko])=>{
         const s = siteById(siteId);
         const c = s?.clientId ? clientById(s.clientId) : null;
-        return `<span class="cal-chip" style="border-left:4px solid ${clientColor(c)}">${escapeHtml(s?.name||"不明")} / ${jinko.toFixed(jinko % 1 ? 1 : 0)}人</span>`;
+        return `<span class="cal-chip" style="border-left:4px solid ${clientColor(c)}">${escapeHtml(s?.name||"不明")} / ${jinko.toFixed(jinko % 1 ? 1 : 0)}</span>`;
       }).join("");
 
       const clientIds = [...new Set(dayEntries.map(e=>{
@@ -1020,7 +1020,7 @@
       const more = siteRows.length > 3 ? `<div class="cal-more">ほか${siteRows.length-3}現場</div>` : "";
       cells += `
         <div class="cal-day" onclick="showDayDetail('${date}')">
-          <div class="cal-date">${day}日${total ? `・${total.toFixed(1)}人工` : ""}</div>
+          <div class="cal-date">${day}日</div>
           ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
           ${daySharedExpenseTotal ? `<span class="cal-chip">経費 ${yen(daySharedExpenseTotal)}</span>` : ""}
           ${chips}${more}
