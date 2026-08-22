@@ -449,6 +449,24 @@
         <button class="btn secondary" id="printInvoiceBtn">PDF保存・印刷</button>
       </div>
 
+      <div class="card no-print" id="companyInfoCard">
+        <h2>自社情報</h2>
+
+        <label>社名</label>
+        <input id="companyInfoName" placeholder="例：株式会社○○">
+
+        <label>郵便番号</label>
+        <input id="companyInfoPostalCode" inputmode="numeric" placeholder="例：123-4567">
+
+        <label>住所</label>
+        <input id="companyInfoAddress" placeholder="例：兵庫県神戸市...">
+
+        <label>振込先口座</label>
+        <textarea id="companyInfoBankAccount" rows="3" placeholder="例：○○銀行 ○○支店 普通 1234567 口座名義 ○○"></textarea>
+
+        <button class="btn secondary" id="saveCompanyInfoBtn">自社情報を保存</button>
+      </div>
+
       <div id="invoicePreview"></div>
     </section>
 
@@ -485,7 +503,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [] };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", bankAccount:""} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -496,6 +514,11 @@
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
   if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
+  if(!state.companyInfo || typeof state.companyInfo !== "object") state.companyInfo = {name:"", postalCode:"", address:"", bankAccount:""};
+  state.companyInfo.name = state.companyInfo.name || "";
+  state.companyInfo.postalCode = state.companyInfo.postalCode || "";
+  state.companyInfo.address = state.companyInfo.address || "";
+  state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
 
   function safeStorage(){
     try{
@@ -1579,7 +1602,27 @@
   }
 
   
-function getProgressBilling(siteId, month){
+function renderCompanyInfoForm(){
+    if(!$("companyInfoName")) return;
+    $("companyInfoName").value = state.companyInfo?.name || "";
+    $("companyInfoPostalCode").value = state.companyInfo?.postalCode || "";
+    $("companyInfoAddress").value = state.companyInfo?.address || "";
+    $("companyInfoBankAccount").value = state.companyInfo?.bankAccount || "";
+  }
+
+  function saveCompanyInfo(){
+    state.companyInfo = {
+      name:$("companyInfoName")?.value.trim() || "",
+      postalCode:$("companyInfoPostalCode")?.value.trim() || "",
+      address:$("companyInfoAddress")?.value.trim() || "",
+      bankAccount:$("companyInfoBankAccount")?.value.trim() || ""
+    };
+    save();
+    renderInvoice();
+    finishRegistration("自社情報を保存したで");
+  }
+
+  function getProgressBilling(siteId, month){
     const item = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
     return item ? Number(item.percent||0) : 0;
   }
@@ -1768,7 +1811,9 @@ function getProgressBilling(siteId, month){
           <div class="invoice-right">
             <div>請求書番号：${escapeHtml(number||"-")}</div>
             <div style="margin-top:8px">発行日：${todayLocal()}</div>
-            <div style="margin-top:18px;font-weight:800">株式会社REFISE</div>
+            <div style="margin-top:18px;font-weight:800">${escapeHtml(state.companyInfo?.name || "")}</div>
+            ${state.companyInfo?.postalCode ? `<div class="muted" style="margin-top:4px">〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
+            ${state.companyInfo?.address ? `<div class="muted" style="margin-top:2px">${escapeHtml(state.companyInfo.address)}</div>` : ""}
           </div>
         </div>
 
@@ -1799,10 +1844,12 @@ function getProgressBilling(siteId, month){
         </table>
 
         ${client?.payment ? `<div class="muted" style="margin-top:18px">支払条件：${escapeHtml(client.payment)}</div>` : ""}
+        ${state.companyInfo?.bankAccount ? `<div style="margin-top:18px"><strong>振込先</strong><div class="muted" style="margin-top:4px;white-space:pre-line">${escapeHtml(state.companyInfo.bankAccount)}</div></div>` : ""}
       </div>
     `;
   }
 
+  $("saveCompanyInfoBtn").addEventListener("click", saveCompanyInfo);
   $("makeInvoiceBtn").addEventListener("click", renderInvoice);
   $("printInvoiceBtn").addEventListener("click", ()=>{
     renderInvoice();
@@ -1832,7 +1879,15 @@ function getProgressBilling(siteId, month){
       entries: Array.isArray(clean.entries) ? clean.entries : [],
       siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : [],
       recentSelects: clean.recentSelects && typeof clean.recentSelects==="object" ? clean.recentSelects : {},
-      progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : []
+      progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : [],
+      companyInfo: clean.companyInfo && typeof clean.companyInfo==="object"
+        ? {
+            name: clean.companyInfo.name || "",
+            postalCode: clean.companyInfo.postalCode || "",
+            address: clean.companyInfo.address || "",
+            bankAccount: clean.companyInfo.bankAccount || ""
+          }
+        : {name:"", postalCode:"", address:"", bankAccount:""}
     };
   }
 
@@ -1907,6 +1962,7 @@ function getProgressBilling(siteId, month){
     renderRecent();
     renderSummary();
     if($("invoiceClient")){
+      renderCompanyInfoForm();
       renderProgressBillingInputs();
       renderInvoice();
     }
