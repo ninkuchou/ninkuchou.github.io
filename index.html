@@ -11,14 +11,16 @@
   <link rel="manifest" href="manifest.webmanifest">
   <style>
     :root{
-      --bg:#f5f6f8; --card:#fff; --text:#111827; --sub:#6b7280;
-      --line:#e5e7eb; --accent:#111827; --danger:#b91c1c;
+      --bg:#f3f6fb; --card:#fff; --text:#142033; --sub:#6b7280;
+      --line:#dfe5ee; --accent:#2563eb; --danger:#b91c1c;
+      --input:#2563eb; --sites:#16a34a; --workers:#7c3aed; --summary:#ea580c; --invoice:#0891b2;
+      --soft-blue:#eaf2ff; --soft-green:#eaf8ef; --soft-purple:#f1ebff; --soft-orange:#fff0e6; --soft-cyan:#e7f8fb;
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Yu Gothic",sans-serif}
     body{min-height:100vh;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
     header{
-      position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);
+      position:sticky;top:0;z-index:10;background:linear-gradient(135deg,#ffffff 0%,#eef4ff 100%);
       backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
       padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
     }
@@ -27,7 +29,7 @@
     main{padding:14px;max-width:720px;margin:0 auto}
     .view{display:none}
     .view.active{display:block}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 5px 18px rgba(30,64,175,.05)}
     .card h2{font-size:16px;margin:0 0 12px}
     label{display:block;font-size:12px;color:var(--sub);margin:12px 0 6px}
     input,select,button{
@@ -40,7 +42,8 @@
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .btn{
       width:100%;min-height:48px;border:0;border-radius:12px;padding:12px 14px;
-      background:var(--accent);color:white;font-weight:700;margin-top:12px;
+      background:linear-gradient(135deg,var(--accent),#1d4ed8);color:white;font-weight:700;margin-top:12px;
+      box-shadow:0 6px 14px rgba(37,99,235,.18);
     }
     .btn.secondary{background:#eef0f3;color:#111827}
     .btn.danger{background:#fee2e2;color:var(--danger)}
@@ -62,11 +65,32 @@
       display:grid;grid-template-columns:repeat(5,1fr);gap:6px;
     }
     nav button{
-      border:0;background:transparent;border-radius:12px;padding:10px 4px;
-      color:var(--sub);font-size:12px;font-weight:700;
+      border:0;background:transparent;border-radius:14px;padding:8px 2px 7px;
+      color:var(--sub);font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px;
     }
-    nav button.active{background:#111827;color:#fff}
+    nav button .nav-icon{font-size:20px;line-height:1}
+    nav button[data-view="input"].active{background:var(--soft-blue);color:var(--input)}
+    nav button[data-view="sites"].active{background:var(--soft-green);color:var(--sites)}
+    nav button[data-view="workers"].active{background:var(--soft-purple);color:var(--workers)}
+    nav button[data-view="summary"].active{background:var(--soft-orange);color:var(--summary)}
+    nav button[data-view="invoice"].active{background:var(--soft-cyan);color:var(--invoice)}
     .notice{font-size:12px;color:var(--sub);line-height:1.6}
+    #view-input .card:first-child{border-top:5px solid var(--input)}
+    #view-sites .card:first-child{border-top:5px solid var(--sites)}
+    #view-workers .card:first-child{border-top:5px solid var(--workers)}
+    #view-summary .card:first-child{border-top:5px solid var(--summary)}
+    #view-invoice .card:first-child{border-top:5px solid var(--invoice)}
+    #view-input h2{color:var(--input)}
+    #view-sites h2{color:var(--sites)}
+    #view-workers h2{color:var(--workers)}
+    #view-summary h2{color:var(--summary)}
+    #view-invoice h2{color:var(--invoice)}
+    .metric:nth-child(1){background:var(--soft-blue)}
+    .metric:nth-child(2){background:var(--soft-purple)}
+    .metric:nth-child(3){background:var(--soft-orange)}
+    .metric:nth-child(4){background:var(--soft-green)}
+    .cal-day{transition:.15s ease}
+    .cal-day:active{transform:scale(.98);background:#f8fbff}
     .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 0}
     .invoice-sheet{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
     .invoice-title{text-align:center;font-size:26px;font-weight:800;letter-spacing:.12em;margin:4px 0 20px}
@@ -85,6 +109,13 @@
     .cal-date{font-size:12px;font-weight:800;margin-bottom:5px}
     .cal-chip{display:block;font-size:10px;line-height:1.25;background:#eef0f3;border-radius:7px;padding:4px 5px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
+    .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
+    .color-choice.selected{border-color:#111827;box-shadow:0 0 0 2px #fff inset}
+    .client-dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;vertical-align:-1px}
+    .cal-client-bar{height:5px;border-radius:999px;margin-top:4px}
+    .cal-client-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
+    .cal-client-tag{width:12px;height:12px;border-radius:4px;border:1px solid rgba(0,0,0,.08)}
     .day-detail-title{font-weight:800;font-size:15px;margin-bottom:10px}
     @media(max-width:430px){
       .calendar{gap:4px}
@@ -167,6 +198,20 @@
         <input id="clientAddress" placeholder="例：兵庫県神戸市...">
         <label>基本人工単価</label>
         <input id="clientBillRate" inputmode="numeric" type="number" min="0" placeholder="例：30000">
+
+        <label>カレンダー表示色</label>
+        <div class="client-color-row" id="clientColorPicker">
+          <button type="button" class="color-choice selected" data-color="#2563eb" style="background:#2563eb" aria-label="青"></button>
+          <button type="button" class="color-choice" data-color="#16a34a" style="background:#16a34a" aria-label="緑"></button>
+          <button type="button" class="color-choice" data-color="#7c3aed" style="background:#7c3aed" aria-label="紫"></button>
+          <button type="button" class="color-choice" data-color="#ea580c" style="background:#ea580c" aria-label="オレンジ"></button>
+          <button type="button" class="color-choice" data-color="#dc2626" style="background:#dc2626" aria-label="赤"></button>
+          <button type="button" class="color-choice" data-color="#0891b2" style="background:#0891b2" aria-label="水色"></button>
+          <button type="button" class="color-choice" data-color="#ca8a04" style="background:#ca8a04" aria-label="黄"></button>
+          <button type="button" class="color-choice" data-color="#db2777" style="background:#db2777" aria-label="ピンク"></button>
+        </div>
+        <input id="clientColor" type="hidden" value="#2563eb">
+
         <div class="row">
           <div>
             <label>締め日（任意）</label>
@@ -289,11 +334,11 @@
   </main>
 
   <nav>
-    <button data-view="input" class="active">入力</button>
-    <button data-view="sites">現場</button>
-    <button data-view="workers">作業員</button>
-    <button data-view="summary">集計</button>
-    <button data-view="invoice">請求</button>
+    <button data-view="input" class="active"><span class="nav-icon">✍️</span><span>入力</span></button>
+    <button data-view="sites"><span class="nav-icon">🏗️</span><span>現場</span></button>
+    <button data-view="workers"><span class="nav-icon">👷</span><span>作業員</span></button>
+    <button data-view="summary"><span class="nav-icon">📊</span><span>集計</span></button>
+    <button data-view="invoice"><span class="nav-icon">🧾</span><span>請求</span></button>
   </nav>
 
 <script>
@@ -391,12 +436,33 @@
       document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
       this.classList.add("active");
       $("headerSub").textContent = viewLabels[target];
+
+      const accentMap = {
+        input:["#2563eb","#eaf2ff"],
+        sites:["#16a34a","#eaf8ef"],
+        workers:["#7c3aed","#f1ebff"],
+        summary:["#ea580c","#fff0e6"],
+        invoice:["#0891b2","#e7f8fb"]
+      };
+      const pair = accentMap[target] || accentMap.input;
+      document.documentElement.style.setProperty("--accent", pair[0]);
+      document.querySelector("header").style.background = `linear-gradient(135deg,#ffffff 0%,${pair[1]} 100%)`;
+
       if(target==="summary") renderSummary();
       if(target==="invoice") renderInvoice();
       window.scrollTo({top:0,behavior:"instant"});
     });
   });
 
+
+
+  document.querySelectorAll("#clientColorPicker .color-choice").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("#clientColorPicker .color-choice").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      $("clientColor").value = btn.dataset.color || "#2563eb";
+    });
+  });
 
   $("addClientBtn").addEventListener("click", ()=>{
     const name = $("clientName").value.trim();
@@ -406,6 +472,7 @@
       name,
       address:$("clientAddress").value.trim(),
       billRate:Number($("clientBillRate").value||0),
+      color:$("clientColor").value || "#2563eb",
       closingDay:Number($("clientClosingDay").value||0),
       payment:$("clientPayment").value.trim()
     });
@@ -413,6 +480,8 @@
     $("clientName").value="";
     $("clientAddress").value="";
     $("clientBillRate").value="";
+    $("clientColor").value="#2563eb";
+    document.querySelectorAll("#clientColorPicker .color-choice").forEach((b,i)=>b.classList.toggle("selected", i===0));
     $("clientClosingDay").value="";
     $("clientPayment").value="";
     renderAll();
@@ -473,6 +542,9 @@
   $("summarySite").addEventListener("change", renderSummary);
 
   function clientById(id){ return state.clients.find(x=>x.id===id); }
+  function clientColor(client){
+    return client?.color || "#64748b";
+  }
   function workerCompanyById(id){ return state.workerCompanies.find(x=>x.id===id); }
   function effectiveWorkerRate(worker){
     if(!worker) return 0;
@@ -635,7 +707,7 @@
       <div class="item">
         <div class="item-line">
           <div>
-            <strong>${escapeHtml(c.name)}</strong>
+            <strong><span class="client-dot" style="background:${clientColor(c)}"></span>${escapeHtml(c.name)}</strong>
             <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "締め日未設定"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
           </div>
           <button class="danger-link" onclick="removeClient('${c.id}')">削除</button>
@@ -652,7 +724,7 @@
       <div class="item">
         <div class="item-line">
           <div>
-            <strong>${escapeHtml(s.name)}</strong>
+            <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
             <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}請負 ${s.revenue ? yen(s.revenue) : "未設定"}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
           </div>
           <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
@@ -750,13 +822,25 @@
       const chips = dayEntries.slice(0,3).map(e=>{
         const w = workerById(e.workerId);
         const s = siteById(e.siteId);
-        return `<span class="cal-chip">${escapeHtml(w?.name||"不明")} ${e.jinko}人 / ${escapeHtml(s?.name||"")}</span>`;
+        const c = s?.clientId ? clientById(s.clientId) : null;
+        return `<span class="cal-chip" style="border-left:4px solid ${clientColor(c)}">${escapeHtml(w?.name||"不明")} ${e.jinko}人 / ${escapeHtml(s?.name||"")}</span>`;
+      }).join("");
+
+      const clientIds = [...new Set(dayEntries.map(e=>{
+        const s = siteById(e.siteId);
+        return s?.clientId || "";
+      }).filter(Boolean))];
+
+      const clientTags = clientIds.map(cid=>{
+        const c = clientById(cid);
+        return `<span class="cal-client-tag" title="${escapeHtml(c?.name||"")}" style="background:${clientColor(c)}"></span>`;
       }).join("");
 
       const more = dayEntries.length > 3 ? `<div class="cal-more">ほか${dayEntries.length-3}件</div>` : "";
       cells += `
         <div class="cal-day" onclick="showDayDetail('${date}')">
           <div class="cal-date">${day}日${total ? `・${total.toFixed(1)}人工` : ""}</div>
+          ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
           ${chips}${more}
         </div>`;
     }
@@ -781,11 +865,12 @@
       const w = workerById(e.workerId);
       const s = siteById(e.siteId);
       const c = w?.companyId ? workerCompanyById(w.companyId) : null;
-      return `<div class="item">
+      const client = s?.clientId ? clientById(s.clientId) : null;
+      return `<div class="item" style="border-left:5px solid ${clientColor(client)}">
         <div class="item-line">
           <div>
-            <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-            <small>${c ? escapeHtml(c.name) + " / " : ""}${escapeHtml(s?.name||"不明")}${e.expense ? " / 経費 " + yen(e.expense) : ""}</small>
+            <strong>${client ? `<span class="client-dot" style="background:${clientColor(client)}"></span>` : ""}${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
+            <small>${client ? escapeHtml(client.name) + " / " : ""}${c ? escapeHtml(c.name) + " / " : ""}${escapeHtml(s?.name||"不明")}${e.expense ? " / 経費 " + yen(e.expense) : ""}</small>
           </div>
         </div>
       </div>`;
