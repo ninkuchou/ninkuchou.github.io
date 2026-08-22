@@ -165,15 +165,26 @@
       .member-name{font-size:13px}
     }
   
-    input,select,textarea{box-sizing:border-box;max-width:100%;min-width:0}
-    input[type="date"],input[type="month"]{
-      display:block;
+    input,textarea{box-sizing:border-box;max-width:100%;min-width:0}
+    select{
+      box-sizing:border-box;
       width:100%;
       max-width:100%;
       min-width:0;
+      -webkit-appearance:menulist;
+      appearance:auto;
+      pointer-events:auto;
+      touch-action:manipulation;
+      background-color:#fff;
+    }
+    input[type="date"],input[type="month"]{
+      display:block;
+      width:calc(100% - 2px);
+      max-width:calc(100% - 2px);
+      min-width:0;
       box-sizing:border-box;
-      -webkit-appearance:none;
-      appearance:none;
+      -webkit-appearance:auto;
+      appearance:auto;
     }
 
   </style>
