@@ -161,6 +161,10 @@
         <label>現場</label>
         <select id="entrySite"></select>
 
+        <label>その日の現場経費</label>
+        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" value="0" placeholder="例：高速・駐車場など">
+        <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
+
         <label>メンバー</label>
         <div id="bulkWorkerList" class="list"></div>
 
@@ -348,7 +352,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [] };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [] };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -356,6 +360,7 @@
   let editingWorkerId = "";
   if(!Array.isArray(state.clients)) state.clients = [];
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
+  if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
 
   function safeStorage(){
     try{
@@ -685,6 +690,7 @@
     if(!confirm("この現場を削除する？関連する人工入力も消えるで。")) return;
     state.sites = state.sites.filter(x=>x.id!==id);
     state.entries = state.entries.filter(x=>x.siteId!==id);
+    state.siteExpenses = state.siteExpenses.filter(x=>x.siteId!==id);
     save(); renderAll();
   }
 
@@ -705,6 +711,13 @@
     state.entries = state.entries.filter(x=>x.workerId!==id);
     save(); renderAll();
   }
+
+  function removeSiteExpense(id){
+    if(!confirm("この現場経費を削除する？")) return;
+    state.siteExpenses = state.siteExpenses.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
   function removeEntry(id){
     if(!confirm("この入力を削除する？")) return;
     state.entries = state.entries.filter(x=>x.id!==id);
@@ -719,6 +732,7 @@
   window.removeSite = removeSite;
   window.removeWorkerCompany = removeWorkerCompany;
   window.removeWorker = removeWorker;
+  window.removeSiteExpense = removeSiteExpense;
   window.removeEntry = removeEntry;
 
 
@@ -780,8 +794,22 @@
       });
     });
 
+    const siteExpense = Number($("siteDayExpense").value||0);
+    const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
+    if(siteExpense > 0 || siteExpenseMemo){
+      state.siteExpenses.push({
+        id:uid(),
+        date,
+        siteId,
+        amount:siteExpense,
+        memo:siteExpenseMemo
+      });
+    }
+
     save();
     document.querySelectorAll(".bulk-expense").forEach(x=>x.value="0");
+    $("siteDayExpense").value="0";
+    $("siteDayExpenseMemo").value="";
     dismissKeyboard();
     renderRecent();
     renderSummary();
@@ -911,19 +939,34 @@
       $("recentEntries").innerHTML = `<div class="empty">まだ入力がないで。</div>`;
       return;
     }
-    $("recentEntries").innerHTML = list.map(e=>{
+    const entryRows = list.map(e=>{
       const s = siteById(e.siteId);
       const w = workerById(e.workerId);
       return `<div class="item">
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${e.expense?` / 経費 ${yen(e.expense)}`:""}</small>
+            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${e.expense?` / 個人経費 ${yen(e.expense)}`:""}</small>
           </div>
           <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button>
         </div>
       </div>`;
     }).join("");
+
+    const recentShared = [...state.siteExpenses].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(x=>{
+      const s = siteById(x.siteId);
+      return `<div class="item">
+        <div class="item-line">
+          <div>
+            <strong>現場経費 ${yen(x.amount)}</strong>
+            <small>${x.date} / ${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
+          </div>
+          <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    $("recentEntries").innerHTML = entryRows + recentShared;
   }
 
 
@@ -948,6 +991,8 @@
       const date = `${year}-${String(mon).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
       const dayEntries = entries.filter(e=>e.date===date);
       const total = dayEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
+      const daySharedExpenses = state.siteExpenses.filter(x=>x.date===date && (siteFilter==="all" || x.siteId===siteFilter));
+      const daySharedExpenseTotal = daySharedExpenses.reduce((a,x)=>a+Number(x.amount||0),0);
 
       const chips = dayEntries.slice(0,3).map(e=>{
         const w = workerById(e.workerId);
@@ -971,6 +1016,7 @@
         <div class="cal-day" onclick="showDayDetail('${date}')">
           <div class="cal-date">${day}日${total ? `・${total.toFixed(1)}人工` : ""}</div>
           ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
+          ${daySharedExpenseTotal ? `<span class="cal-chip">経費 ${yen(daySharedExpenseTotal)}</span>` : ""}
           ${chips}${more}
         </div>`;
     }
@@ -985,7 +1031,10 @@
     if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
 
     const detail = $("dayDetail");
-    if(!entries.length){
+    let daySiteExpenses = state.siteExpenses.filter(x=>x.date===date);
+    if(siteFilter!=="all") daySiteExpenses = daySiteExpenses.filter(x=>x.siteId===siteFilter);
+
+    if(!entries.length && !daySiteExpenses.length){
       detail.className = "empty";
       detail.innerHTML = `${date} の入力はないで。`;
       return;
@@ -1006,8 +1055,21 @@
       </div>`;
     }).join("");
 
+    const expenseRows = daySiteExpenses.map(x=>{
+      const s = siteById(x.siteId);
+      const client = s?.clientId ? clientById(s.clientId) : null;
+      return `<div class="item" style="border-left:5px solid ${clientColor(client)}">
+        <div class="item-line">
+          <div>
+            <strong>現場経費 ${yen(x.amount)}</strong>
+            <small>${client ? escapeHtml(client.name) + " / " : ""}${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
     detail.className = "list";
-    detail.innerHTML = `<div class="day-detail-title">${date}</div>${rows}`;
+    detail.innerHTML = `<div class="day-detail-title">${date}</div>${rows}${expenseRows}`;
     try{$("dayDetailCard").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}
   }
 
@@ -1026,7 +1088,12 @@
       const w = workerById(e.workerId);
       return a + Number(e.jinko||0) * effectiveWorkerRate(w);
     },0);
-    const expenses = entries.reduce((a,e)=>a+Number(e.expense||0),0);
+    let siteExpenses = state.siteExpenses.filter(x=>x.date.startsWith(month));
+    if(siteFilter!=="all") siteExpenses = siteExpenses.filter(x=>x.siteId===siteFilter);
+
+    const workerExpenses = entries.reduce((a,e)=>a+Number(e.expense||0),0);
+    const sharedExpenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
+    const expenses = workerExpenses + sharedExpenses;
 
     let revenue = 0;
     if(siteFilter!=="all"){
@@ -1105,7 +1172,11 @@
     return clientSites.map(site=>{
       const siteEntries = entries.filter(e=>e.siteId===site.id);
       const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
-      const expenses = siteEntries.reduce((a,e)=>a+Number(e.expense||0),0);
+      const workerExpenses = siteEntries.reduce((a,e)=>a+Number(e.expense||0),0);
+      const sharedExpenses = state.siteExpenses
+        .filter(x=>x.siteId===site.id && x.date.startsWith(month))
+        .reduce((a,x)=>a+Number(x.amount||0),0);
+      const expenses = workerExpenses + sharedExpenses;
       const client = clientById(site.clientId);
       const rate = Number(site.billRate || client?.billRate || 0);
       const laborAmount = jinko * rate;
