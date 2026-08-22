@@ -174,6 +174,9 @@
         <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="例：高速・駐車場など">
         <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
 
+        <label>所属会社で絞り込み</label>
+        <select id="bulkCompanyFilter"></select>
+
         <label>メンバー</label>
         <div id="bulkWorkerList" class="list"></div>
 
@@ -806,11 +809,24 @@
   function renderBulkWorkers(){
     const box = $("bulkWorkerList");
     if(!box) return;
-    if(!state.workers.length){
-      box.innerHTML = `<div class="empty">先に作業員を登録してな。</div>`;
+
+    const filter = $("bulkCompanyFilter")?.value || "all";
+    let workers = [...state.workers];
+
+    if(filter !== "all"){
+      if(filter === "none"){
+        workers = workers.filter(w=>!w.companyId);
+      }else{
+        workers = workers.filter(w=>w.companyId===filter);
+      }
+    }
+
+    if(!workers.length){
+      box.innerHTML = `<div class="empty">この所属会社の作業員はまだ登録されてないで。</div>`;
       return;
     }
-    box.innerHTML = state.workers.map(w=>`
+
+    box.innerHTML = workers.map(w=>`
       <div class="member-row">
         <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" checked>
         <div>
@@ -838,6 +854,11 @@
       </div>
     `).join("");
   }
+
+
+  $("bulkCompanyFilter").addEventListener("change", ()=>{
+    renderBulkWorkers();
+  });
 
   $("selectAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
@@ -1000,6 +1021,15 @@
     if(select){
       const opts = state.workerCompanies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
       select.innerHTML = `<option value="">未選択</option>` + opts;
+    }
+
+    const bulkFilter = $("bulkCompanyFilter");
+    if(bulkFilter){
+      const current = bulkFilter.value || "all";
+      const opts = state.workerCompanies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      bulkFilter.innerHTML = `<option value="all">すべて</option><option value="none">所属未設定</option>` + opts;
+      const exists = [...bulkFilter.options].some(o=>o.value===current);
+      bulkFilter.value = exists ? current : "all";
     }
 
     const list = $("workerCompanyList");
