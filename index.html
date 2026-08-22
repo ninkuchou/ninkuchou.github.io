@@ -461,6 +461,15 @@
         <label>住所</label>
         <input id="companyInfoAddress" placeholder="例：兵庫県神戸市...">
 
+        <label>肩書き</label>
+        <input id="companyInfoTitle" placeholder="例：代表取締役">
+
+        <label>氏名</label>
+        <input id="companyInfoPersonName" placeholder="例：山田 太郎">
+
+        <label>インボイス登録番号</label>
+        <input id="companyInfoInvoiceNumber" autocapitalize="characters" placeholder="例：T1234567890123">
+
         <label>振込先口座</label>
         <textarea id="companyInfoBankAccount" rows="3" placeholder="例：○○銀行 ○○支店 普通 1234567 口座名義 ○○"></textarea>
 
@@ -503,7 +512,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", bankAccount:""} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -514,10 +523,13 @@
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
   if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
-  if(!state.companyInfo || typeof state.companyInfo !== "object") state.companyInfo = {name:"", postalCode:"", address:"", bankAccount:""};
+  if(!state.companyInfo || typeof state.companyInfo !== "object") state.companyInfo = {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""};
   state.companyInfo.name = state.companyInfo.name || "";
   state.companyInfo.postalCode = state.companyInfo.postalCode || "";
   state.companyInfo.address = state.companyInfo.address || "";
+  state.companyInfo.title = state.companyInfo.title || "";
+  state.companyInfo.personName = state.companyInfo.personName || "";
+  state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
 
   function safeStorage(){
@@ -1607,6 +1619,9 @@ function renderCompanyInfoForm(){
     $("companyInfoName").value = state.companyInfo?.name || "";
     $("companyInfoPostalCode").value = state.companyInfo?.postalCode || "";
     $("companyInfoAddress").value = state.companyInfo?.address || "";
+    $("companyInfoTitle").value = state.companyInfo?.title || "";
+    $("companyInfoPersonName").value = state.companyInfo?.personName || "";
+    $("companyInfoInvoiceNumber").value = state.companyInfo?.invoiceNumber || "";
     $("companyInfoBankAccount").value = state.companyInfo?.bankAccount || "";
   }
 
@@ -1615,6 +1630,9 @@ function renderCompanyInfoForm(){
       name:$("companyInfoName")?.value.trim() || "",
       postalCode:$("companyInfoPostalCode")?.value.trim() || "",
       address:$("companyInfoAddress")?.value.trim() || "",
+      title:$("companyInfoTitle")?.value.trim() || "",
+      personName:$("companyInfoPersonName")?.value.trim() || "",
+      invoiceNumber:$("companyInfoInvoiceNumber")?.value.trim() || "",
       bankAccount:$("companyInfoBankAccount")?.value.trim() || ""
     };
     save();
@@ -1814,6 +1832,8 @@ function renderCompanyInfoForm(){
             <div style="margin-top:18px;font-weight:800">${escapeHtml(state.companyInfo?.name || "")}</div>
             ${state.companyInfo?.postalCode ? `<div class="muted" style="margin-top:4px">〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
             ${state.companyInfo?.address ? `<div class="muted" style="margin-top:2px">${escapeHtml(state.companyInfo.address)}</div>` : ""}
+            ${(state.companyInfo?.title || state.companyInfo?.personName) ? `<div class="muted" style="margin-top:4px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join(" "))}</div>` : ""}
+            ${state.companyInfo?.invoiceNumber ? `<div class="muted" style="margin-top:4px">登録番号：${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
           </div>
         </div>
 
@@ -1885,9 +1905,12 @@ function renderCompanyInfoForm(){
             name: clean.companyInfo.name || "",
             postalCode: clean.companyInfo.postalCode || "",
             address: clean.companyInfo.address || "",
+            title: clean.companyInfo.title || "",
+            personName: clean.companyInfo.personName || "",
+            invoiceNumber: clean.companyInfo.invoiceNumber || "",
             bankAccount: clean.companyInfo.bankAccount || ""
           }
-        : {name:"", postalCode:"", address:"", bankAccount:""}
+        : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""}
     };
   }
 
