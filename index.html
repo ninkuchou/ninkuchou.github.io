@@ -92,6 +92,8 @@
     .cal-day{transition:.15s ease}
     .cal-day:active{transform:scale(.98);background:#f8fbff}
     .danger-link{border:0;background:transparent;color:var(--danger);font-size:12px;padding:4px 0}
+    .edit-link{border:0;background:transparent;color:#2563eb;font-size:12px;padding:4px 6px}
+    .item-actions{display:flex;gap:4px;align-items:center}
     .invoice-sheet{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
     .invoice-title{text-align:center;font-size:26px;font-weight:800;letter-spacing:.12em;margin:4px 0 20px}
     .invoice-head{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
@@ -348,6 +350,10 @@
   const KEY = "jinkou_app_v3";
   const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [] };
   let state = load();
+  let editingClientId = "";
+  let editingSiteId = "";
+  let editingWorkerCompanyId = "";
+  let editingWorkerId = "";
   if(!Array.isArray(state.clients)) state.clients = [];
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
 
@@ -467,15 +473,26 @@
   $("addClientBtn").addEventListener("click", ()=>{
     const name = $("clientName").value.trim();
     if(!name){ alert("会社名を入れてな"); return; }
-    state.clients.push({
-      id:uid(),
+
+    const data = {
       name,
       address:$("clientAddress").value.trim(),
       billRate:Number($("clientBillRate").value||0),
       color:$("clientColor").value || "#2563eb",
       closingDay:Number($("clientClosingDay").value||0),
       payment:$("clientPayment").value.trim()
-    });
+    };
+
+    if(editingClientId){
+      const c = clientById(editingClientId);
+      if(c) Object.assign(c, data);
+    }else{
+      state.clients.push({id:uid(), ...data});
+    }
+
+    const wasEdit = !!editingClientId;
+    editingClientId = "";
+    $("addClientBtn").textContent = "元請け会社を追加";
     save();
     $("clientName").value="";
     $("clientAddress").value="";
@@ -485,25 +502,33 @@
     $("clientClosingDay").value="";
     $("clientPayment").value="";
     renderAll();
-    finishRegistration("元請け会社を追加したで");
+    finishRegistration(wasEdit ? "元請け会社を更新したで" : "元請け会社を追加したで");
   });
 
   $("addSiteBtn").addEventListener("click", ()=>{
     const name = $("siteName").value.trim();
     if(!name){ alert("現場名を入れてな"); return; }
-    state.sites.push({
-      id:uid(),
+    const data = {
       name,
       clientId:$("siteClient").value || "",
       revenue:Number($("siteRevenue").value||0),
       billRate:Number($("siteBillRate").value||0)
-    });
+    };
+    if(editingSiteId){
+      const s = siteById(editingSiteId);
+      if(s) Object.assign(s, data);
+    }else{
+      state.sites.push({id:uid(), ...data});
+    }
+    const wasEdit = !!editingSiteId;
+    editingSiteId = "";
+    $("addSiteBtn").textContent = "現場を追加";
     save();
     $("siteName").value="";
     $("siteRevenue").value="";
     $("siteBillRate").value="";
     renderAll();
-    finishRegistration("現場を追加したで");
+    finishRegistration(wasEdit ? "現場を更新したで" : "現場を追加したで");
   });
 
 
@@ -525,17 +550,25 @@
     const name = $("workerName").value.trim();
     const rate = Number($("workerRate").value||0);
     if(!name){ alert("名前を入れてな"); return; }
-    state.workers.push({
-      id:uid(),
+    const data = {
       name,
       companyId:$("workerCompany").value || "",
       rate
-    });
+    };
+    if(editingWorkerId){
+      const w = workerById(editingWorkerId);
+      if(w) Object.assign(w, data);
+    }else{
+      state.workers.push({id:uid(), ...data});
+    }
+    const wasEdit = !!editingWorkerId;
+    editingWorkerId = "";
+    $("addWorkerBtn").textContent = "作業員を追加";
     save();
     $("workerName").value="";
     $("workerRate").value="";
     renderAll();
-    finishRegistration("作業員を追加したで");
+    finishRegistration(wasEdit ? "作業員を更新したで" : "作業員を追加したで");
   });
 
   $("summaryMonth").addEventListener("change", renderSummary);
@@ -555,6 +588,61 @@
   function siteById(id){ return state.sites.find(x=>x.id===id); }
   function workerById(id){ return state.workers.find(x=>x.id===id); }
 
+
+
+  function editClient(id){
+    const c = clientById(id);
+    if(!c) return;
+    editingClientId = id;
+    $("clientName").value = c.name || "";
+    $("clientAddress").value = c.address || "";
+    $("clientBillRate").value = c.billRate || "";
+    $("clientClosingDay").value = c.closingDay || "";
+    $("clientPayment").value = c.payment || "";
+    $("clientColor").value = c.color || "#2563eb";
+    document.querySelectorAll("#clientColorPicker .color-choice").forEach(b=>{
+      b.classList.toggle("selected", b.dataset.color === $("clientColor").value);
+    });
+    $("addClientBtn").textContent = "元請け会社を更新";
+    try{$("clientName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("clientName").focus();
+  }
+
+  function editSite(id){
+    const s = siteById(id);
+    if(!s) return;
+    editingSiteId = id;
+    $("siteName").value = s.name || "";
+    $("siteClient").value = s.clientId || "";
+    $("siteRevenue").value = s.revenue || "";
+    $("siteBillRate").value = s.billRate || "";
+    $("addSiteBtn").textContent = "現場を更新";
+    try{$("siteName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("siteName").focus();
+  }
+
+  function editWorkerCompany(id){
+    const c = workerCompanyById(id);
+    if(!c) return;
+    editingWorkerCompanyId = id;
+    $("workerCompanyName").value = c.name || "";
+    $("workerCompanyRate").value = c.rate || "";
+    $("addWorkerCompanyBtn").textContent = "所属会社を更新";
+    try{$("workerCompanyName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("workerCompanyName").focus();
+  }
+
+  function editWorker(id){
+    const w = workerById(id);
+    if(!w) return;
+    editingWorkerId = id;
+    $("workerName").value = w.name || "";
+    $("workerCompany").value = w.companyId || "";
+    $("workerRate").value = w.rate || "";
+    $("addWorkerBtn").textContent = "作業員を更新";
+    try{$("workerName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
+    $("workerName").focus();
+  }
 
   function removeClient(id){
     const used = state.sites.some(s=>s.clientId===id);
@@ -597,6 +685,10 @@
     save(); renderAll();
   }
 
+  window.editClient = editClient;
+  window.editSite = editSite;
+  window.editWorkerCompany = editWorkerCompany;
+  window.editWorker = editWorker;
   window.removeClient = removeClient;
   window.removeSite = removeSite;
   window.removeWorkerCompany = removeWorkerCompany;
@@ -710,7 +802,10 @@
             <strong><span class="client-dot" style="background:${clientColor(c)}"></span>${escapeHtml(c.name)}</strong>
             <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "締め日未設定"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
           </div>
-          <button class="danger-link" onclick="removeClient('${c.id}')">削除</button>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editClient('${c.id}')">編集</button>
+            <button class="danger-link" onclick="removeClient('${c.id}')">削除</button>
+          </div>
         </div>
       </div>`).join("");
   }
@@ -727,7 +822,10 @@
             <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
             <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}請負 ${s.revenue ? yen(s.revenue) : "未設定"}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
           </div>
-          <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
+            <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+          </div>
         </div>
       </div>`).join("");
   }
@@ -753,7 +851,10 @@
             <strong>${escapeHtml(c.name)}</strong>
             <small>${c.rate ? "基本単価 " + yen(c.rate) + " / 1人工" : "基本単価 未設定"}</small>
           </div>
-          <button class="danger-link" onclick="removeWorkerCompany('${c.id}')">削除</button>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editWorkerCompany('${c.id}')">編集</button>
+            <button class="danger-link" onclick="removeWorkerCompany('${c.id}')">削除</button>
+          </div>
         </div>
       </div>`).join("");
   }
@@ -770,7 +871,10 @@
             <strong>${escapeHtml(w.name)}</strong>
             <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</small>
           </div>
-          <button class="danger-link" onclick="removeWorker('${w.id}')">削除</button>
+          <div class="item-actions">
+            <button class="edit-link" onclick="editWorker('${w.id}')">編集</button>
+            <button class="danger-link" onclick="removeWorker('${w.id}')">削除</button>
+          </div>
         </div>
       </div>`).join("");
   }
