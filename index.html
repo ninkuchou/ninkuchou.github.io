@@ -535,15 +535,37 @@
   $("addWorkerCompanyBtn").addEventListener("click", ()=>{
     const name = $("workerCompanyName").value.trim();
     if(!name){ alert("会社名を入れてな"); return; }
-    state.workerCompanies.push({
-      id:uid(),
-      name,
-      rate:Number($("workerCompanyRate").value||0)
-    });
-    save();
+
+    const rate = Number($("workerCompanyRate").value||0);
+    const editId = editingWorkerCompanyId;
+
+    if(editId){
+      const index = state.workerCompanies.findIndex(c=>c.id===editId);
+      if(index >= 0){
+        state.workerCompanies[index] = {
+          ...state.workerCompanies[index],
+          name,
+          rate
+        };
+      }else{
+        alert("編集対象が見つからへんかった。画面を更新してもう一回試してな");
+        return;
+      }
+    }else{
+      state.workerCompanies.push({
+        id:uid(),
+        name,
+        rate
+      });
+    }
+
+    editingWorkerCompanyId = "";
+    $("addWorkerCompanyBtn").textContent = "所属会社を追加";
     $("workerCompanyName").value="";
+    $("workerCompanyRate").value="";
+    save();
     renderAll();
-    finishRegistration("所属会社を追加したで");
+    finishRegistration(editId ? "所属会社を更新したで" : "所属会社を追加したで");
   });
 
   $("addWorkerBtn").addEventListener("click", ()=>{
@@ -624,12 +646,16 @@
   function editWorkerCompany(id){
     const c = workerCompanyById(id);
     if(!c) return;
-    editingWorkerCompanyId = id;
+
+    editingWorkerCompanyId = String(id);
     $("workerCompanyName").value = c.name || "";
     $("workerCompanyRate").value = c.rate || "";
     $("addWorkerCompanyBtn").textContent = "所属会社を更新";
-    try{$("workerCompanyName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
-    $("workerCompanyName").focus();
+
+    try{
+      $("workerCompanyName").scrollIntoView({behavior:"smooth",block:"center"});
+    }catch(e){}
+    setTimeout(()=>$("workerCompanyName").focus(), 250);
   }
 
   function editWorker(id){
