@@ -581,6 +581,326 @@
       }
     }
 
+  
+    /* PDF見本にさらに寄せたA4縦1ページ請求書 */
+    @page{
+      size:A4 portrait;
+      margin:8mm;
+    }
+
+    .invoice-sheet.excel-template{
+      --inv-wine:#7d2342;
+      --inv-grid:#e6bcc9;
+      --inv-gray:#efefef;
+      width:100%;
+      max-width:794px;
+      margin:0 auto;
+      background:#fff;
+      color:#111;
+      border:0;
+      border-radius:0;
+      padding:0;
+      font-family:"Yu Gothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+      overflow:hidden;
+    }
+
+    .excel-template .invoice-paper-inner{
+      position:relative;
+      padding:16px 18px 16px;
+      box-sizing:border-box;
+    }
+
+    .excel-template .top-wine-bar{
+      height:18px;
+      background:linear-gradient(90deg,#7d2342 0%,#7d2342 62%,#b9798d 78%,#e8dbe0 100%);
+      margin-bottom:10px;
+    }
+
+    .excel-template .invoice-upper{
+      position:relative;
+      min-height:245px;
+    }
+
+    .excel-template .invoice-doc-title{
+      font-size:24px;
+      font-weight:700;
+      letter-spacing:.01em;
+      margin:0 0 8px 26px;
+      line-height:1.1;
+    }
+
+    .excel-template .invoice-client-block{
+      margin-left:44px;
+      width:54%;
+      font-size:13px;
+      line-height:1.65;
+    }
+
+    .excel-template .invoice-client-postal{
+      font-size:14px;
+      font-weight:700;
+      margin:0 0 14px;
+    }
+
+    .excel-template .invoice-client-address{
+      margin:0 0 38px;
+      font-size:15px;
+      font-weight:700;
+    }
+
+    .excel-template .invoice-client-name{
+      display:block;
+      border:0;
+      padding:0;
+      min-width:0;
+      font-size:18px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+
+    .excel-template .invoice-number{
+      position:absolute;
+      right:20px;
+      top:6px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .excel-template .invoice-issuer-block{
+      position:absolute;
+      top:72px;
+      right:16px;
+      width:38%;
+      font-size:12px;
+      line-height:1.55;
+      text-align:left;
+    }
+
+    .excel-template .invoice-issuer-date{
+      font-size:13px;
+      font-weight:700;
+      margin-bottom:16px;
+      text-align:center;
+    }
+
+    .excel-template .invoice-issuer-name{
+      font-size:18px;
+      font-weight:800;
+      margin-top:4px;
+    }
+
+    .excel-template .invoice-greeting{
+      position:absolute;
+      left:8px;
+      right:8px;
+      bottom:6px;
+      font-size:11px;
+      line-height:1.45;
+      margin:0;
+    }
+
+    .excel-template .invoice-detail-table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:10px;
+      margin-top:4px;
+      border-bottom:4px solid var(--inv-wine);
+    }
+
+    .excel-template .invoice-detail-table th{
+      background:#d9d9d9;
+      color:var(--inv-wine);
+      border:0;
+      border-right:1px dotted var(--inv-grid);
+      padding:3px 3px;
+      font-size:11px;
+      font-weight:500;
+      text-align:center;
+      line-height:1.1;
+    }
+
+    .excel-template .invoice-detail-table td{
+      border:0;
+      border-right:1px dotted var(--inv-grid);
+      padding:2px 4px;
+      height:18px;
+      line-height:1.05;
+      vertical-align:middle;
+    }
+
+    .excel-template .invoice-detail-table tbody tr:nth-child(even) td{
+      background:var(--inv-gray);
+    }
+
+    .excel-template .invoice-detail-table .site-row td{
+      background:#fff !important;
+      font-size:10.5px;
+      font-weight:500;
+      padding-top:3px;
+      padding-bottom:3px;
+    }
+
+    .excel-template .invoice-detail-table td.date{text-align:center;white-space:nowrap}
+    .excel-template .invoice-detail-table td.desc{text-align:left}
+    .excel-template .invoice-detail-table td.qty,
+    .excel-template .invoice-detail-table td.unit{text-align:center}
+    .excel-template .invoice-detail-table td.price,
+    .excel-template .invoice-detail-table td.amount{text-align:right}
+    .excel-template .invoice-detail-table td.note{text-align:left}
+
+    .excel-template .invoice-bottom-area{
+      margin-top:14px;
+    }
+
+    .excel-template .invoice-totals-grid{
+      width:100%;
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:18px;
+      margin:0;
+    }
+
+    .excel-template .total-box-title{
+      background:var(--inv-wine);
+      color:#fff;
+      text-align:center;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.28em;
+      padding:4px 2px;
+      line-height:1.1;
+    }
+
+    .excel-template .total-box-value{
+      background:#efefef;
+      text-align:center;
+      font-size:17px;
+      font-weight:700;
+      padding:7px 5px;
+      min-height:30px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .excel-template .total-box-value.grand{
+      font-size:19px;
+      font-weight:900;
+    }
+
+    .excel-template .invoice-lower-grid{
+      width:64%;
+      margin:12px 0 0 auto;
+      display:grid;
+      grid-template-columns:1fr 1.55fr;
+      gap:18px;
+    }
+
+    .excel-template .rate-title,
+    .excel-template .payment-title{
+      background:var(--inv-wine);
+      color:#fff;
+      text-align:center;
+      padding:4px 3px;
+      font-size:10.5px;
+      font-weight:700;
+      letter-spacing:.18em;
+      line-height:1.1;
+    }
+
+    .excel-template .rate-value,
+    .excel-template .payment-value{
+      background:#efefef;
+      text-align:center;
+      padding:4px 4px;
+      min-height:22px;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.15;
+    }
+
+    .excel-template .invoice-bank{
+      width:66%;
+      margin-top:12px;
+      font-size:10px;
+      line-height:1.35;
+    }
+
+    .excel-template .bank-title{
+      background:var(--inv-wine);
+      color:#fff;
+      padding:4px 7px;
+      font-size:10px;
+      font-weight:700;
+      line-height:1.15;
+    }
+
+    .excel-template .bank-body{
+      background:#efefef;
+      padding:5px 7px 6px;
+      white-space:pre-line;
+      min-height:42px;
+    }
+
+    @media(max-width:600px){
+      .invoice-sheet.excel-template{
+        overflow-x:auto;
+      }
+      .excel-template .invoice-paper-inner{
+        min-width:720px;
+      }
+    }
+
+    @media print{
+      body{
+        background:#fff !important;
+      }
+      body *{
+        visibility:hidden;
+      }
+      #invoicePreview,
+      #invoicePreview *{
+        visibility:visible;
+      }
+      #invoicePreview{
+        position:absolute;
+        left:0;
+        top:0;
+        width:100%;
+      }
+      .invoice-sheet.excel-template{
+        width:194mm;
+        max-width:none;
+        margin:0 auto;
+        padding:0;
+        overflow:visible;
+        break-inside:avoid;
+        page-break-inside:avoid;
+      }
+      .excel-template .invoice-paper-inner{
+        min-width:0;
+        padding:0;
+        transform-origin:top left;
+      }
+      .excel-template .invoice-upper{
+        min-height:63mm;
+      }
+      .excel-template .invoice-detail-table{
+        font-size:8.6pt;
+      }
+      .excel-template .invoice-detail-table th{
+        font-size:9pt;
+      }
+      .excel-template .invoice-detail-table td{
+        height:4.5mm;
+      }
+      .excel-template .invoice-bottom-area{
+        break-inside:avoid;
+        page-break-inside:avoid;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -2260,13 +2580,12 @@ function nextInvoiceSequence(clientId){
     const subtotal = rows.reduce((a,r)=>a+r.amount,0);
     const tax = Math.floor(subtotal * taxRate / 100);
     const total = subtotal + tax;
-    const [y,m] = month.split("-");
 
     const detailRows = [];
     rows.forEach(r=>{
       detailRows.push(`
         <tr class="site-row">
-          <td class="date">${period.end}</td>
+          <td class="date">${period.end.slice(5).replace("-","月")}日</td>
           <td class="desc">${escapeHtml(r.site.name)}</td>
           <td class="qty"></td>
           <td class="unit"></td>
@@ -2285,8 +2604,8 @@ function nextInvoiceSequence(clientId){
             <td class="desc">建方請負工事（出来高 ${pctText}%）</td>
             <td class="qty">1</td>
             <td class="unit">式</td>
-            <td class="price">${yen(r.progressAmount)}</td>
-            <td class="amount">${yen(r.progressAmount)}</td>
+            <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
+            <td class="amount">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
             <td class="note"></td>
           </tr>
         `);
@@ -2298,8 +2617,8 @@ function nextInvoiceSequence(clientId){
               <td class="desc">人工作業費</td>
               <td class="qty">${Number(r.jinko).toFixed(Number(r.jinko)%1 ? 2 : 0)}</td>
               <td class="unit">人工</td>
-              <td class="price">${yen(r.rate)}</td>
-              <td class="amount">${yen(r.laborAmount)}</td>
+              <td class="price">${Math.round(r.rate).toLocaleString("ja-JP")}</td>
+              <td class="amount">${Math.round(r.laborAmount).toLocaleString("ja-JP")}</td>
               <td class="note"></td>
             </tr>
           `);
@@ -2311,8 +2630,8 @@ function nextInvoiceSequence(clientId){
               <td class="desc">現場経費</td>
               <td class="qty">1</td>
               <td class="unit">式</td>
-              <td class="price">${yen(r.expenses)}</td>
-              <td class="amount">${yen(r.expenses)}</td>
+              <td class="price">${Math.round(r.expenses).toLocaleString("ja-JP")}</td>
+              <td class="amount">${Math.round(r.expenses).toLocaleString("ja-JP")}</td>
               <td class="note"></td>
             </tr>
           `);
@@ -2321,18 +2640,14 @@ function nextInvoiceSequence(clientId){
 
       detailRows.push(`
         <tr>
-          <td class="date">&nbsp;</td>
-          <td class="desc"></td>
-          <td class="qty"></td>
-          <td class="unit"></td>
-          <td class="price"></td>
-          <td class="amount"></td>
-          <td class="note"></td>
+          <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
+          <td class="unit"></td><td class="price"></td><td class="amount"></td><td class="note"></td>
         </tr>
       `);
     });
 
-    while(detailRows.length < 18){
+    // PDF見本同様、明細部を一定の高さに保ちつつ1ページ内に収める。
+    while(detailRows.length < 17){
       detailRows.push(`
         <tr>
           <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
@@ -2346,6 +2661,8 @@ function nextInvoiceSequence(clientId){
     $("invoicePreview").innerHTML = `
       <div class="invoice-sheet excel-template">
         <div class="invoice-paper-inner">
+          <div class="top-wine-bar"></div>
+
           <div class="invoice-upper">
             <div class="invoice-doc-title">御請求明細書</div>
 
@@ -2363,7 +2680,7 @@ function nextInvoiceSequence(clientId){
               ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
               <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
               ${(state.companyInfo?.title || state.companyInfo?.personName)
-                ? `<div style="margin-top:18px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
+                ? `<div style="margin-top:9px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
                 : ""}
               ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
             </div>
@@ -2375,13 +2692,13 @@ function nextInvoiceSequence(clientId){
 
           <table class="invoice-detail-table">
             <colgroup>
-              <col style="width:12%">
-              <col style="width:47%">
-              <col style="width:6%">
-              <col style="width:6%">
+              <col style="width:10%">
+              <col style="width:44%">
+              <col style="width:5%">
+              <col style="width:5%">
               <col style="width:14%">
-              <col style="width:14%">
-              <col style="width:12%">
+              <col style="width:15%">
+              <col style="width:7%">
             </colgroup>
             <thead>
               <tr>
@@ -2397,38 +2714,40 @@ function nextInvoiceSequence(clientId){
             <tbody>${detailRows.join("")}</tbody>
           </table>
 
-          <div class="invoice-totals-grid">
-            <div>
-              <div class="total-box-title">税抜合計</div>
-              <div class="total-box-value">${yen(subtotal)}</div>
+          <div class="invoice-bottom-area">
+            <div class="invoice-totals-grid">
+              <div>
+                <div class="total-box-title">税 抜 合 計</div>
+                <div class="total-box-value">¥ ${Math.round(subtotal).toLocaleString("ja-JP")}</div>
+              </div>
+              <div>
+                <div class="total-box-title">税　額</div>
+                <div class="total-box-value">¥ ${Math.round(tax).toLocaleString("ja-JP")}</div>
+              </div>
+              <div>
+                <div class="total-box-title">税 込 合 計</div>
+                <div class="total-box-value grand">¥ ${Math.round(total).toLocaleString("ja-JP")}</div>
+              </div>
             </div>
-            <div>
-              <div class="total-box-title">税　額</div>
-              <div class="total-box-value">${yen(tax)}</div>
-            </div>
-            <div>
-              <div class="total-box-title">税込合計</div>
-              <div class="total-box-value grand">${yen(total)}</div>
-            </div>
-          </div>
 
-          <div class="invoice-lower-grid">
-            <div>
-              <div class="rate-title">税　率</div>
-              <div class="rate-value">${taxRate}%</div>
+            <div class="invoice-lower-grid">
+              <div>
+                <div class="rate-title">税　率</div>
+                <div class="rate-value">${taxRate}%</div>
+              </div>
+              <div>
+                <div class="payment-title">お支払い期日</div>
+                <div class="payment-value">${escapeHtml(client?.payment || "")}</div>
+              </div>
             </div>
-            <div>
-              <div class="payment-title">お支払い期日</div>
-              <div class="payment-value">${escapeHtml(client?.payment || "")}</div>
-            </div>
-          </div>
 
-          ${bankText ? `
-            <div class="invoice-bank">
-              <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-              <div class="bank-body">${escapeHtml(bankText)}</div>
-            </div>
-          ` : ""}
+            ${bankText ? `
+              <div class="invoice-bank">
+                <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
+                <div class="bank-body">${escapeHtml(bankText)}</div>
+              </div>
+            ` : ""}
+          </div>
         </div>
       </div>
     `;
