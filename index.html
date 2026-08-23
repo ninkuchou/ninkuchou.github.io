@@ -238,6 +238,139 @@
       border-radius:999px;
     }
 
+  
+    /* Excel請求書テンプレート風 */
+    .invoice-sheet{
+      background:#fff;
+      color:#111;
+      border:1px solid #cbd5e1;
+      border-radius:4px;
+      padding:26px 28px 30px;
+      margin-top:12px;
+      font-family:-apple-system,BlinkMacSystemFont,"Yu Gothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+    }
+    .invoice-title{
+      text-align:center;
+      font-size:24px;
+      font-weight:700;
+      letter-spacing:.16em;
+      margin:0 0 22px;
+    }
+    .invoice-topline{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:18px;
+      align-items:start;
+      margin-bottom:12px;
+    }
+    .invoice-no{
+      font-size:12px;
+      text-align:right;
+      white-space:nowrap;
+    }
+    .invoice-head{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      gap:28px;
+      margin-bottom:18px;
+    }
+    .invoice-client-name{
+      font-size:17px;
+      font-weight:700;
+      border-bottom:1px solid #111;
+      display:inline-block;
+      padding:0 8px 3px 0;
+      min-width:210px;
+    }
+    .invoice-company{
+      text-align:left;
+      font-size:12px;
+      line-height:1.7;
+    }
+    .invoice-company-name{font-size:14px;font-weight:700}
+    .invoice-greeting{
+      font-size:11px;
+      line-height:1.7;
+      margin:16px 0 18px;
+    }
+    .invoice-total-box{
+      display:flex;
+      justify-content:flex-end;
+      margin:8px 0 14px;
+    }
+    .invoice-total{
+      font-size:17px;
+      font-weight:800;
+      text-align:right;
+      border-bottom:2px solid #111;
+      padding:0 4px 3px 16px;
+      margin:0;
+    }
+    .invoice-table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:0;
+      font-size:11px;
+      table-layout:fixed;
+    }
+    .invoice-table th,.invoice-table td{
+      border:1px solid #9ca3af;
+      padding:6px 5px;
+      vertical-align:middle;
+    }
+    .invoice-table th{
+      background:#f3f4f6;
+      text-align:center;
+      font-weight:700;
+    }
+    .invoice-table td:nth-child(1){text-align:center}
+    .invoice-table td:nth-child(2){text-align:left}
+    .invoice-table td:nth-child(3),
+    .invoice-table td:nth-child(5),
+    .invoice-table td:nth-child(6){text-align:right}
+    .invoice-table td:nth-child(4){text-align:center}
+    .invoice-site-heading td{
+      background:#fafafa;
+      font-weight:700;
+      border-top:2px solid #6b7280;
+    }
+    .invoice-summary{
+      width:340px;
+      max-width:100%;
+      margin:14px 0 0 auto;
+      border-collapse:collapse;
+      font-size:11px;
+    }
+    .invoice-summary th,.invoice-summary td{
+      border:1px solid #9ca3af;
+      padding:6px 8px;
+    }
+    .invoice-summary th{background:#f3f4f6;text-align:left}
+    .invoice-summary td{text-align:right}
+    .invoice-bank{
+      margin-top:18px;
+      font-size:11px;
+      line-height:1.6;
+      white-space:pre-line;
+    }
+    .invoice-period{
+      font-size:11px;
+      margin-top:7px;
+      color:#4b5563;
+    }
+    @media(max-width:600px){
+      .invoice-sheet{padding:16px 12px 20px;overflow-x:auto}
+      .invoice-head{grid-template-columns:1fr;gap:14px}
+      .invoice-company{text-align:left}
+      .invoice-table{min-width:680px}
+      .invoice-title{font-size:20px}
+    }
+    @media print{
+      .invoice-sheet{padding:10mm 12mm;border:0;border-radius:0}
+      .invoice-table{font-size:10pt}
+      .invoice-title{font-size:18pt}
+    }
+
   </style>
 </head>
 <body>
@@ -1792,7 +1925,6 @@ function renderCompanyInfoForm(){
     const month = $("invoiceMonth").value || monthLocal();
     const taxRate = Number($("invoiceTax").value||0);
     const number = $("invoiceNumber").value.trim();
-    const format = $("invoiceFormat")?.value || "standard";
 
     if(!clientId){
       $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選んでな。</div></div>`;
@@ -1812,71 +1944,121 @@ function renderCompanyInfoForm(){
     const tax = Math.floor(subtotal * taxRate / 100);
     const total = subtotal + tax;
     const [y,m] = month.split("-");
+    const billingDate = period.end;
 
-    const trs = rows.map(r=>{
+    const detailRows = [];
+    rows.forEach(r=>{
+      detailRows.push(`
+        <tr class="invoice-site-heading">
+          <td>${escapeHtml(billingDate)}</td>
+          <td colspan="5">${escapeHtml(r.site.name)}</td>
+          <td>${r.contractType==="請負" ? "請負" : "常用"}</td>
+        </tr>
+      `);
+
       if(r.contractType==="請負"){
-        return `<tr>
-          <td>${escapeHtml(r.site.name)}</td>
-          <td>請負</td>
-          <td>出来高 ${Number(r.percent||0).toFixed(Number(r.percent||0)%1 ? 1 : 0)}%</td>
-          <td>${yen(r.contractAmount)}</td>
-          <td>-</td>
-          <td>${yen(r.amount)}</td>
-          ${format==="detail" ? `<td>出来高請求（経費別）</td>` : ""}
-        </tr>`;
+        const pct = Number(r.percent||0);
+        const pctText = pct.toFixed(pct%1 ? 1 : 0);
+        detailRows.push(`
+          <tr>
+            <td></td>
+            <td>建方請負工事（出来高 ${pctText}%）</td>
+            <td>1</td>
+            <td>式</td>
+            <td>${yen(r.progressAmount)}</td>
+            <td>${yen(r.progressAmount)}</td>
+            <td>請負金額 ${yen(r.contractAmount)}</td>
+          </tr>
+        `);
+      }else{
+        if(r.jinko>0){
+          detailRows.push(`
+            <tr>
+              <td></td>
+              <td>人工作業費</td>
+              <td>${Number(r.jinko).toFixed(Number(r.jinko)%1 ? 2 : 0)}</td>
+              <td>人工</td>
+              <td>${yen(r.rate)}</td>
+              <td>${yen(r.laborAmount)}</td>
+              <td></td>
+            </tr>
+          `);
+        }
+        if(r.expenses>0){
+          detailRows.push(`
+            <tr>
+              <td></td>
+              <td>現場経費</td>
+              <td>1</td>
+              <td>式</td>
+              <td>${yen(r.expenses)}</td>
+              <td>${yen(r.expenses)}</td>
+              <td></td>
+            </tr>
+          `);
+        }
       }
-      return `<tr>
-        <td>${escapeHtml(r.site.name)}</td>
-        <td>常用</td>
-        <td>${r.jinko.toFixed(2)}人工</td>
-        <td>${yen(r.rate)}</td>
-        <td>${yen(r.expenses)}</td>
-        <td>${yen(r.amount)}</td>
-        ${format==="detail" ? `<td>${r.expenses ? "経費含む" : ""}</td>` : ""}
-      </tr>`;
-    }).join("");
+    });
 
     $("invoicePreview").innerHTML = `
-      <div class="invoice-sheet format-${format}">
-        <div class="invoice-title">請 求 書</div>
+      <div class="invoice-sheet">
+        <div class="invoice-topline">
+          <div></div>
+          <div class="invoice-no">NO　${escapeHtml(number||"-")}</div>
+        </div>
+
+        <div class="invoice-title">御 請 求 明 細 書</div>
 
         <div class="invoice-head">
           <div>
-            <div style="font-size:20px;font-weight:800">${escapeHtml(client?.name||"")} 御中</div>
-            <div class="muted" style="margin-top:6px">${escapeHtml(client?.address||"")}</div>
-            <div style="margin-top:22px;font-size:14px">${y}年${Number(m)}月分</div>
-            <div class="muted" style="margin-top:4px">集計期間：${period.start} 〜 ${period.end}</div>
+            ${client?.address ? `<div style="font-size:11px;margin-bottom:8px">${escapeHtml(client.address)}</div>` : ""}
+            <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
+            <div class="invoice-period">${y}年${Number(m)}月分　／　集計期間 ${period.start} 〜 ${period.end}</div>
           </div>
-          <div class="invoice-right">
-            <div>請求書番号：${escapeHtml(number||"-")}</div>
-            <div style="margin-top:8px">発行日：${todayLocal()}</div>
-            <div style="margin-top:18px;font-weight:800">${escapeHtml(state.companyInfo?.name || "")}</div>
-            ${state.companyInfo?.postalCode ? `<div class="muted" style="margin-top:4px">〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
-            ${state.companyInfo?.address ? `<div class="muted" style="margin-top:2px">${escapeHtml(state.companyInfo.address)}</div>` : ""}
-            ${(state.companyInfo?.title || state.companyInfo?.personName) ? `<div class="muted" style="margin-top:4px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join(" "))}</div>` : ""}
-            ${state.companyInfo?.invoiceNumber ? `<div class="muted" style="margin-top:4px">登録番号：${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
+
+          <div class="invoice-company">
+            <div>${todayLocal()}</div>
+            ${state.companyInfo?.postalCode ? `<div style="margin-top:10px">〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
+            ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
+            <div class="invoice-company-name">${escapeHtml(state.companyInfo?.name || "")}</div>
+            ${(state.companyInfo?.title || state.companyInfo?.personName) ? `<div>${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>` : ""}
+            ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
           </div>
         </div>
 
-        ${format==="simple" ? "" : `<div class="section-title">下記の通りご請求申し上げます。</div>`}
-        <div class="invoice-total">${format==="detail" ? "請求合計：" : "ご請求金額　"}${yen(total)}（税込）</div>
+        <div class="invoice-greeting">
+          平素は格別のご高配を賜り、厚く御礼申し上げます。下記の通り、ご確認くださいますようお願い申し上げます。
+        </div>
+
+        <div class="invoice-total-box">
+          <div class="invoice-total">御請求金額　${yen(total)}（税込）</div>
+        </div>
 
         <table class="invoice-table">
+          <colgroup>
+            <col style="width:13%">
+            <col style="width:31%">
+            <col style="width:9%">
+            <col style="width:8%">
+            <col style="width:13%">
+            <col style="width:14%">
+            <col style="width:12%">
+          </colgroup>
           <thead>
             <tr>
-              <th>現場</th>
-              <th>区分</th>
-              <th>人工 / 出来高</th>
-              <th>単価 / 請負金額</th>
-              <th>経費</th>
+              <th>日付</th>
+              <th>現場名</th>
+              <th>数量</th>
+              <th>単位</th>
+              <th>単価</th>
               <th>金額</th>
-              ${format==="detail" ? "<th>備考</th>" : ""}
+              <th>備考</th>
             </tr>
           </thead>
-          <tbody>${trs}</tbody>
+          <tbody>${detailRows.join("")}</tbody>
         </table>
 
-        <table class="invoice-table" style="margin-left:auto;width:360px;max-width:100%">
+        <table class="invoice-summary">
           <tbody>
             <tr><th>小計</th><td>${yen(subtotal)}</td></tr>
             <tr><th>消費税 ${taxRate}%</th><td>${yen(tax)}</td></tr>
@@ -1884,8 +2066,8 @@ function renderCompanyInfoForm(){
           </tbody>
         </table>
 
-        ${client?.payment ? `<div class="muted" style="margin-top:18px">支払条件：${escapeHtml(client.payment)}</div>` : ""}
-        ${state.companyInfo?.bankAccount ? `<div style="margin-top:18px"><strong>振込先</strong><div class="muted" style="margin-top:4px;white-space:pre-line">${escapeHtml(state.companyInfo.bankAccount)}</div></div>` : ""}
+        ${client?.payment ? `<div style="margin-top:16px;font-size:11px">支払条件：${escapeHtml(client.payment)}</div>` : ""}
+        ${state.companyInfo?.bankAccount ? `<div class="invoice-bank"><strong>振込先</strong><br>${escapeHtml(state.companyInfo.bankAccount)}</div>` : ""}
       </div>
     `;
   }
