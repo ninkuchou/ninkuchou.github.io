@@ -882,7 +882,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, invoiceNumbers: [], progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -892,6 +892,7 @@
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+  if(!Array.isArray(state.invoiceNumbers)) state.invoiceNumbers = [];
   if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
   if(!state.companyInfo || typeof state.companyInfo !== "object") state.companyInfo = {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""};
   state.companyInfo.name = state.companyInfo.name || "";
@@ -2039,6 +2040,77 @@ function renderCompanyInfoForm(){
     finishRegistration("自社情報を保存したで");
   }
 
+  
+function nextInvoiceSequence(clientId){
+    const used = state.invoiceNumbers
+      .filter(x=>x.clientId===clientId)
+      .map(x=>Number(x.sequence||0))
+      .filter(n=>Number.isFinite(n) && n>0);
+    return used.length ? Math.max(...used) + 1 : 1;
+  }
+
+  function invoiceNumberFor(clientId, month, createIfMissing=false){
+    if(!clientId || !month) return "";
+    const existing = state.invoiceNumbers.find(x=>x.clientId===clientId && x.month===month);
+    if(existing) return existing.number || "";
+
+    if(!createIfMissing) return "";
+
+    const client = clientById(clientId);
+    const clientNo = client?.clientNumber !== undefined && client?.clientNumber !== ""
+      ? String(client.clientNumber)
+      : "100";
+    const sequence = nextInvoiceSequence(clientId);
+    const number = `${clientNo}-${String(sequence).padStart(3,"0")}`;
+
+    state.invoiceNumbers.push({
+      id:uid(),
+      clientId,
+      month,
+      sequence,
+      number
+    });
+    save();
+    return number;
+  }
+
+  function syncInvoiceNumber(createIfMissing=false){
+    const clientId = $("invoiceClient")?.value || "";
+    const month = $("invoiceMonth")?.value || monthLocal();
+    const input = $("invoiceNumber");
+    if(!input) return "";
+
+    const auto = invoiceNumberFor(clientId, month, createIfMissing);
+    if(auto && (!input.value || input.dataset.autoValue === input.value)){
+      input.value = auto;
+      input.dataset.autoValue = auto;
+    }
+    return input.value.trim();
+  }
+
+  function saveManualInvoiceNumber(){
+    const clientId = $("invoiceClient")?.value || "";
+    const month = $("invoiceMonth")?.value || monthLocal();
+    const value = $("invoiceNumber")?.value.trim() || "";
+    if(!clientId || !month || !value) return;
+
+    let item = state.invoiceNumbers.find(x=>x.clientId===clientId && x.month===month);
+    if(!item){
+      item = {
+        id:uid(),
+        clientId,
+        month,
+        sequence:nextInvoiceSequence(clientId),
+        number:value
+      };
+      state.invoiceNumbers.push(item);
+    }else{
+      item.number = value;
+    }
+    $("invoiceNumber").dataset.autoValue = value;
+    save();
+  }
+
   function getProgressBilling(siteId, month){
     const item = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
     return item ? Number(item.percent||0) : 0;
@@ -2169,7 +2241,7 @@ function renderCompanyInfoForm(){
     rememberRecent("invoiceClient", clientId);
     const month = $("invoiceMonth").value || monthLocal();
     const taxRate = Number($("invoiceTax").value||0);
-    const number = $("invoiceNumber").value.trim();
+    const number = syncInvoiceNumber(true) || $("invoiceNumber").value.trim();
 
     if(!clientId){
       $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選んでな。</div></div>`;
@@ -2370,14 +2442,25 @@ function renderCompanyInfoForm(){
   });
   $("invoiceMonth").addEventListener("change", ()=>{
     updateInvoicePeriodHint();
+    if($("invoiceNumber")){
+      $("invoiceNumber").value = "";
+      $("invoiceNumber").dataset.autoValue = "";
+    }
+    syncInvoiceNumber(true);
     renderProgressBillingInputs();
     renderInvoice();
   });
   $("invoiceClient").addEventListener("change", ()=>{
     updateInvoicePeriodHint();
+    if($("invoiceNumber")){
+      $("invoiceNumber").value = "";
+      $("invoiceNumber").dataset.autoValue = "";
+    }
+    syncInvoiceNumber(true);
     renderProgressBillingInputs();
     renderInvoice();
   });
+  $("invoiceNumber").addEventListener("change", ()=>{ saveManualInvoiceNumber(); renderInvoice(); });
   $("invoiceTax").addEventListener("change", renderInvoice);
   $("invoiceFormat").addEventListener("change", renderInvoice);
 
@@ -2392,6 +2475,7 @@ function renderCompanyInfoForm(){
       entries: Array.isArray(clean.entries) ? clean.entries : [],
       siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : [],
       recentSelects: clean.recentSelects && typeof clean.recentSelects==="object" ? clean.recentSelects : {},
+      invoiceNumbers: Array.isArray(clean.invoiceNumbers) ? clean.invoiceNumbers : [],
       progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : [],
       companyInfo: clean.companyInfo && typeof clean.companyInfo==="object"
         ? {
