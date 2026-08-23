@@ -646,6 +646,9 @@
       </div>
       <div class="card">
         <h2>元請け会社登録</h2>
+        <label>元請け番号</label>
+        <input id="clientNumber" inputmode="numeric" type="number" min="0" placeholder="例：100">
+
         <label>会社名</label>
         <input id="clientName" placeholder="例：○○建設">
         <label>請求先郵便番号（任意）</label>
@@ -898,6 +901,22 @@
   state.companyInfo.personName = state.companyInfo.personName || "";
   state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
+  // 既存の元請けに番号がない場合は100から順に自動採番
+  let _nextClientNo = 100;
+  const _usedClientNos = new Set(
+    state.clients
+      .map(c=>Number(c.clientNumber))
+      .filter(n=>Number.isFinite(n))
+  );
+  state.clients.forEach(c=>{
+    if(c.clientNumber === undefined || c.clientNumber === null || c.clientNumber === ""){
+      while(_usedClientNos.has(_nextClientNo)) _nextClientNo++;
+      c.clientNumber = _nextClientNo;
+      _usedClientNos.add(_nextClientNo);
+      _nextClientNo++;
+    }
+  });
+
 
   function safeStorage(){
     try{
@@ -1067,6 +1086,7 @@
     }
 
     const data = {
+      clientNumber:Number($("clientNumber").value || nextClientNumber()),
       name,
       postalCode:$("clientPostalCode").value.trim(),
       address:$("clientAddress").value.trim(),
@@ -1093,6 +1113,7 @@
     $("addClientBtn").textContent = "元請け会社を追加";
     save();
     $("clientName").value="";
+    $("clientNumber").value = nextClientNumber();
     $("clientPostalCode").value="";
     $("clientAddress").value="";
     $("clientBillRate").value="";
@@ -1227,10 +1248,18 @@
 
 
 
+  function nextClientNumber(){
+    const nums = state.clients
+      .map(c=>Number(c.clientNumber))
+      .filter(n=>Number.isFinite(n) && n>=100);
+    return nums.length ? Math.max(...nums) + 1 : 100;
+  }
+
   function editClient(id){
     const c = clientById(id);
     if(!c) return;
     editingClientId = id;
+    $("clientNumber").value = c.clientNumber ?? "";
     $("clientName").value = c.name || "";
     $("clientPostalCode").value = c.postalCode || "";
     $("clientAddress").value = c.address || "";
@@ -1654,7 +1683,7 @@
       <div class="item">
         <div class="item-line">
           <div>
-            <strong>${escapeHtml(c.name)}</strong>
+            <strong>${c.clientNumber !== undefined && c.clientNumber !== "" ? `No.${escapeHtml(String(c.clientNumber))}　` : ""}${escapeHtml(c.name)}</strong>
             <small>${c.rate ? "基本単価 " + yen(c.rate) + " / 1人工" : "基本単価 未設定"}</small>
           </div>
           <div class="item-actions">
