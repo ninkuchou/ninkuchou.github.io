@@ -1198,7 +1198,7 @@
       width:100%;
       display:grid;
       grid-template-columns:1.45fr 1fr;
-      gap:62px;
+      gap:18px;
       margin-top:14px;
       align-items:start;
     }
@@ -1245,7 +1245,45 @@
       .excel-template .invoice-bottom-second-row{
         width:100% !important;
         grid-template-columns:1.45fr 1fr !important;
-        gap:62px !important;
+        gap:18px !important;
+      }
+    }
+
+  
+    /* 振込先：空行・余白を完全に除去 */
+    .excel-template .invoice-bank{
+      width:100% !important;
+      margin:0 !important;
+      padding:0 !important;
+      line-height:1.15 !important;
+    }
+    .excel-template .bank-title{
+      margin:0 !important;
+      padding:4px 7px !important;
+      min-height:0 !important;
+      line-height:1.1 !important;
+      box-sizing:border-box !important;
+    }
+    .excel-template .bank-body{
+      margin:0 !important;
+      padding:3px 7px 4px !important;
+      min-height:0 !important;
+      height:auto !important;
+      line-height:1.15 !important;
+      white-space:pre-line !important;
+      box-sizing:border-box !important;
+    }
+    @media print{
+      .excel-template .invoice-bank,
+      .excel-template .bank-title,
+      .excel-template .bank-body{
+        margin-top:0 !important;
+        margin-bottom:0 !important;
+      }
+      .excel-template .bank-body{
+        min-height:0 !important;
+        height:auto !important;
+        padding:2px 7px 3px !important;
       }
     }
 
@@ -3028,7 +3066,11 @@ function concretePaymentDate(client, period){
       `);
     }
 
-    const bankText = state.companyInfo?.bankAccount || "";
+    const bankText = String(state.companyInfo?.bankAccount || "")
+      .split(/\r?\n/)
+      .map(line=>line.trim())
+      .filter(Boolean)
+      .join("\n");
 
     $("invoicePreview").innerHTML = `
       <div class="invoice-sheet excel-template">
