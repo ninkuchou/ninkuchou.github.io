@@ -648,6 +648,9 @@
         <h2>元請け会社登録</h2>
         <label>会社名</label>
         <input id="clientName" placeholder="例：○○建設">
+        <label>請求先郵便番号（任意）</label>
+        <input id="clientPostalCode" inputmode="numeric" placeholder="例：123-4567">
+
         <label>請求先住所（任意）</label>
         <input id="clientAddress" placeholder="例：兵庫県神戸市...">
         <label>基本人工単価</label>
@@ -1065,6 +1068,7 @@
 
     const data = {
       name,
+      postalCode:$("clientPostalCode").value.trim(),
       address:$("clientAddress").value.trim(),
       billRate:Number($("clientBillRate").value||0),
       color:$("clientColor").value || "#2563eb",
@@ -1089,6 +1093,7 @@
     $("addClientBtn").textContent = "元請け会社を追加";
     save();
     $("clientName").value="";
+    $("clientPostalCode").value="";
     $("clientAddress").value="";
     $("clientBillRate").value="";
     $("clientColor").value="#2563eb";
@@ -1227,6 +1232,7 @@
     if(!c) return;
     editingClientId = id;
     $("clientName").value = c.name || "";
+    $("clientPostalCode").value = c.postalCode || "";
     $("clientAddress").value = c.address || "";
     $("clientBillRate").value = c.billRate || "";
     const closing = Number(c.closingDay||0);
@@ -2243,6 +2249,7 @@ function renderCompanyInfoForm(){
             <div class="invoice-doc-title">御請求明細書</div>
 
             <div class="invoice-client-block">
+              ${client?.postalCode ? `<div class="invoice-client-postal">〒${escapeHtml(client.postalCode)}</div>` : ""}
               ${client?.address ? `<div class="invoice-client-address">${escapeHtml(client.address)}</div>` : `<div class="invoice-client-address">&nbsp;</div>`}
               <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
             </div>
