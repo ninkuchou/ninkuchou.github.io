@@ -1143,6 +1143,23 @@
       }
     }
 
+  
+    /* 明細の行色を1段ごとに交互表示へ修正 */
+    .excel-template .invoice-detail-table tbody tr:nth-child(odd) td{
+      background:#fff !important;
+    }
+    .excel-template .invoice-detail-table tbody tr:nth-child(even) td{
+      background:var(--inv-gray) !important;
+    }
+
+    /* 現場名行も白固定にせず、交互色に乗せる */
+    .excel-template .invoice-detail-table .site-row td{
+      font-size:10.5px;
+      font-weight:500;
+      padding-top:3px;
+      padding-bottom:3px;
+    }
+
   </style>
 </head>
 <body>
