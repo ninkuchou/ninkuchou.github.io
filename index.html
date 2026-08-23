@@ -1343,6 +1343,66 @@
       }
     }
 
+  
+    /* 振込先の白い空白バーを除去 */
+    .excel-template .invoice-bank{
+      width:100% !important;
+      margin:0 !important;
+      padding:0 !important;
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      min-height:0 !important;
+    }
+
+    .excel-template .bank-title{
+      margin:0 !important;
+      padding:4px 7px !important;
+      min-height:0 !important;
+      height:auto !important;
+      line-height:1.15 !important;
+      display:block !important;
+      border-radius:0 !important;
+    }
+
+    .excel-template .bank-body{
+      margin:0 !important;
+      padding:4px 7px 6px !important;
+      min-height:0 !important;
+      height:auto !important;
+      line-height:1.15 !important;
+      white-space:normal !important;
+      background:#efefef !important;
+      border:0 !important;
+      border-radius:0 !important;
+      box-shadow:none !important;
+    }
+
+    .excel-template .bank-body::before,
+    .excel-template .bank-body::after{
+      content:none !important;
+      display:none !important;
+    }
+
+    .excel-template .bank-body br{
+      line-height:1.15 !important;
+    }
+
+    @media print{
+      .excel-template .invoice-bank,
+      .excel-template .bank-title,
+      .excel-template .bank-body{
+        margin:0 !important;
+        min-height:0 !important;
+        height:auto !important;
+        border-radius:0 !important;
+        box-shadow:none !important;
+      }
+      .excel-template .bank-body{
+        padding:4px 7px 6px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -3208,7 +3268,7 @@ function concretePaymentDate(client, period){
                 ${bankText ? `
                   <div class="invoice-bank">
                     <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                    <div class="bank-body">${escapeHtml(bankText)}</div>
+                    <div class="bank-body">${escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
                   </div>
                 ` : ""}
               </div>
