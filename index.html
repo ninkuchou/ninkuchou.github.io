@@ -1287,6 +1287,88 @@
       }
     }
 
+  
+    /* 振込先と支払期日の上端を完全に揃える */
+    .excel-template .invoice-bottom-second-row{
+      display:grid !important;
+      grid-template-columns:1.45fr 1fr !important;
+      gap:18px !important;
+      align-items:start !important;
+      margin-top:14px !important;
+    }
+
+    .excel-template .invoice-bottom-second-row > div{
+      margin:0 !important;
+      padding:0 !important;
+      align-self:start !important;
+    }
+
+    .excel-template .invoice-bank,
+    .excel-template .invoice-payment-box{
+      width:100% !important;
+      margin:0 !important;
+      padding:0 !important;
+      align-self:start !important;
+      position:relative !important;
+      top:0 !important;
+    }
+
+    .excel-template .bank-title,
+    .excel-template .payment-title{
+      height:24px !important;
+      min-height:24px !important;
+      margin:0 !important;
+      padding:0 7px !important;
+      box-sizing:border-box !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      line-height:1 !important;
+    }
+
+    .excel-template .bank-title{
+      justify-content:flex-start !important;
+    }
+
+    .excel-template .bank-body{
+      margin:0 !important;
+      padding:3px 7px 4px !important;
+      min-height:0 !important;
+      height:auto !important;
+      line-height:1.15 !important;
+      white-space:normal !important;
+      box-sizing:border-box !important;
+    }
+
+    .excel-template .bank-line{
+      display:block !important;
+      margin:0 !important;
+      padding:0 !important;
+      min-height:0 !important;
+      line-height:1.15 !important;
+    }
+
+    .excel-template .payment-value{
+      margin:0 !important;
+      box-sizing:border-box !important;
+    }
+
+    @media print{
+      .excel-template .invoice-bottom-second-row{
+        align-items:start !important;
+      }
+      .excel-template .invoice-bank,
+      .excel-template .invoice-payment-box{
+        top:0 !important;
+        transform:none !important;
+      }
+      .excel-template .bank-title,
+      .excel-template .payment-title{
+        height:24px !important;
+        min-height:24px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -3066,11 +3148,12 @@ function concretePaymentDate(client, period){
       `);
     }
 
-    const bankText = String(state.companyInfo?.bankAccount || "")
+    const bankLines = String(state.companyInfo?.bankAccount || "")
       .split(/\r?\n/)
       .map(line=>line.trim())
-      .filter(Boolean)
-      .join("\n");
+      .filter(Boolean);
+    const bankText = bankLines.join("\n");
+    const bankLinesHtml = bankLines.map(line=>`<div class="bank-line">${escapeHtml(line)}</div>`).join("");
 
     $("invoicePreview").innerHTML = `
       <div class="invoice-sheet excel-template">
@@ -3152,7 +3235,7 @@ function concretePaymentDate(client, period){
                 ${bankText ? `
                   <div class="invoice-bank">
                     <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                    <div class="bank-body">${escapeHtml(bankText)}</div>
+                    <div class="bank-body">${bankLinesHtml}</div>
                   </div>
                 ` : ""}
               </div>
