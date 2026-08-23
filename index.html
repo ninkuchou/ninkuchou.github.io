@@ -1053,6 +1053,41 @@
       }
     }
 
+  
+    /* 上端を詰めて帯をできるだけ上へ */
+    .invoice-sheet.excel-template .invoice-paper-inner{
+      padding-top:2px !important;
+    }
+    .invoice-sheet.excel-template .top-wine-bar{
+      margin-top:0 !important;
+      margin-bottom:8px !important;
+    }
+
+    @media print{
+      @page{
+        size:A4 portrait;
+        margin:2mm 6mm 6mm 6mm;
+      }
+
+      #invoicePreview{
+        top:0 !important;
+      }
+
+      .invoice-sheet.excel-template{
+        margin-top:0 !important;
+      }
+
+      .excel-template .invoice-paper-inner{
+        padding-top:0 !important;
+        zoom:0.94;
+      }
+
+      .excel-template .top-wine-bar{
+        margin-top:0 !important;
+        transform:translateY(-1mm);
+      }
+    }
+
   </style>
 </head>
 <body>
