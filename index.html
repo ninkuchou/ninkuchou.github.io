@@ -1088,6 +1088,61 @@
       }
     }
 
+  
+    /* 振込先の不要な空白を詰める */
+    .excel-template .invoice-bank{
+      margin-top:10px !important;
+      line-height:1.2 !important;
+    }
+
+    .excel-template .bank-title{
+      margin:0 !important;
+      padding:4px 7px !important;
+      line-height:1.1 !important;
+    }
+
+    .excel-template .bank-body{
+      margin:0 !important;
+      padding:3px 7px 4px !important;
+      min-height:0 !important;
+      line-height:1.2 !important;
+      white-space:pre-line !important;
+    }
+
+    .excel-template .bank-body br:first-child{
+      display:none;
+    }
+
+    @media print{
+      .excel-template .invoice-bank{
+        margin-top:8px !important;
+      }
+
+      .excel-template .bank-body{
+        padding-top:2px !important;
+        padding-bottom:3px !important;
+        min-height:0 !important;
+      }
+    }
+
+  
+    /* 税率・支払期日を上の合計欄と同じ幅に揃える */
+    .excel-template .invoice-lower-grid{
+      width:100% !important;
+      margin:12px 0 0 0 !important;
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:18px !important;
+    }
+
+    @media print{
+      .excel-template .invoice-lower-grid{
+        width:100% !important;
+        margin-left:0 !important;
+        margin-right:0 !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -2618,6 +2673,29 @@ function nextInvoiceSequence(clientId){
     save();
   }
 
+  
+function concretePaymentDate(client, period){
+    const raw = String(client?.payment || "").trim();
+
+    // 「翌月末」なら締め日の翌月末を具体的な日付にする
+    if(raw.includes("翌月末")){
+      const d = new Date(period.end + "T00:00:00");
+      const y = d.getFullYear();
+      const m = d.getMonth(); // period.end month - 1
+      const nextMonthEnd = new Date(y, m + 2, 0);
+      return `${nextMonthEnd.getFullYear()}年${nextMonthEnd.getMonth()+1}月${nextMonthEnd.getDate()}日`;
+    }
+
+    // 「当月末」なら締め月末
+    if(raw.includes("当月末") || raw==="末日"){
+      const d = new Date(period.end + "T00:00:00");
+      return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    }
+
+    // すでに具体的な日付が入っていればそのまま
+    return raw;
+  }
+
   function getProgressBilling(siteId, month){
     const item = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
     return item ? Number(item.percent||0) : 0;
@@ -2767,6 +2845,7 @@ function nextInvoiceSequence(clientId){
     const subtotal = rows.reduce((a,r)=>a+r.amount,0);
     const tax = Math.floor(subtotal * taxRate / 100);
     const total = subtotal + tax;
+    const paymentDate = concretePaymentDate(client, period);
 
     const detailRows = [];
     rows.forEach(r=>{
@@ -2924,7 +3003,7 @@ function nextInvoiceSequence(clientId){
               </div>
               <div>
                 <div class="payment-title">お支払い期日</div>
-                <div class="payment-value">${escapeHtml(client?.payment || "")}</div>
+                <div class="payment-value">${escapeHtml(paymentDate || "")}</div>
               </div>
             </div>
 
