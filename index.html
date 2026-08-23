@@ -371,6 +371,216 @@
       .invoice-title{font-size:18pt}
     }
 
+  
+    /* アップロードされたExcel請求書の配置・配色に寄せた版 */
+    .invoice-sheet.excel-template{
+      --inv-wine:#812444;
+      --inv-grid:#e6b7c6;
+      --inv-gray:#eeeeee;
+      background:#fff;
+      color:#111;
+      border:0;
+      border-radius:0;
+      padding:28px 34px 34px;
+      font-family:"Yu Gothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+      overflow:hidden;
+    }
+    .excel-template .invoice-upper{
+      position:relative;
+      min-height:380px;
+    }
+    .excel-template .invoice-doc-title{
+      font-size:25px;
+      font-weight:500;
+      letter-spacing:.02em;
+      margin:0 0 8px 32px;
+      line-height:1.2;
+    }
+    .excel-template .invoice-client-block{
+      margin-left:55px;
+      width:52%;
+      font-size:13px;
+      line-height:1.8;
+    }
+    .excel-template .invoice-client-postal{
+      margin:4px 0 18px;
+    }
+    .excel-template .invoice-client-address{
+      margin:0 0 50px;
+      font-size:15px;
+    }
+    .excel-template .invoice-client-name{
+      font-size:19px;
+      font-weight:700;
+      border:0;
+      min-width:0;
+      padding:0;
+      display:block;
+    }
+    .excel-template .invoice-number{
+      position:absolute;
+      right:8px;
+      top:4px;
+      font-size:12px;
+    }
+    .excel-template .invoice-issuer-block{
+      position:absolute;
+      top:90px;
+      right:0;
+      width:39%;
+      font-size:12px;
+      line-height:1.8;
+    }
+    .excel-template .invoice-issuer-date{
+      margin-bottom:26px;
+    }
+    .excel-template .invoice-issuer-name{
+      font-size:15px;
+      font-weight:700;
+      margin-top:5px;
+    }
+    .excel-template .invoice-greeting{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:20px;
+      margin:0;
+      font-size:11px;
+      line-height:1.6;
+    }
+
+    .excel-template .invoice-detail-table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:11px;
+      margin:0;
+      border-bottom:4px solid var(--inv-wine);
+    }
+    .excel-template .invoice-detail-table th{
+      background:#d9d9d9;
+      color:var(--inv-wine);
+      border:1px solid #d9d9d9;
+      border-right-color:var(--inv-grid);
+      padding:5px 4px;
+      font-size:12px;
+      font-weight:500;
+      text-align:center;
+    }
+    .excel-template .invoice-detail-table td{
+      border-right:1px solid var(--inv-grid);
+      border-left:0;
+      border-top:0;
+      border-bottom:0;
+      padding:5px 5px;
+      height:24px;
+      vertical-align:middle;
+    }
+    .excel-template .invoice-detail-table tbody tr:nth-child(even) td{
+      background:var(--inv-gray);
+    }
+    .excel-template .invoice-detail-table .site-row td{
+      background:#fff !important;
+      font-size:12px;
+      padding-top:7px;
+      padding-bottom:4px;
+    }
+    .excel-template .invoice-detail-table td.date{text-align:center;white-space:nowrap}
+    .excel-template .invoice-detail-table td.desc{text-align:left}
+    .excel-template .invoice-detail-table td.qty,
+    .excel-template .invoice-detail-table td.unit{text-align:center}
+    .excel-template .invoice-detail-table td.price,
+    .excel-template .invoice-detail-table td.amount{text-align:right}
+    .excel-template .invoice-detail-table td.note{text-align:left}
+
+    .excel-template .invoice-totals-grid{
+      width:73%;
+      margin-top:28px;
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+    }
+    .excel-template .total-box-title{
+      background:var(--inv-wine);
+      color:#fff;
+      text-align:center;
+      font-size:12px;
+      letter-spacing:.22em;
+      padding:7px 3px;
+    }
+    .excel-template .total-box-value{
+      background:#f2f2f2;
+      text-align:center;
+      font-size:17px;
+      padding:15px 6px;
+      min-height:50px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .excel-template .total-box-value.grand{
+      font-size:19px;
+      font-weight:800;
+    }
+    .excel-template .invoice-lower-grid{
+      width:73%;
+      margin-top:26px;
+      display:grid;
+      grid-template-columns:2fr 1fr;
+      gap:0;
+    }
+    .excel-template .rate-title,
+    .excel-template .payment-title{
+      background:var(--inv-wine);
+      color:#fff;
+      text-align:center;
+      padding:7px;
+      font-size:12px;
+      letter-spacing:.18em;
+    }
+    .excel-template .rate-value,
+    .excel-template .payment-value{
+      background:#f2f2f2;
+      text-align:center;
+      padding:9px;
+      min-height:34px;
+      font-size:12px;
+    }
+    .excel-template .invoice-bank{
+      width:73%;
+      margin-top:20px;
+      font-size:11px;
+      line-height:1.55;
+    }
+    .excel-template .bank-title{
+      background:var(--inv-wine);
+      color:#fff;
+      padding:6px 12px;
+      font-size:11px;
+      letter-spacing:.08em;
+    }
+    .excel-template .bank-body{
+      background:#f2f2f2;
+      padding:8px 12px 10px;
+      white-space:pre-line;
+    }
+    @media(max-width:600px){
+      .invoice-sheet.excel-template{
+        padding:18px 14px 24px;
+        overflow-x:auto;
+      }
+      .excel-template .invoice-paper-inner{
+        min-width:720px;
+      }
+    }
+    @media print{
+      .invoice-sheet.excel-template{
+        padding:8mm 10mm;
+      }
+      .excel-template .invoice-paper-inner{
+        min-width:0;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1944,15 +2154,18 @@ function renderCompanyInfoForm(){
     const tax = Math.floor(subtotal * taxRate / 100);
     const total = subtotal + tax;
     const [y,m] = month.split("-");
-    const billingDate = period.end;
 
     const detailRows = [];
     rows.forEach(r=>{
       detailRows.push(`
-        <tr class="invoice-site-heading">
-          <td>${escapeHtml(billingDate)}</td>
-          <td colspan="5">${escapeHtml(r.site.name)}</td>
-          <td>${r.contractType==="請負" ? "請負" : "常用"}</td>
+        <tr class="site-row">
+          <td class="date">${period.end}</td>
+          <td class="desc">${escapeHtml(r.site.name)}</td>
+          <td class="qty"></td>
+          <td class="unit"></td>
+          <td class="price"></td>
+          <td class="amount"></td>
+          <td class="note"></td>
         </tr>
       `);
 
@@ -1961,113 +2174,154 @@ function renderCompanyInfoForm(){
         const pctText = pct.toFixed(pct%1 ? 1 : 0);
         detailRows.push(`
           <tr>
-            <td></td>
-            <td>建方請負工事（出来高 ${pctText}%）</td>
-            <td>1</td>
-            <td>式</td>
-            <td>${yen(r.progressAmount)}</td>
-            <td>${yen(r.progressAmount)}</td>
-            <td>請負金額 ${yen(r.contractAmount)}</td>
+            <td class="date"></td>
+            <td class="desc">建方請負工事（出来高 ${pctText}%）</td>
+            <td class="qty">1</td>
+            <td class="unit">式</td>
+            <td class="price">${yen(r.progressAmount)}</td>
+            <td class="amount">${yen(r.progressAmount)}</td>
+            <td class="note"></td>
           </tr>
         `);
       }else{
         if(r.jinko>0){
           detailRows.push(`
             <tr>
-              <td></td>
-              <td>人工作業費</td>
-              <td>${Number(r.jinko).toFixed(Number(r.jinko)%1 ? 2 : 0)}</td>
-              <td>人工</td>
-              <td>${yen(r.rate)}</td>
-              <td>${yen(r.laborAmount)}</td>
-              <td></td>
+              <td class="date"></td>
+              <td class="desc">人工作業費</td>
+              <td class="qty">${Number(r.jinko).toFixed(Number(r.jinko)%1 ? 2 : 0)}</td>
+              <td class="unit">人工</td>
+              <td class="price">${yen(r.rate)}</td>
+              <td class="amount">${yen(r.laborAmount)}</td>
+              <td class="note"></td>
             </tr>
           `);
         }
         if(r.expenses>0){
           detailRows.push(`
             <tr>
-              <td></td>
-              <td>現場経費</td>
-              <td>1</td>
-              <td>式</td>
-              <td>${yen(r.expenses)}</td>
-              <td>${yen(r.expenses)}</td>
-              <td></td>
+              <td class="date"></td>
+              <td class="desc">現場経費</td>
+              <td class="qty">1</td>
+              <td class="unit">式</td>
+              <td class="price">${yen(r.expenses)}</td>
+              <td class="amount">${yen(r.expenses)}</td>
+              <td class="note"></td>
             </tr>
           `);
         }
       }
+
+      detailRows.push(`
+        <tr>
+          <td class="date">&nbsp;</td>
+          <td class="desc"></td>
+          <td class="qty"></td>
+          <td class="unit"></td>
+          <td class="price"></td>
+          <td class="amount"></td>
+          <td class="note"></td>
+        </tr>
+      `);
     });
 
+    while(detailRows.length < 18){
+      detailRows.push(`
+        <tr>
+          <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
+          <td class="unit"></td><td class="price"></td><td class="amount"></td><td class="note"></td>
+        </tr>
+      `);
+    }
+
+    const bankText = state.companyInfo?.bankAccount || "";
+
     $("invoicePreview").innerHTML = `
-      <div class="invoice-sheet">
-        <div class="invoice-topline">
-          <div></div>
-          <div class="invoice-no">NO　${escapeHtml(number||"-")}</div>
-        </div>
+      <div class="invoice-sheet excel-template">
+        <div class="invoice-paper-inner">
+          <div class="invoice-upper">
+            <div class="invoice-doc-title">御請求明細書</div>
 
-        <div class="invoice-title">御 請 求 明 細 書</div>
+            <div class="invoice-client-block">
+              ${client?.address ? `<div class="invoice-client-address">${escapeHtml(client.address)}</div>` : `<div class="invoice-client-address">&nbsp;</div>`}
+              <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
+            </div>
 
-        <div class="invoice-head">
-          <div>
-            ${client?.address ? `<div style="font-size:11px;margin-bottom:8px">${escapeHtml(client.address)}</div>` : ""}
-            <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
-            <div class="invoice-period">${y}年${Number(m)}月分　／　集計期間 ${period.start} 〜 ${period.end}</div>
+            <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
+
+            <div class="invoice-issuer-block">
+              <div class="invoice-issuer-date">${period.end}</div>
+              ${state.companyInfo?.postalCode ? `<div>〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
+              ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
+              <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
+              ${(state.companyInfo?.title || state.companyInfo?.personName)
+                ? `<div style="margin-top:18px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
+                : ""}
+              ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
+            </div>
+
+            <div class="invoice-greeting">
+              平素は格別のご高配を賜り、厚く御礼申し上げます。下記の通り、ご確認くださいますようお願い申し上げます。
+            </div>
           </div>
 
-          <div class="invoice-company">
-            <div>${todayLocal()}</div>
-            ${state.companyInfo?.postalCode ? `<div style="margin-top:10px">〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
-            ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
-            <div class="invoice-company-name">${escapeHtml(state.companyInfo?.name || "")}</div>
-            ${(state.companyInfo?.title || state.companyInfo?.personName) ? `<div>${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>` : ""}
-            ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
+          <table class="invoice-detail-table">
+            <colgroup>
+              <col style="width:12%">
+              <col style="width:47%">
+              <col style="width:6%">
+              <col style="width:6%">
+              <col style="width:14%">
+              <col style="width:14%">
+              <col style="width:12%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>日付</th>
+                <th>現場名</th>
+                <th>数量</th>
+                <th>単位</th>
+                <th>単価</th>
+                <th>金額</th>
+                <th>備考</th>
+              </tr>
+            </thead>
+            <tbody>${detailRows.join("")}</tbody>
+          </table>
+
+          <div class="invoice-totals-grid">
+            <div>
+              <div class="total-box-title">税抜合計</div>
+              <div class="total-box-value">${yen(subtotal)}</div>
+            </div>
+            <div>
+              <div class="total-box-title">税　額</div>
+              <div class="total-box-value">${yen(tax)}</div>
+            </div>
+            <div>
+              <div class="total-box-title">税込合計</div>
+              <div class="total-box-value grand">${yen(total)}</div>
+            </div>
           </div>
+
+          <div class="invoice-lower-grid">
+            <div>
+              <div class="rate-title">税　率</div>
+              <div class="rate-value">${taxRate}%</div>
+            </div>
+            <div>
+              <div class="payment-title">お支払い期日</div>
+              <div class="payment-value">${escapeHtml(client?.payment || "")}</div>
+            </div>
+          </div>
+
+          ${bankText ? `
+            <div class="invoice-bank">
+              <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
+              <div class="bank-body">${escapeHtml(bankText)}</div>
+            </div>
+          ` : ""}
         </div>
-
-        <div class="invoice-greeting">
-          平素は格別のご高配を賜り、厚く御礼申し上げます。下記の通り、ご確認くださいますようお願い申し上げます。
-        </div>
-
-        <div class="invoice-total-box">
-          <div class="invoice-total">御請求金額　${yen(total)}（税込）</div>
-        </div>
-
-        <table class="invoice-table">
-          <colgroup>
-            <col style="width:13%">
-            <col style="width:31%">
-            <col style="width:9%">
-            <col style="width:8%">
-            <col style="width:13%">
-            <col style="width:14%">
-            <col style="width:12%">
-          </colgroup>
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>現場名</th>
-              <th>数量</th>
-              <th>単位</th>
-              <th>単価</th>
-              <th>金額</th>
-              <th>備考</th>
-            </tr>
-          </thead>
-          <tbody>${detailRows.join("")}</tbody>
-        </table>
-
-        <table class="invoice-summary">
-          <tbody>
-            <tr><th>小計</th><td>${yen(subtotal)}</td></tr>
-            <tr><th>消費税 ${taxRate}%</th><td>${yen(tax)}</td></tr>
-            <tr><th>合計</th><td><strong>${yen(total)}</strong></td></tr>
-          </tbody>
-        </table>
-
-        ${client?.payment ? `<div style="margin-top:16px;font-size:11px">支払条件：${escapeHtml(client.payment)}</div>` : ""}
-        ${state.companyInfo?.bankAccount ? `<div class="invoice-bank"><strong>振込先</strong><br>${escapeHtml(state.companyInfo.bankAccount)}</div>` : ""}
       </div>
     `;
   }
