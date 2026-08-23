@@ -217,6 +217,27 @@
       text-align:center;
     }
 
+  
+    .recent-scroll{
+      max-height:230px;
+      overflow-y:auto;
+      overflow-x:hidden;
+      -webkit-overflow-scrolling:touch;
+      padding-right:4px;
+      scrollbar-gutter:stable;
+    }
+    .recent-scroll::-webkit-scrollbar{
+      width:7px;
+    }
+    .recent-scroll::-webkit-scrollbar-track{
+      background:#f1f5f9;
+      border-radius:999px;
+    }
+    .recent-scroll::-webkit-scrollbar-thumb{
+      background:#94a3b8;
+      border-radius:999px;
+    }
+
   </style>
 </head>
 <body>
@@ -256,7 +277,7 @@
 
       <div class="card">
         <h2>最近の入力</h2>
-        <div id="recentEntries" class="list"></div>
+        <div id="recentEntries" class="list recent-scroll"></div>
       </div>
     </section>
 
@@ -1316,7 +1337,7 @@
   }
 
   function renderRecent(){
-    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
     if(!list.length){
       $("recentEntries").innerHTML = `<div class="empty">まだ入力がないで。</div>`;
       return;
