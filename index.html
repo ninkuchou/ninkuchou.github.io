@@ -1160,6 +1160,95 @@
       padding-bottom:3px;
     }
 
+  
+    /* 見本PDFに合わせた下部レイアウト */
+    .excel-template .invoice-totals-grid{
+      width:100% !important;
+      display:grid !important;
+      grid-template-columns:1.35fr 1.15fr .38fr 1.35fr !important;
+      gap:18px !important;
+      margin:14px 0 0 0 !important;
+      align-items:stretch !important;
+    }
+
+    .excel-template .invoice-totals-grid > div{
+      min-width:0;
+    }
+
+    .excel-template .total-box-title{
+      min-height:24px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-sizing:border-box;
+    }
+
+    .excel-template .total-box-value{
+      min-height:54px !important;
+      box-sizing:border-box;
+      white-space:nowrap;
+    }
+
+    .excel-template .total-box-value.tax-rate-value{
+      font-size:15px !important;
+      font-weight:700 !important;
+    }
+
+    .excel-template .invoice-bottom-second-row{
+      width:100%;
+      display:grid;
+      grid-template-columns:1.45fr 1fr;
+      gap:62px;
+      margin-top:14px;
+      align-items:start;
+    }
+
+    .excel-template .invoice-bank{
+      width:100% !important;
+      margin:0 !important;
+    }
+
+    .excel-template .invoice-payment-box{
+      width:100%;
+      margin:0;
+    }
+
+    .excel-template .payment-title{
+      background:var(--inv-wine);
+      color:#fff;
+      text-align:center;
+      padding:4px 3px;
+      font-size:10.5px;
+      font-weight:700;
+      letter-spacing:.18em;
+      line-height:1.1;
+    }
+
+    .excel-template .payment-value{
+      background:#efefef;
+      text-align:center;
+      padding:4px;
+      min-height:22px;
+      font-size:13px;
+      font-weight:800;
+      line-height:1.15;
+      box-sizing:border-box;
+    }
+
+    @media print{
+      .excel-template .invoice-totals-grid{
+        width:100% !important;
+        grid-template-columns:1.35fr 1.15fr .38fr 1.35fr !important;
+        gap:18px !important;
+      }
+
+      .excel-template .invoice-bottom-second-row{
+        width:100% !important;
+        grid-template-columns:1.45fr 1fr !important;
+        gap:62px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -2996,7 +3085,6 @@ function concretePaymentDate(client, period){
             </thead>
             <tbody>${detailRows.join("")}</tbody>
           </table>
-
           <div class="invoice-bottom-area">
             <div class="invoice-totals-grid">
               <div>
@@ -3008,28 +3096,30 @@ function concretePaymentDate(client, period){
                 <div class="total-box-value">¥ ${Math.round(tax).toLocaleString("ja-JP")}</div>
               </div>
               <div>
+                <div class="total-box-title">税　率</div>
+                <div class="total-box-value tax-rate-value">${taxRate}%</div>
+              </div>
+              <div>
                 <div class="total-box-title">税 込 合 計</div>
                 <div class="total-box-value grand">¥ ${Math.round(total).toLocaleString("ja-JP")}</div>
               </div>
             </div>
 
-            <div class="invoice-lower-grid">
+            <div class="invoice-bottom-second-row">
               <div>
-                <div class="rate-title">税　率</div>
-                <div class="rate-value">${taxRate}%</div>
+                ${bankText ? `
+                  <div class="invoice-bank">
+                    <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
+                    <div class="bank-body">${escapeHtml(bankText)}</div>
+                  </div>
+                ` : ""}
               </div>
-              <div>
+
+              <div class="invoice-payment-box">
                 <div class="payment-title">お支払い期日</div>
                 <div class="payment-value">${escapeHtml(paymentDate || "")}</div>
               </div>
             </div>
-
-            ${bankText ? `
-              <div class="invoice-bank">
-                <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                <div class="bank-body">${escapeHtml(bankText)}</div>
-              </div>
-            ` : ""}
           </div>
         </div>
       </div>
