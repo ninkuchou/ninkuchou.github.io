@@ -3275,18 +3275,24 @@ function getContractBillingIncluded(siteId, month){
         if(!dailyExpenseMap[x.date]){
           dailyExpenseMap[x.date] = {
             amount:0,
-            hasTaxIncluded:false
+            hasTaxIncluded:false,
+            memos:[]
           };
         }
         dailyExpenseMap[x.date].amount += expensePretaxAmount(x, taxRate);
         if(x.taxType==="included") dailyExpenseMap[x.date].hasTaxIncluded = true;
+        const memo = String(x.memo || "").trim();
+        if(memo && !dailyExpenseMap[x.date].memos.includes(memo)){
+          dailyExpenseMap[x.date].memos.push(memo);
+        }
       });
       const dailyExpenses = Object.entries(dailyExpenseMap)
         .sort((a,b)=>a[0].localeCompare(b[0]))
         .map(([date,v])=>({
           date,
           amount:v.amount,
-          hasTaxIncluded:v.hasTaxIncluded
+          hasTaxIncluded:v.hasTaxIncluded,
+          memo:v.memos.join(" / ")
         }));
 
       const contractType = site.contractType || "常用";
@@ -3389,19 +3395,19 @@ function getContractBillingIncluded(siteId, month){
 
     const detailRows = [];
     rows.forEach(r=>{
-      detailRows.push(`
-        <tr class="site-row">
-          <td class="date">${period.end.slice(5).replace("-","月")}日</td>
-          <td class="desc">${escapeHtml(r.site.name)}</td>
-          <td class="qty"></td>
-          <td class="unit"></td>
-          <td class="price"></td>
-          <td class="amount"></td>
-          <td class="note"></td>
-        </tr>
-      `);
-
       if(r.contractType==="請負"){
+        detailRows.push(`
+          <tr class="site-row">
+            <td class="date">${period.end.slice(5).replace("-","月")}日</td>
+            <td class="desc">${escapeHtml(r.site.name)}</td>
+            <td class="qty"></td>
+            <td class="unit"></td>
+            <td class="price"></td>
+            <td class="amount"></td>
+            <td class="note"></td>
+          </tr>
+        `);
+
         const pct = Number(r.percent||0);
         const pctText = pct.toFixed(pct%1 ? 1 : 0);
         detailRows.push(`
@@ -3415,50 +3421,56 @@ function getContractBillingIncluded(siteId, month){
             <td class="note"></td>
           </tr>
         `);
-      }else{
-        if(r.jinko>0){
-          (r.dailyLabor || []).forEach(d=>{
-            const dailyAmount = Number(d.jinko||0) * Number(r.rate||0);
-            const md = d.date.slice(5).split("-");
-            const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
-            detailRows.push(`
-              <tr>
-                <td class="date">${dateLabel}</td>
-                <td class="desc">${escapeHtml(r.site.name)}</td>
-                <td class="qty">${Number(d.jinko).toFixed(Number(d.jinko)%1 ? 2 : 0)}</td>
-                <td class="unit">人工</td>
-                <td class="price">${Math.round(r.rate).toLocaleString("ja-JP")}</td>
-                <td class="amount">${Math.round(dailyAmount).toLocaleString("ja-JP")}</td>
-                <td class="note"></td>
-              </tr>
-            `);
-          });
-        }
-        if(r.expenses>0){
-          (r.dailyExpenses || []).forEach(d=>{
-            const md = d.date.slice(5).split("-");
-            const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
-            detailRows.push(`
-              <tr>
-                <td class="date">${dateLabel}</td>
-                <td class="desc">現場経費</td>
-                <td class="qty">1</td>
-                <td class="unit">式</td>
-                <td class="price">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
-                <td class="amount">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
-                <td class="note">${d.hasTaxIncluded ? "税抜表示" : ""}</td>
-              </tr>
-            `);
-          });
-        }
+        return;
       }
 
-      detailRows.push(`
-        <tr>
-          <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
-          <td class="unit"></td><td class="price"></td><td class="amount"></td><td class="note"></td>
-        </tr>
-      `);
+      // 常用は日付ごとに人工→経費の順で並べる
+      const byDate = {};
+      (r.dailyLabor || []).forEach(d=>{
+        if(!byDate[d.date]) byDate[d.date] = {labor:null, expense:null};
+        byDate[d.date].labor = d;
+      });
+      (r.dailyExpenses || []).forEach(d=>{
+        if(!byDate[d.date]) byDate[d.date] = {labor:null, expense:null};
+        byDate[d.date].expense = d;
+      });
+
+      Object.keys(byDate).sort().forEach(date=>{
+        const item = byDate[date];
+        const md = date.slice(5).split("-");
+        const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
+
+        if(item.labor){
+          const d = item.labor;
+          const dailyAmount = Number(d.jinko||0) * Number(r.rate||0);
+          detailRows.push(`
+            <tr>
+              <td class="date">${dateLabel}</td>
+              <td class="desc">${escapeHtml(r.site.name)}</td>
+              <td class="qty">${Number(d.jinko).toFixed(Number(d.jinko)%1 ? 2 : 0)}</td>
+              <td class="unit">人工</td>
+              <td class="price">${Math.round(r.rate).toLocaleString("ja-JP")}</td>
+              <td class="amount">${Math.round(dailyAmount).toLocaleString("ja-JP")}</td>
+              <td class="note"></td>
+            </tr>
+          `);
+        }
+
+        if(item.expense){
+          const d = item.expense;
+          detailRows.push(`
+            <tr>
+              <td class="date">${item.labor ? "" : dateLabel}</td>
+              <td class="desc">${escapeHtml(d.memo || "経費")}</td>
+              <td class="qty">1</td>
+              <td class="unit">式</td>
+              <td class="price">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
+              <td class="amount">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
+              <td class="note">${d.hasTaxIncluded ? "税抜表示" : ""}</td>
+            </tr>
+          `);
+        }
+      });
     });
 
     // PDF見本同様、明細部を一定の高さに保ちつつ1ページ内に収める。
