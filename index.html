@@ -3251,6 +3251,15 @@ function getContractBillingIncluded(siteId, month){
       const siteEntries = entries.filter(e=>e.siteId===site.id);
       const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
 
+      const dailyLaborMap = {};
+      siteEntries.forEach(e=>{
+        if(!dailyLaborMap[e.date]) dailyLaborMap[e.date] = 0;
+        dailyLaborMap[e.date] += Number(e.jinko||0);
+      });
+      const dailyLabor = Object.entries(dailyLaborMap)
+        .sort((a,b)=>a[0].localeCompare(b[0]))
+        .map(([date,jinko])=>({date,jinko}));
+
       const siteExpenseItems = state.siteExpenses.filter(
         x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end)
       );
@@ -3273,6 +3282,7 @@ function getContractBillingIncluded(siteId, month){
           site,
           contractType,
           jinko,
+          dailyLabor,
           rate:0,
           laborAmount:0,
           expenses,
@@ -3293,6 +3303,7 @@ function getContractBillingIncluded(siteId, month){
         site,
         contractType,
         jinko,
+        dailyLabor,
         rate,
         laborAmount,
         expenses,
@@ -3385,17 +3396,22 @@ function getContractBillingIncluded(siteId, month){
         `);
       }else{
         if(r.jinko>0){
-          detailRows.push(`
-            <tr>
-              <td class="date"></td>
-              <td class="desc">人工作業費</td>
-              <td class="qty">${Number(r.jinko).toFixed(Number(r.jinko)%1 ? 2 : 0)}</td>
-              <td class="unit">人工</td>
-              <td class="price">${Math.round(r.rate).toLocaleString("ja-JP")}</td>
-              <td class="amount">${Math.round(r.laborAmount).toLocaleString("ja-JP")}</td>
-              <td class="note"></td>
-            </tr>
-          `);
+          (r.dailyLabor || []).forEach(d=>{
+            const dailyAmount = Number(d.jinko||0) * Number(r.rate||0);
+            const md = d.date.slice(5).split("-");
+            const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
+            detailRows.push(`
+              <tr>
+                <td class="date">${dateLabel}</td>
+                <td class="desc">人工作業費</td>
+                <td class="qty">${Number(d.jinko).toFixed(Number(d.jinko)%1 ? 2 : 0)}</td>
+                <td class="unit">人工</td>
+                <td class="price">${Math.round(r.rate).toLocaleString("ja-JP")}</td>
+                <td class="amount">${Math.round(dailyAmount).toLocaleString("ja-JP")}</td>
+                <td class="note"></td>
+              </tr>
+            `);
+          });
         }
         if(r.expenses>0){
           detailRows.push(`
