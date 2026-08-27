@@ -1413,6 +1413,18 @@
       white-space:normal !important;
     }
 
+  
+    /* 請求書テーマカラー選択対応 */
+    .excel-template .top-wine-bar{
+      background:linear-gradient(
+        90deg,
+        var(--inv-wine) 0%,
+        var(--inv-wine) 62%,
+        color-mix(in srgb, var(--inv-wine) 55%, white) 78%,
+        color-mix(in srgb, var(--inv-wine) 18%, white) 100%
+      ) !important;
+    }
+
   </style>
 </head>
 <body>
@@ -1626,6 +1638,29 @@
           <div class="helper">その月に請求する出来高率を入力。例：30なら請負金額の30%を請求します。</div>
         </div>
 
+        <label>請求書フォント</label>
+        <select id="invoiceFont">
+          <option value="hiragino">ヒラギノ角ゴ</option>
+          <option value="yuGothic">游ゴシック</option>
+          <option value="meiryo">メイリオ</option>
+          <option value="yuMincho">游明朝</option>
+          <option value="sans">標準ゴシック</option>
+        </select>
+
+        <label>請求書カラー</label>
+        <select id="invoiceColor">
+          <option value="wine">えんじ</option>
+          <option value="navy">ネイビー</option>
+          <option value="blue">ブルー</option>
+          <option value="green">グリーン</option>
+          <option value="brown">ブラウン</option>
+          <option value="red">レッド</option>
+          <option value="pink">ピンク</option>
+          <option value="orange">オレンジ</option>
+          <option value="yellow">イエロー</option>
+          <option value="black">ブラック</option>
+        </select>
+
         <label>請求書フォーマット</label>
         <select id="invoiceFormat">
           <option value="standard">標準</option>
@@ -1714,7 +1749,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, invoiceNumbers: [], progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, invoiceNumbers: [], progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -1734,6 +1769,8 @@
   state.companyInfo.personName = state.companyInfo.personName || "";
   state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
+  state.companyInfo.invoiceFont = state.companyInfo.invoiceFont || "hiragino";
+  state.companyInfo.invoiceColor = state.companyInfo.invoiceColor || "wine";
   // 既存の元請けに番号がない場合は100から順に自動採番
   let _nextClientNo = 100;
   const _usedClientNos = new Set(
@@ -2865,7 +2902,9 @@ function renderCompanyInfoForm(){
       title:$("companyInfoTitle")?.value.trim() || "",
       personName:$("companyInfoPersonName")?.value.trim() || "",
       invoiceNumber:$("companyInfoInvoiceNumber")?.value.trim() || "",
-      bankAccount:$("companyInfoBankAccount")?.value.trim() || ""
+      bankAccount:$("companyInfoBankAccount")?.value.trim() || "",
+      invoiceFont:state.companyInfo?.invoiceFont || "hiragino",
+      invoiceColor:state.companyInfo?.invoiceColor || "wine"
     };
     save();
     renderInvoice();
@@ -2964,6 +3003,35 @@ function concretePaymentDate(client, period){
 
     // すでに具体的な日付が入っていればそのまま
     return raw;
+  }
+
+  
+
+function invoiceColorValue(key){
+    const map = {
+      wine:"#7d2342",
+      navy:"#23395d",
+      blue:"#2f5f8f",
+      green:"#2f6b4f",
+      brown:"#6b4a32",
+      red:"#b42318",
+      pink:"#c23b6d",
+      orange:"#c65f1a",
+      yellow:"#c79a16",
+      black:"#2f2f2f"
+    };
+    return map[key] || map.wine;
+  }
+
+  function invoiceFontFamily(key){
+    const map = {
+      hiragino:'"Hiragino Sans","Hiragino Kaku Gothic ProN",-apple-system,BlinkMacSystemFont,sans-serif',
+      yuGothic:'"Yu Gothic","YuGothic",-apple-system,BlinkMacSystemFont,sans-serif',
+      meiryo:'"Meiryo","Hiragino Kaku Gothic ProN",-apple-system,BlinkMacSystemFont,sans-serif',
+      yuMincho:'"Yu Mincho","YuMincho","Hiragino Mincho ProN",serif',
+      sans:'-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif'
+    };
+    return map[key] || map.hiragino;
   }
 
   function getProgressBilling(siteId, month){
@@ -3199,7 +3267,7 @@ function concretePaymentDate(client, period){
       .join("\n");
 
     $("invoicePreview").innerHTML = `
-      <div class="invoice-sheet excel-template">
+      <div class="invoice-sheet excel-template" style="font-family:${invoiceFontFamily($("invoiceFont")?.value || state.companyInfo?.invoiceFont || "hiragino")};--inv-wine:${invoiceColorValue($("invoiceColor")?.value || state.companyInfo?.invoiceColor || "wine")}">
         <div class="invoice-paper-inner">
           <div class="top-wine-bar"></div>
 
@@ -3322,6 +3390,16 @@ function concretePaymentDate(client, period){
   });
   $("invoiceNumber").addEventListener("change", ()=>{ saveManualInvoiceNumber(); renderInvoice(); });
   $("invoiceTax").addEventListener("change", renderInvoice);
+  $("invoiceFont").addEventListener("change", ()=>{
+    state.companyInfo.invoiceFont = $("invoiceFont").value || "hiragino";
+    save();
+    renderInvoice();
+  });
+  $("invoiceColor").addEventListener("change", ()=>{
+    state.companyInfo.invoiceColor = $("invoiceColor").value || "wine";
+    save();
+    renderInvoice();
+  });
   $("invoiceFormat").addEventListener("change", renderInvoice);
 
 
@@ -3345,9 +3423,10 @@ function concretePaymentDate(client, period){
             title: clean.companyInfo.title || "",
             personName: clean.companyInfo.personName || "",
             invoiceNumber: clean.companyInfo.invoiceNumber || "",
-            bankAccount: clean.companyInfo.bankAccount || ""
+            bankAccount: clean.companyInfo.bankAccount || "",
+            invoiceFont: clean.companyInfo.invoiceFont || "hiragino"
           }
-        : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""}
+        : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"}
     };
   }
 
