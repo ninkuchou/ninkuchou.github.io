@@ -1445,6 +1445,28 @@
       color:var(--inv-wine) !important;
     }
 
+  
+    .progress-row-with-toggle{align-items:center}
+    .contract-include-toggle{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      margin:0 0 5px;
+      font-size:12px;
+      font-weight:700;
+      color:var(--text);
+    }
+    .contract-include-toggle input{
+      width:18px;
+      height:18px;
+      margin:0;
+      flex:0 0 auto;
+    }
+    .progress-input:disabled{
+      opacity:.45;
+      background:#f1f5f9;
+    }
+
   </style>
 </head>
 <body>
@@ -1547,7 +1569,8 @@
               <option value="20">20日</option>
               <option value="25">25日</option>
               <option value="custom">その他（手入力）</option>
-            </select>
+                      <option value="#7d2342">えんじ</option>
+</select>
             <input id="clientClosingDay" type="number" min="1" max="31" inputmode="numeric" placeholder="例：13" style="display:none;margin-top:6px">
           </div>
           <div>
@@ -1770,7 +1793,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, invoiceNumbers: [], progressBillings: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -1782,6 +1805,7 @@
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
   if(!Array.isArray(state.invoiceNumbers)) state.invoiceNumbers = [];
   if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
+  if(!Array.isArray(state.contractBillingIncludes)) state.contractBillingIncludes = [];
   if(!state.companyInfo || typeof state.companyInfo !== "object") state.companyInfo = {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:""};
   state.companyInfo.name = state.companyInfo.name || "";
   state.companyInfo.postalCode = state.companyInfo.postalCode || "";
@@ -3056,6 +3080,27 @@ function invoiceColorValue(key){
     return map[key] || map.hiragino;
   }
 
+  
+function getContractBillingIncluded(siteId, month){
+    const item = state.contractBillingIncludes.find(x=>x.siteId===siteId && x.month===month);
+    return item ? item.included !== false : true;
+  }
+
+  function setContractBillingIncluded(siteId, month, included){
+    const existing = state.contractBillingIncludes.find(x=>x.siteId===siteId && x.month===month);
+    if(existing){
+      existing.included = !!included;
+    }else{
+      state.contractBillingIncludes.push({
+        id:uid(),
+        siteId,
+        month,
+        included:!!included
+      });
+    }
+    save();
+  }
+
   function getProgressBilling(siteId, month){
     const item = state.progressBillings.find(x=>x.siteId===siteId && x.month===month);
     return item ? Number(item.percent||0) : 0;
@@ -3090,19 +3135,34 @@ function invoiceColorValue(key){
     box.style.display = "block";
     list.innerHTML = contractSites.map(s=>{
       const percent = getProgressBilling(s.id, month);
+      const included = getContractBillingIncluded(s.id, month);
       return `<div class="item">
-        <div class="progress-row">
+        <div class="progress-row progress-row-with-toggle">
           <div>
+            <label class="contract-include-toggle">
+              <input class="contract-include-input" data-site-id="${s.id}" type="checkbox" ${included ? "checked" : ""}>
+              <span>今月の請求に入れる</span>
+            </label>
             <div class="progress-site-name">${escapeHtml(s.name)}</div>
             <div class="progress-contract">請負金額 ${s.revenue ? yen(s.revenue) : "未設定"}</div>
           </div>
           <div class="bulk-field">
             <div class="bulk-field-label">出来高 %</div>
-            <input class="progress-input" data-site-id="${s.id}" type="number" min="0" max="100" step="1" inputmode="decimal" placeholder="0" value="${percent || ""}">
+            <input class="progress-input" data-site-id="${s.id}" type="number" min="0" max="100" step="1" inputmode="decimal" placeholder="0" value="${percent || ""}" ${included ? "" : "disabled"}>
           </div>
         </div>
       </div>`;
     }).join("");
+
+    list.querySelectorAll(".contract-include-input").forEach(input=>{
+      input.addEventListener("change", ()=>{
+        const included = input.checked;
+        setContractBillingIncluded(input.dataset.siteId, month, included);
+        const progressInput = list.querySelector(`.progress-input[data-site-id="${input.dataset.siteId}"]`);
+        if(progressInput) progressInput.disabled = !included;
+        renderInvoice();
+      });
+    });
 
     list.querySelectorAll(".progress-input").forEach(input=>{
       input.addEventListener("change", ()=>{
@@ -3135,14 +3195,15 @@ function invoiceColorValue(key){
       const contractType = site.contractType || "常用";
 
       if(contractType === "請負"){
+        const included = getContractBillingIncluded(site.id, month);
         const percent = getProgressBilling(site.id, month);
         const contractAmount = Number(site.revenue||0);
         const progressAmount = Math.floor(contractAmount * percent / 100);
         return {
           site, contractType, jinko,
           rate:0, laborAmount:0,
-          expenses, percent, contractAmount, progressAmount,
-          amount: progressAmount
+          expenses, percent, contractAmount, progressAmount, included,
+          amount: included ? progressAmount : 0
         };
       }
 
@@ -3156,7 +3217,7 @@ function invoiceColorValue(key){
       };
     }).filter(r=>{
       return r.contractType==="請負"
-        ? (r.percent>0 || r.expenses>0)
+        ? (r.included && r.percent>0)
         : (r.jinko>0 || r.expenses>0);
     });
   }
@@ -3453,6 +3514,7 @@ function invoiceColorValue(key){
       recentSelects: clean.recentSelects && typeof clean.recentSelects==="object" ? clean.recentSelects : {},
       invoiceNumbers: Array.isArray(clean.invoiceNumbers) ? clean.invoiceNumbers : [],
       progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : [],
+      contractBillingIncludes: Array.isArray(clean.contractBillingIncludes) ? clean.contractBillingIncludes : [],
       companyInfo: clean.companyInfo && typeof clean.companyInfo==="object"
         ? {
             name: clean.companyInfo.name || "",
