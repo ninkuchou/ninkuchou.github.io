@@ -1476,6 +1476,50 @@
     }
     .expense-input-row > *{min-width:0}
 
+  
+    /* 請求書：備考欄を少し広げて「税抜表示」を1行に */
+    .excel-template .invoice-detail-table th:nth-child(1),
+    .excel-template .invoice-detail-table td:nth-child(1){
+      width:9% !important;
+    }
+    .excel-template .invoice-detail-table th:nth-child(2),
+    .excel-template .invoice-detail-table td:nth-child(2){
+      width:36% !important;
+    }
+    .excel-template .invoice-detail-table th:nth-child(3),
+    .excel-template .invoice-detail-table td:nth-child(3){
+      width:8% !important;
+    }
+    .excel-template .invoice-detail-table th:nth-child(4),
+    .excel-template .invoice-detail-table td:nth-child(4){
+      width:7% !important;
+    }
+    .excel-template .invoice-detail-table th:nth-child(5),
+    .excel-template .invoice-detail-table td:nth-child(5){
+      width:12% !important;
+    }
+    .excel-template .invoice-detail-table th:nth-child(6),
+    .excel-template .invoice-detail-table td:nth-child(6){
+      width:15% !important;
+    }
+    .excel-template .invoice-detail-table th:nth-child(7),
+    .excel-template .invoice-detail-table td:nth-child(7){
+      width:13% !important;
+      white-space:nowrap !important;
+    }
+    .excel-template .invoice-detail-table td.note{
+      white-space:nowrap !important;
+      font-size:9.5px !important;
+    }
+
+    @media print{
+      .excel-template .invoice-detail-table th:nth-child(7),
+      .excel-template .invoice-detail-table td:nth-child(7),
+      .excel-template .invoice-detail-table td.note{
+        white-space:nowrap !important;
+      }
+    }
+
   </style>
 </head>
 <body>
