@@ -1467,6 +1467,15 @@
       background:#f1f5f9;
     }
 
+  
+    .expense-input-row{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) 105px;
+      gap:8px;
+      align-items:center;
+    }
+    .expense-input-row > *{min-width:0}
+
   </style>
 </head>
 <body>
@@ -1486,7 +1495,13 @@
         <select id="entrySite"></select>
 
         <label>その日の現場経費</label>
-        <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
+        <div class="expense-input-row">
+          <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
+          <select id="siteDayExpenseTaxType" aria-label="現場経費の税区分">
+            <option value="excluded">税抜</option>
+            <option value="included">税込</option>
+          </select>
+        </div>
         <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
 
         <label>所属会社で絞り込み</label>
@@ -1814,6 +1829,7 @@
   if(!Array.isArray(state.clients)) state.clients = [];
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
+  state.siteExpenses.forEach(x=>{ if(!x.taxType) x.taxType="excluded"; });
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
   if(!Array.isArray(state.invoiceNumbers)) state.invoiceNumbers = [];
   if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
@@ -2441,6 +2457,7 @@
     if(!siteId){ alert("現場を選んでな"); return; }
 
     const siteExpense = Number($("siteDayExpense").value||0);
+    const siteExpenseTaxType = $("siteDayExpenseTaxType")?.value || "excluded";
     const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
 
     if(!checked.length && siteExpense <= 0 && !siteExpenseMemo){
@@ -2488,6 +2505,7 @@
         date,
         siteId,
         amount:siteExpense,
+        taxType:siteExpenseTaxType,
         memo:siteExpenseMemo
       });
     }
@@ -2495,6 +2513,7 @@
     save();
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
     $("siteDayExpense").value="";
+    if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
     $("siteDayExpenseMemo").value="";
     dismissKeyboard();
     renderRecent();
@@ -2690,7 +2709,7 @@
       return `<div class="item">
         <div class="item-line">
           <div>
-            <strong>現場経費 ${yen(x.amount)}</strong>
+            <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span></strong>
             <small>${x.date} / ${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
           </div>
           <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button>
@@ -2807,7 +2826,7 @@
         ? `<div style="margin-top:8px">${siteExpenseRows.map(x=>`
             <div class="item-line" style="padding:5px 0">
               <div>
-                <strong>現場経費 ${yen(x.amount)}</strong>
+                <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span></strong>
                 <small>${x.memo ? escapeHtml(x.memo) : "メモなし"}</small>
               </div>
               <button class="danger-link" onclick="removeSiteExpenseFromDay('${x.id}','${date}')">削除</button>
@@ -3211,7 +3230,15 @@ function getContractBillingIncluded(siteId, month){
     });
   }
 
-  function invoiceRowsFor(clientId, month){
+  function expensePretaxAmount(expense, taxRate){
+    const amount = Number(expense?.amount || 0);
+    if(expense?.taxType === "included" && Number(taxRate) > 0){
+      return Math.round(amount / (1 + Number(taxRate) / 100));
+    }
+    return amount;
+  }
+
+  function invoiceRowsFor(clientId, month, taxRate=10){
     const client = clientById(clientId);
     const period = billingPeriodFor(client, month);
     const clientSites = state.sites.filter(s=>s.clientId===clientId);
@@ -3223,7 +3250,7 @@ function getContractBillingIncluded(siteId, month){
       const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
       const expenses = state.siteExpenses
         .filter(x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end))
-        .reduce((a,x)=>a+Number(x.amount||0),0);
+        .reduce((a,x)=>a+expensePretaxAmount(x, taxRate),0);
 
       const contractType = site.contractType || "常用";
 
@@ -3235,7 +3262,7 @@ function getContractBillingIncluded(siteId, month){
         return {
           site, contractType, jinko,
           rate:0, laborAmount:0,
-          expenses, percent, contractAmount, progressAmount, included,
+          expenses, hasTaxIncludedExpense, percent, contractAmount, progressAmount, included,
           amount: included ? progressAmount : 0
         };
       }
@@ -3245,7 +3272,7 @@ function getContractBillingIncluded(siteId, month){
       const laborAmount = jinko * rate;
       return {
         site, contractType, jinko, rate, laborAmount,
-        expenses, percent:0, contractAmount:0, progressAmount:0,
+        expenses, hasTaxIncludedExpense, percent:0, contractAmount:0, progressAmount:0,
         amount: laborAmount + expenses
       };
     }).filter(r=>{
@@ -3289,7 +3316,7 @@ function getContractBillingIncluded(siteId, month){
 
     const client = clientById(clientId);
     const period = billingPeriodFor(client, month);
-    const rows = invoiceRowsFor(clientId, month);
+    const rows = invoiceRowsFor(clientId, month, taxRate);
 
     if(!rows.length){
       $("invoicePreview").innerHTML = `<div class="card"><div class="empty">この月の請求対象データがないで。</div></div>`;
@@ -3352,7 +3379,7 @@ function getContractBillingIncluded(siteId, month){
               <td class="unit">式</td>
               <td class="price">${Math.round(r.expenses).toLocaleString("ja-JP")}</td>
               <td class="amount">${Math.round(r.expenses).toLocaleString("ja-JP")}</td>
-              <td class="note"></td>
+              <td class="note">${r.hasTaxIncludedExpense ? "税抜表示" : ""}</td>
             </tr>
           `);
         }
