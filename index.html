@@ -1572,7 +1572,6 @@
               <option value="20">20日</option>
               <option value="25">25日</option>
               <option value="custom">その他（手入力）</option>
-                      <option value="#7d2342">えんじ</option>
 </select>
             <input id="clientClosingDay" type="number" min="1" max="31" inputmode="numeric" placeholder="例：13" style="display:none;margin-top:6px">
           </div>
@@ -2016,7 +2015,9 @@
         if(preset === "custom") return Number($("clientClosingDay").value||0);
         return Number(preset||0);
       })(),
-      payment:$("clientPayment").value.trim()
+      payment:(($("clientPaymentSelect")?.value==="その他")
+        ? ($("clientPaymentCustom")?.value.trim() || "")
+        : ($("clientPaymentSelect")?.value || ""))
     };
 
     if(editingClientId){
@@ -2192,7 +2193,21 @@
       $("clientClosingDay").value = closing ? String(closing) : "";
     }
     syncClosingDayPreset();
-    $("clientPayment").value = c.payment || "";
+    {
+      const payment = c.payment ?? "";
+      const presetPayments = ["","翌月末","翌月5日","翌月10日","翌月15日","翌月20日","翌月25日"];
+      if($("clientPaymentSelect")){
+        if(presetPayments.includes(payment)){
+          $("clientPaymentSelect").value = payment;
+          $("clientPaymentCustom").value = "";
+          $("clientPaymentCustom").style.display = "none";
+        }else{
+          $("clientPaymentSelect").value = "その他";
+          $("clientPaymentCustom").value = payment;
+          $("clientPaymentCustom").style.display = "block";
+        }
+      }
+    }
     $("clientColor").value = c.color || "#2563eb";
     document.querySelectorAll("#clientColorPicker .color-choice").forEach(b=>{
       b.classList.toggle("selected", b.dataset.color === $("clientColor").value);
@@ -3033,23 +3048,27 @@ function nextInvoiceSequence(clientId){
   
 function concretePaymentDate(client, period){
     const raw = String(client?.payment || "").trim();
+    if(!raw) return "";
 
-    // 「翌月末」なら締め日の翌月末を具体的な日付にする
-    if(raw.includes("翌月末")){
-      const d = new Date(period.end + "T00:00:00");
-      const y = d.getFullYear();
-      const m = d.getMonth(); // period.end month - 1
-      const nextMonthEnd = new Date(y, m + 2, 0);
-      return `${nextMonthEnd.getFullYear()}年${nextMonthEnd.getMonth()+1}月${nextMonthEnd.getDate()}日`;
+    const end = new Date(period.end + "T00:00:00");
+    const year = end.getFullYear();
+    const month = end.getMonth();
+
+    const formatDate = d => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+
+    if(raw === "翌月末"){
+      return formatDate(new Date(year, month + 2, 0));
     }
 
-    // 「当月末」なら締め月末
-    if(raw.includes("当月末") || raw==="末日"){
-      const d = new Date(period.end + "T00:00:00");
-      return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    const nextMonthDay = raw.match(/^翌月(5|10|15|20|25)日$/);
+    if(nextMonthDay){
+      return formatDate(new Date(year, month + 1, Number(nextMonthDay[1])));
     }
 
-    // すでに具体的な日付が入っていればそのまま
+    if(raw === "当月末" || raw === "末日"){
+      return formatDate(new Date(year, month + 1, 0));
+    }
+
     return raw;
   }
 
