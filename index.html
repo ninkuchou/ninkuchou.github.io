@@ -1425,6 +1425,27 @@
       ) !important;
     }
 
+  
+    /* 選択した請求書フォントを全要素へ確実に継承 */
+    .invoice-sheet.excel-template,
+    .invoice-sheet.excel-template *{
+      font-family:inherit !important;
+    }
+
+    /* テーマ色はJSで --inv-wine に設定。色付き箇所は全部これを使う */
+    .excel-template .total-box-title,
+    .excel-template .rate-title,
+    .excel-template .payment-title,
+    .excel-template .bank-title{
+      background:var(--inv-wine) !important;
+    }
+    .excel-template .invoice-detail-table{
+      border-bottom-color:var(--inv-wine) !important;
+    }
+    .excel-template .invoice-detail-table th{
+      color:var(--inv-wine) !important;
+    }
+
   </style>
 </head>
 <body>
@@ -3267,7 +3288,7 @@ function invoiceColorValue(key){
       .join("\n");
 
     $("invoicePreview").innerHTML = `
-      <div class="invoice-sheet excel-template" style="font-family:${invoiceFontFamily($("invoiceFont")?.value || state.companyInfo?.invoiceFont || "hiragino")};--inv-wine:${invoiceColorValue($("invoiceColor")?.value || state.companyInfo?.invoiceColor || "wine")}">
+      <div class="invoice-sheet excel-template">
         <div class="invoice-paper-inner">
           <div class="top-wine-bar"></div>
 
@@ -3360,6 +3381,22 @@ function invoiceColorValue(key){
         </div>
       </div>
     `;
+
+    // フォント・テーマ色はHTML文字列に埋め込まず、DOMへ直接適用する
+    const invoiceSheet = document.querySelector("#invoicePreview .invoice-sheet.excel-template");
+    if(invoiceSheet){
+      const fontKey = $("invoiceFont")?.value || state.companyInfo?.invoiceFont || "hiragino";
+      const colorKey = $("invoiceColor")?.value || state.companyInfo?.invoiceColor || "wine";
+      const themeColor = invoiceColorValue(colorKey);
+
+      invoiceSheet.style.fontFamily = invoiceFontFamily(fontKey);
+      invoiceSheet.style.setProperty("--inv-wine", themeColor);
+
+      const topBar = invoiceSheet.querySelector(".top-wine-bar");
+      if(topBar){
+        topBar.style.background = `linear-gradient(90deg, ${themeColor} 0%, ${themeColor} 62%, #ffffff 100%)`;
+      }
+    }
   }
 
   $("saveCompanyInfoBtn").addEventListener("click", saveCompanyInfo);
@@ -3424,7 +3461,8 @@ function invoiceColorValue(key){
             personName: clean.companyInfo.personName || "",
             invoiceNumber: clean.companyInfo.invoiceNumber || "",
             bankAccount: clean.companyInfo.bankAccount || "",
-            invoiceFont: clean.companyInfo.invoiceFont || "hiragino"
+            invoiceFont: clean.companyInfo.invoiceFont || "hiragino",
+            invoiceColor: clean.companyInfo.invoiceColor || "wine"
           }
         : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"}
     };
