@@ -1427,7 +1427,6 @@
 
   
     /* 選択した請求書フォントを全要素へ確実に継承 */
-    .invoice-sheet.excel-template,
     .invoice-sheet.excel-template *{
       font-family:inherit !important;
     }
@@ -1665,6 +1664,7 @@
           <option value="yuGothic">游ゴシック</option>
           <option value="meiryo">メイリオ</option>
           <option value="yuMincho">游明朝</option>
+          <option value="gyosho">行書体</option>
           <option value="sans">標準ゴシック</option>
         </select>
 
@@ -3050,6 +3050,7 @@ function invoiceColorValue(key){
       yuGothic:'"Yu Gothic","YuGothic",-apple-system,BlinkMacSystemFont,sans-serif',
       meiryo:'"Meiryo","Hiragino Kaku Gothic ProN",-apple-system,BlinkMacSystemFont,sans-serif',
       yuMincho:'"Yu Mincho","YuMincho","Hiragino Mincho ProN",serif',
+      gyosho:'"Klee","Hannotate SC","Hannotate TC","Hiragino Mincho ProN",serif',
       sans:'-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif'
     };
     return map[key] || map.hiragino;
@@ -3389,7 +3390,7 @@ function invoiceColorValue(key){
       const colorKey = $("invoiceColor")?.value || state.companyInfo?.invoiceColor || "wine";
       const themeColor = invoiceColorValue(colorKey);
 
-      invoiceSheet.style.fontFamily = invoiceFontFamily(fontKey);
+      invoiceSheet.style.setProperty("font-family", invoiceFontFamily(fontKey), "important");
       invoiceSheet.style.setProperty("--inv-wine", themeColor);
 
       const topBar = invoiceSheet.querySelector(".top-wine-bar");
