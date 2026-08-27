@@ -3243,14 +3243,23 @@ function getContractBillingIncluded(siteId, month){
     const period = billingPeriodFor(client, month);
     const clientSites = state.sites.filter(s=>s.clientId===clientId);
     const siteIds = new Set(clientSites.map(s=>s.id));
-    const entries = state.entries.filter(e=>dateInRange(e.date, period.start, period.end) && siteIds.has(e.siteId));
+    const entries = state.entries.filter(
+      e=>dateInRange(e.date, period.start, period.end) && siteIds.has(e.siteId)
+    );
 
     return clientSites.map(site=>{
       const siteEntries = entries.filter(e=>e.siteId===site.id);
       const jinko = siteEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
-      const expenses = state.siteExpenses
-        .filter(x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end))
-        .reduce((a,x)=>a+expensePretaxAmount(x, taxRate),0);
+
+      const siteExpenseItems = state.siteExpenses.filter(
+        x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end)
+      );
+      const expenses = siteExpenseItems.reduce(
+        (a,x)=>a+expensePretaxAmount(x, taxRate),0
+      );
+      const hasTaxIncludedExpense = siteExpenseItems.some(
+        x=>x.taxType==="included"
+      );
 
       const contractType = site.contractType || "常用";
 
@@ -3259,29 +3268,47 @@ function getContractBillingIncluded(siteId, month){
         const percent = getProgressBilling(site.id, month);
         const contractAmount = Number(site.revenue||0);
         const progressAmount = Math.floor(contractAmount * percent / 100);
+
         return {
-          site, contractType, jinko,
-          rate:0, laborAmount:0,
-          expenses, hasTaxIncludedExpense, percent, contractAmount, progressAmount, included,
+          site,
+          contractType,
+          jinko,
+          rate:0,
+          laborAmount:0,
+          expenses,
+          hasTaxIncludedExpense,
+          percent,
+          contractAmount,
+          progressAmount,
+          included,
           amount: included ? progressAmount : 0
         };
       }
 
-      const client = clientById(site.clientId);
-      const rate = Number(site.billRate || client?.billRate || 0);
+      const siteClient = clientById(site.clientId);
+      const rate = Number(site.billRate || siteClient?.billRate || 0);
       const laborAmount = jinko * rate;
+
       return {
-        site, contractType, jinko, rate, laborAmount,
-        expenses, hasTaxIncludedExpense, percent:0, contractAmount:0, progressAmount:0,
+        site,
+        contractType,
+        jinko,
+        rate,
+        laborAmount,
+        expenses,
+        hasTaxIncludedExpense,
+        percent:0,
+        contractAmount:0,
+        progressAmount:0,
         amount: laborAmount + expenses
       };
     }).filter(r=>{
-      return r.contractType==="請負"
-        ? (r.included && r.percent>0)
-        : (r.jinko>0 || r.expenses>0);
+      if(r.contractType === "請負"){
+        return r.included && r.percent > 0;
+      }
+      return r.jinko > 0 || r.expenses > 0;
     });
   }
-
 
   function updateInvoicePeriodHint(){
     const clientId = $("invoiceClient")?.value;
