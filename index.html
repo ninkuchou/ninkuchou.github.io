@@ -1613,6 +1613,7 @@
         <h2>まとめて人工入力</h2>
         <label>日付</label>
         <div class="date-wrap"><input id="entryDate" type="date"></div>
+        <button class="btn secondary" id="copyPreviousDayBtn" type="button" style="margin-top:8px">前日と同じ内容を入力</button>
 
         <label>現場</label>
         <select id="entrySite"></select>
@@ -2578,6 +2579,99 @@
   $("clearAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=false);
   });
+
+
+  function previousDateString(dateStr){
+    const m = String(dateStr || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return "";
+    const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+    d.setDate(d.getDate()-1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  function copyPreviousDayEntries(){
+    const targetDate = $("entryDate")?.value || "";
+    if(!targetDate){
+      alert("先に入力する日付を選んでな");
+      return;
+    }
+
+    const sourceDate = previousDateString(targetDate);
+    if(!sourceDate){
+      alert("日付を確認してな");
+      return;
+    }
+
+    const sourceEntries = state.entries.filter(e=>e.date===sourceDate);
+    const sourceExpenses = state.siteExpenses.filter(x=>x.date===sourceDate);
+
+    if(!sourceEntries.length && !sourceExpenses.length){
+      alert(`${sourceDate} の入力データがないで`);
+      return;
+    }
+
+    let entryCount = 0;
+    sourceEntries.forEach(src=>{
+      const existing = state.entries.find(e=>
+        e.date===targetDate &&
+        e.siteId===src.siteId &&
+        e.workerId===src.workerId
+      );
+
+      if(existing){
+        existing.jinko = Number(src.jinko||0);
+        existing.early = Number(src.early||0);
+        existing.overtime = Number(src.overtime||0);
+        existing.expense = 0;
+      }else{
+        state.entries.push({
+          id:uid(),
+          date:targetDate,
+          siteId:src.siteId,
+          workerId:src.workerId,
+          jinko:Number(src.jinko||0),
+          early:Number(src.early||0),
+          overtime:Number(src.overtime||0),
+          expense:0
+        });
+      }
+      entryCount++;
+    });
+
+    let expenseCount = 0;
+    sourceExpenses.forEach(src=>{
+      const sameAlreadyExists = state.siteExpenses.some(x=>
+        x.date===targetDate &&
+        x.siteId===src.siteId &&
+        Number(x.amount||0)===Number(src.amount||0) &&
+        String(x.memo||"")===String(src.memo||"") &&
+        String(x.taxType||"excluded")===String(src.taxType||"excluded")
+      );
+
+      if(!sameAlreadyExists){
+        state.siteExpenses.push({
+          id:uid(),
+          date:targetDate,
+          siteId:src.siteId,
+          amount:Number(src.amount||0),
+          taxType:src.taxType || "excluded",
+          memo:src.memo || ""
+        });
+        expenseCount++;
+      }
+    });
+
+    save();
+    renderAll();
+    dismissKeyboard();
+
+    const parts = [];
+    if(entryCount) parts.push(`${entryCount}人分`);
+    if(expenseCount) parts.push(`経費${expenseCount}件`);
+    alert(`${sourceDate} の内容を ${targetDate} にコピーしたで${parts.length ? "（" + parts.join("＋") + "）" : ""}`);
+  }
+
+  $("copyPreviousDayBtn")?.addEventListener("click", copyPreviousDayEntries);
 
   $("addBulkEntryBtn").addEventListener("click", ()=>{
     if(!state.sites.length){ alert("先に現場を登録してな"); return; }
