@@ -4717,10 +4717,14 @@ function getContractBillingIncluded(siteId, month){
     try{
       if(mode === "signup"){
         localStorage.setItem("jinkou_pending_company_name", companyName);
+        const emailRedirectTo = window.location.origin + window.location.pathname;
         const result = await supabaseClient.auth.signUp({
           email,
           password,
-          options:{data:{company_name:companyName}}
+          options:{
+            data:{company_name:companyName},
+            emailRedirectTo
+          }
         });
         if(result.error) throw result.error;
 
