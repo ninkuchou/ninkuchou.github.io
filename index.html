@@ -1649,6 +1649,21 @@
       }
     }
 
+  
+    .excel-template .invoice-page-number{
+      display:inline-block;
+      margin-left:12px;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.04em;
+      white-space:nowrap;
+    }
+    @media print{
+      .excel-template .invoice-page-number{
+        font-size:11px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -3943,7 +3958,7 @@ function getContractBillingIncluded(siteId, month){
       </div>
     `;
 
-    const firstPageHeaderHtml = () => `
+    const firstPageHeaderHtml = (pageLabel="") => `
       <div class="top-wine-bar"></div>
 
       <div class="invoice-upper">
@@ -3955,7 +3970,10 @@ function getContractBillingIncluded(siteId, month){
           <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
         </div>
 
-        <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
+        <div class="invoice-number">
+          NO　${escapeHtml(number||"-")}
+          ${pageLabel ? `<span class="invoice-page-number">${escapeHtml(pageLabel)}</span>` : ""}
+        </div>
 
         <div class="invoice-issuer-block">
           <div class="invoice-issuer-date">${formatJapaneseDate(period.end)}</div>
@@ -3975,11 +3993,14 @@ function getContractBillingIncluded(siteId, month){
       </div>
     `;
 
-    const continuationHeaderHtml = () => `
+    const continuationHeaderHtml = (pageLabel="") => `
       <div class="top-wine-bar"></div>
       <div class="invoice-continuation-head">
         <div class="invoice-doc-title">御請求明細書</div>
-        <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
+        <div class="invoice-number">
+          NO　${escapeHtml(number||"-")}
+          ${pageLabel ? `<span class="invoice-page-number">${escapeHtml(pageLabel)}</span>` : ""}
+        </div>
       </div>
     `;
 
@@ -4002,19 +4023,25 @@ function getContractBillingIncluded(siteId, month){
         </div>
       `);
     }else{
+      const remainingCount = actualRows.length - firstCapacity;
+      const continuationPages = Math.ceil(remainingCount / continuationCapacity);
+      const totalPages = 1 + continuationPages;
+
       const firstRows = actualRows.slice(0, firstCapacity);
       while(firstRows.length < firstCapacity) firstRows.push(blankDetailRow());
 
       pages.push(`
         <div class="invoice-sheet excel-template invoice-page invoice-page-first">
           <div class="invoice-paper-inner">
-            ${firstPageHeaderHtml()}
+            ${firstPageHeaderHtml(`1/${totalPages}`)}
             ${detailTableHtml(firstRows)}
           </div>
         </div>
       `);
 
       let remaining = actualRows.slice(firstCapacity);
+      let pageNo = 2;
+
       while(remaining.length){
         const chunk = remaining.slice(0, continuationCapacity);
         remaining = remaining.slice(continuationCapacity);
@@ -4025,12 +4052,14 @@ function getContractBillingIncluded(siteId, month){
         pages.push(`
           <div class="invoice-sheet excel-template invoice-page invoice-page-continuation ${isLast ? "invoice-page-last" : ""}">
             <div class="invoice-paper-inner">
-              ${continuationHeaderHtml()}
+              ${continuationHeaderHtml(`${pageNo}/${totalPages}`)}
               ${detailTableHtml(chunk)}
               ${isLast ? bottomAreaHtml() : ""}
             </div>
           </div>
         `);
+
+        pageNo++;
       }
     }
 
