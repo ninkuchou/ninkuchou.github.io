@@ -1599,6 +1599,56 @@
       }
     }
 
+  
+    /* 請求書が複数ページになる場合の続紙 */
+    .invoice-page{
+      break-inside:avoid;
+      page-break-inside:avoid;
+    }
+    .invoice-page + .invoice-page{
+      margin-top:24px;
+    }
+    .excel-template .invoice-continuation-head{
+      position:relative;
+      min-height:72px;
+      padding-top:6px;
+      box-sizing:border-box;
+    }
+    .excel-template .invoice-continuation-head .invoice-doc-title{
+      margin:0 0 12px 26px;
+    }
+    .excel-template .invoice-continuation-head .invoice-number{
+      top:8px !important;
+      right:20px !important;
+    }
+
+    @media print{
+      .invoice-page{
+        break-after:page !important;
+        page-break-after:always !important;
+      }
+      .invoice-page.invoice-page-last{
+        break-after:auto !important;
+        page-break-after:auto !important;
+      }
+      .invoice-page + .invoice-page{
+        margin-top:0 !important;
+      }
+      .invoice-page-continuation .invoice-paper-inner{
+        min-height:0 !important;
+      }
+      .excel-template .invoice-continuation-head{
+        min-height:64px !important;
+        padding-top:4px !important;
+      }
+      .invoice-page-continuation .invoice-detail-table td{
+        height:18px !important;
+      }
+      .invoice-page-continuation .invoice-bottom-area{
+        margin-top:12px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -3815,132 +3865,193 @@ function getContractBillingIncluded(siteId, month){
       });
     });
 
-    // A4印刷時の下側余白を活かし、明細表をページ下部まで広げる。
-    while(detailRows.length < 36){
-      detailRows.push(`
-        <tr>
-          <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
-          <td class="unit"></td><td class="price"></td><td class="amount"></td><td class="note"></td>
-        </tr>
-      `);
-    }
-
     const bankText = String(state.companyInfo?.bankAccount || "")
       .split(/\r?\n/)
       .map(line=>line.trim())
       .filter(Boolean)
       .join("\n");
 
-    $("invoicePreview").innerHTML = `
-      <div class="invoice-sheet excel-template">
-        <div class="invoice-paper-inner">
-          <div class="top-wine-bar"></div>
+    const blankDetailRow = () => `
+      <tr>
+        <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
+        <td class="unit"></td><td class="price"></td><td class="amount"></td><td class="note"></td>
+      </tr>
+    `;
 
-          <div class="invoice-upper">
-            <div class="invoice-doc-title">御請求明細書</div>
+    const detailTableHtml = (pageRows) => `
+      <table class="invoice-detail-table">
+        <colgroup>
+          <col style="width:10%">
+          <col style="width:44%">
+          <col style="width:5%">
+          <col style="width:5%">
+          <col style="width:14%">
+          <col style="width:15%">
+          <col style="width:7%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>現場名</th>
+            <th>数量</th>
+            <th>単位</th>
+            <th>単価</th>
+            <th>金額</th>
+            <th>備考</th>
+          </tr>
+        </thead>
+        <tbody>${pageRows.join("")}</tbody>
+      </table>
+    `;
 
-            <div class="invoice-client-block">
-              ${client?.postalCode ? `<div class="invoice-client-postal">〒${escapeHtml(client.postalCode)}</div>` : ""}
-              ${client?.address ? `<div class="invoice-client-address">${escapeHtml(client.address)}</div>` : `<div class="invoice-client-address">&nbsp;</div>`}
-              <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
-            </div>
+    const bottomAreaHtml = () => `
+      <div class="invoice-bottom-area">
+        <div class="invoice-totals-grid">
+          <div>
+            <div class="total-box-title">税 抜 合 計</div>
+            <div class="total-box-value">¥ ${Math.round(subtotal).toLocaleString("ja-JP")}</div>
+          </div>
+          <div>
+            <div class="total-box-title">税　額</div>
+            <div class="total-box-value">¥ ${Math.round(tax).toLocaleString("ja-JP")}</div>
+          </div>
+          <div>
+            <div class="total-box-title">税　率</div>
+            <div class="total-box-value tax-rate-value">${taxRate}%</div>
+          </div>
+          <div>
+            <div class="total-box-title">税 込 合 計</div>
+            <div class="total-box-value grand">¥ ${Math.round(total).toLocaleString("ja-JP")}</div>
+          </div>
+        </div>
 
-            <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
-
-            <div class="invoice-issuer-block">
-              <div class="invoice-issuer-date">${formatJapaneseDate(period.end)}</div>
-              ${state.companyInfo?.postalCode ? `<div>〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
-              ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
-              <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
-              ${state.companyInfo?.stampDataUrl ? `<img class="invoice-company-stamp" src="${state.companyInfo.stampDataUrl}" alt="社印">` : ""}
-              ${(state.companyInfo?.title || state.companyInfo?.personName)
-                ? `<div style="margin-top:9px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
-                : ""}
-              ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
-            </div>
-
-            <div class="invoice-greeting">
-              平素は格別のご高配を賜り、厚く御礼申し上げます。下記の通り、ご確認くださいますようお願い申し上げます。
-            </div>
+        <div class="invoice-bottom-second-row">
+          <div>
+            ${bankText ? `
+              <div class="invoice-bank">
+                <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
+                <div class="bank-body">${escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
+              </div>
+            ` : ""}
           </div>
 
-          <table class="invoice-detail-table">
-            <colgroup>
-              <col style="width:10%">
-              <col style="width:44%">
-              <col style="width:5%">
-              <col style="width:5%">
-              <col style="width:14%">
-              <col style="width:15%">
-              <col style="width:7%">
-            </colgroup>
-            <thead>
-              <tr>
-                <th>日付</th>
-                <th>現場名</th>
-                <th>数量</th>
-                <th>単位</th>
-                <th>単価</th>
-                <th>金額</th>
-                <th>備考</th>
-              </tr>
-            </thead>
-            <tbody>${detailRows.join("")}</tbody>
-          </table>
-          <div class="invoice-bottom-area">
-            <div class="invoice-totals-grid">
-              <div>
-                <div class="total-box-title">税 抜 合 計</div>
-                <div class="total-box-value">¥ ${Math.round(subtotal).toLocaleString("ja-JP")}</div>
-              </div>
-              <div>
-                <div class="total-box-title">税　額</div>
-                <div class="total-box-value">¥ ${Math.round(tax).toLocaleString("ja-JP")}</div>
-              </div>
-              <div>
-                <div class="total-box-title">税　率</div>
-                <div class="total-box-value tax-rate-value">${taxRate}%</div>
-              </div>
-              <div>
-                <div class="total-box-title">税 込 合 計</div>
-                <div class="total-box-value grand">¥ ${Math.round(total).toLocaleString("ja-JP")}</div>
-              </div>
-            </div>
-
-            <div class="invoice-bottom-second-row">
-              <div>
-                ${bankText ? `
-                  <div class="invoice-bank">
-                    <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                    <div class="bank-body">${escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
-                  </div>
-                ` : ""}
-              </div>
-
-              <div class="invoice-payment-box">
-                <div class="payment-title">お支払い期日</div>
-                <div class="payment-value">${escapeHtml(paymentDate || "")}</div>
-              </div>
-            </div>
+          <div class="invoice-payment-box">
+            <div class="payment-title">お支払い期日</div>
+            <div class="payment-value">${escapeHtml(paymentDate || "")}</div>
           </div>
         </div>
       </div>
     `;
 
+    const firstPageHeaderHtml = () => `
+      <div class="top-wine-bar"></div>
+
+      <div class="invoice-upper">
+        <div class="invoice-doc-title">御請求明細書</div>
+
+        <div class="invoice-client-block">
+          ${client?.postalCode ? `<div class="invoice-client-postal">〒${escapeHtml(client.postalCode)}</div>` : ""}
+          ${client?.address ? `<div class="invoice-client-address">${escapeHtml(client.address)}</div>` : `<div class="invoice-client-address">&nbsp;</div>`}
+          <div class="invoice-client-name">${escapeHtml(client?.name||"")}　御中</div>
+        </div>
+
+        <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
+
+        <div class="invoice-issuer-block">
+          <div class="invoice-issuer-date">${formatJapaneseDate(period.end)}</div>
+          ${state.companyInfo?.postalCode ? `<div>〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
+          ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
+          <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
+          ${state.companyInfo?.stampDataUrl ? `<img class="invoice-company-stamp" src="${state.companyInfo.stampDataUrl}" alt="社印">` : ""}
+          ${(state.companyInfo?.title || state.companyInfo?.personName)
+            ? `<div style="margin-top:9px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
+            : ""}
+          ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
+        </div>
+
+        <div class="invoice-greeting">
+          平素は格別のご高配を賜り、厚く御礼申し上げます。下記の通り、ご確認くださいますようお願い申し上げます。
+        </div>
+      </div>
+    `;
+
+    const continuationHeaderHtml = () => `
+      <div class="top-wine-bar"></div>
+      <div class="invoice-continuation-head">
+        <div class="invoice-doc-title">御請求明細書</div>
+        <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
+      </div>
+    `;
+
+    const firstCapacity = 36;
+    const continuationCapacity = 40;
+    const actualRows = [...detailRows];
+    const pages = [];
+
+    if(actualRows.length <= firstCapacity){
+      const pageRows = actualRows.slice();
+      while(pageRows.length < firstCapacity) pageRows.push(blankDetailRow());
+
+      pages.push(`
+        <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last">
+          <div class="invoice-paper-inner">
+            ${firstPageHeaderHtml()}
+            ${detailTableHtml(pageRows)}
+            ${bottomAreaHtml()}
+          </div>
+        </div>
+      `);
+    }else{
+      const firstRows = actualRows.slice(0, firstCapacity);
+      while(firstRows.length < firstCapacity) firstRows.push(blankDetailRow());
+
+      pages.push(`
+        <div class="invoice-sheet excel-template invoice-page invoice-page-first">
+          <div class="invoice-paper-inner">
+            ${firstPageHeaderHtml()}
+            ${detailTableHtml(firstRows)}
+          </div>
+        </div>
+      `);
+
+      let remaining = actualRows.slice(firstCapacity);
+      while(remaining.length){
+        const chunk = remaining.slice(0, continuationCapacity);
+        remaining = remaining.slice(continuationCapacity);
+        const isLast = remaining.length === 0;
+
+        while(chunk.length < continuationCapacity) chunk.push(blankDetailRow());
+
+        pages.push(`
+          <div class="invoice-sheet excel-template invoice-page invoice-page-continuation ${isLast ? "invoice-page-last" : ""}">
+            <div class="invoice-paper-inner">
+              ${continuationHeaderHtml()}
+              ${detailTableHtml(chunk)}
+              ${isLast ? bottomAreaHtml() : ""}
+            </div>
+          </div>
+        `);
+      }
+    }
+
+    $("invoicePreview").innerHTML = pages.join("");
+
     // フォント・テーマ色はHTML文字列に埋め込まず、DOMへ直接適用する
-    const invoiceSheet = document.querySelector("#invoicePreview .invoice-sheet.excel-template");
-    if(invoiceSheet){
+    const invoiceSheets = document.querySelectorAll("#invoicePreview .invoice-sheet.excel-template");
+    if(invoiceSheets.length){
       const fontKey = $("invoiceFont")?.value || state.companyInfo?.invoiceFont || "hiragino";
       const colorKey = $("invoiceColor")?.value || state.companyInfo?.invoiceColor || "wine";
       const themeColor = invoiceColorValue(colorKey);
 
-      invoiceSheet.style.setProperty("font-family", invoiceFontFamily(fontKey), "important");
-      invoiceSheet.style.setProperty("--inv-wine", themeColor);
+      invoiceSheets.forEach(invoiceSheet=>{
+        invoiceSheet.style.setProperty("font-family", invoiceFontFamily(fontKey), "important");
+        invoiceSheet.style.setProperty("--inv-wine", themeColor);
 
-      const topBar = invoiceSheet.querySelector(".top-wine-bar");
-      if(topBar){
-        topBar.style.background = `linear-gradient(90deg, ${themeColor} 0%, ${themeColor} 62%, #ffffff 100%)`;
-      }
+        const topBar = invoiceSheet.querySelector(".top-wine-bar");
+        if(topBar){
+          topBar.style.background = `linear-gradient(90deg, ${themeColor} 0%, ${themeColor} 62%, #ffffff 100%)`;
+        }
+      });
     }
   }
 
