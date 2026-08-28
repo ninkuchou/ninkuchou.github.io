@@ -1826,14 +1826,23 @@
       }
     }
 
+
+  .app-brand-subtitle{
+    font-size:11px;
+    font-weight:700;
+    color:#64748b;
+    margin-top:2px;
+    letter-spacing:.02em;
+  }
+
 </style>
 </head>
 <body>
 
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card">
-      <div class="auth-logo">人工管理</div>
-      <div class="auth-copy">現場入力から請求書まで、会社のデータをクラウドで管理</div>
+      <div class="auth-logo">人工帖</div>
+      <div class="auth-copy">人工・現場・請求をかんたん管理</div>
 
       <div class="auth-tabs">
         <button id="authLoginTab" class="auth-tab active" type="button">ログイン</button>
@@ -1858,7 +1867,8 @@
   </div>
 
   <header>
-    <h1>人工管理</h1>
+    <h1>人工帖</h1>
+    <div class="app-brand-subtitle">人工・現場・請求をかんたん管理</div>
     <p id="headerSub">今日の人工を入力</p>
   </header>
 
@@ -4699,7 +4709,7 @@ function getContractBillingIncluded(siteId, month){
       state = localSnapshot;
       saveLocalOnly();
       await syncStateToCloud();
-      alert("この端末に入っていた人工管理データをクラウドへ移行したで");
+      alert("この端末に入っていた人工帖のデータをクラウドへ移行したで");
     }else if(cloud.initialized){
       state = normalizeImportedState(cloud.state);
       saveLocalOnly();
@@ -4863,7 +4873,7 @@ function getContractBillingIncluded(siteId, month){
 
   $("exportDataBtn").addEventListener("click", ()=>{
     const payload = {
-      app:"人工管理",
+      app:"人工帖",
       version:1,
       exportedAt:new Date().toISOString(),
       data:state
@@ -4877,7 +4887,7 @@ function getContractBillingIncluded(siteId, month){
     const a = document.createElement("a");
     const stamp = todayLocal().replaceAll("-","");
     a.href = url;
-    a.download = `人工管理バックアップ_${stamp}.json`;
+    a.download = `人工帖バックアップ_${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -4918,7 +4928,7 @@ function getContractBillingIncluded(siteId, month){
       dismissKeyboard();
       alert("データを読み込んだで");
     }catch(e){
-      alert("このファイルは読み込めへんかった。人工管理アプリから書き出したJSONを選んでな");
+      alert("このファイルは読み込めへんかった。人工帖アプリから書き出したJSONを選んでな");
     }
   });
 
