@@ -1685,13 +1685,154 @@
       white-space:nowrap;
     }
 
-  </style>
+  
+  .auth-overlay{
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    background:linear-gradient(145deg,#eef5ff 0%,#ffffff 52%,#f2f7ff 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    box-sizing:border-box;
+  }
+  .auth-card{
+    width:min(420px,100%);
+    background:#fff;
+    border:1px solid #dbe4ef;
+    border-radius:18px;
+    padding:24px;
+    box-shadow:0 18px 50px rgba(15,23,42,.12);
+  }
+  .auth-logo{
+    font-size:26px;
+    font-weight:900;
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .auth-copy{
+    text-align:center;
+    font-size:13px;
+    color:#64748b;
+    margin-bottom:20px;
+  }
+  .auth-tabs{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    background:#f1f5f9;
+    padding:4px;
+    border-radius:10px;
+    margin-bottom:16px;
+  }
+  .auth-tab{
+    border:0;
+    background:transparent;
+    border-radius:8px;
+    padding:9px 6px;
+    font-weight:800;
+    color:#64748b;
+  }
+  .auth-tab.active{
+    background:#fff;
+    color:#0f172a;
+    box-shadow:0 1px 4px rgba(15,23,42,.1);
+  }
+  .auth-submit{
+    margin-top:16px;
+    width:100%;
+  }
+  .auth-message{
+    min-height:20px;
+    margin-top:12px;
+    font-size:13px;
+    font-weight:700;
+    color:#334155;
+    white-space:pre-line;
+  }
+  .auth-message.error{ color:#b91c1c; }
+  .auth-message.success{ color:#15803d; }
+  .auth-note{
+    margin-top:10px;
+    font-size:11px;
+    color:#94a3b8;
+    text-align:center;
+  }
+  .cloud-account-bar{
+    max-width:900px;
+    margin:8px auto 0;
+    padding:7px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    font-size:11px;
+    color:#64748b;
+  }
+  .cloud-company-name{
+    font-weight:800;
+    color:#334155;
+    margin-right:8px;
+  }
+  .cloud-sync-status{
+    white-space:nowrap;
+  }
+  .cloud-sync-status.syncing{ color:#b45309; }
+  .cloud-sync-status.ok{ color:#15803d; }
+  .cloud-sync-status.error{ color:#b91c1c; }
+  .cloud-account-bar button{
+    border:0;
+    background:transparent;
+    color:#64748b;
+    font-size:11px;
+    text-decoration:underline;
+    padding:4px 2px;
+  }
+
+</style>
 </head>
 <body>
+
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-logo">人工管理</div>
+      <div class="auth-copy">現場入力から請求書まで、会社のデータをクラウドで管理</div>
+
+      <div class="auth-tabs">
+        <button id="authLoginTab" class="auth-tab active" type="button">ログイン</button>
+        <button id="authSignupTab" class="auth-tab" type="button">新規登録</button>
+      </div>
+
+      <div id="authSignupCompanyWrap" style="display:none">
+        <label>会社名</label>
+        <input id="authCompanyName" type="text" autocomplete="organization" placeholder="例：株式会社REFISE">
+      </div>
+
+      <label>メールアドレス</label>
+      <input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com">
+
+      <label>パスワード</label>
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="6文字以上">
+
+      <button id="authSubmitBtn" class="btn auth-submit" type="button">ログイン</button>
+      <div id="authMessage" class="auth-message"></div>
+      <div class="auth-note">データはログインした会社ごとに分けて保存されます。</div>
+    </div>
+  </div>
+
   <header>
     <h1>人工管理</h1>
     <p id="headerSub">今日の人工を入力</p>
   </header>
+
+  <div id="cloudAccountBar" class="cloud-account-bar" style="display:none">
+    <div>
+      <span id="cloudCompanyName" class="cloud-company-name"></span>
+      <span id="cloudSyncStatus" class="cloud-sync-status">クラウド接続中</span>
+    </div>
+    <button id="logoutBtn" type="button">ログアウト</button>
+  </div>
 
   <main>
     <section id="view-input" class="view active">
@@ -2032,12 +2173,22 @@
     <button data-view="invoice"><span class="nav-icon">🧾</span><span>請求</span></button>
   </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function(){
   "use strict";
 
   const KEY = "jinkou_app_v3";
+  const SUPABASE_URL = "https://mwciytoyxgznczcqjgxs.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_pDUx_9hTHGM6hGyAWq9k2w_TljCPogw";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  let cloudCompanyId = "";
+  let cloudReady = false;
+  let cloudSyncTimer = null;
+  let cloudSyncInFlight = false;
+  let cloudSyncPending = false;
+
   const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
   let state = load();
   let editingClientId = "";
@@ -2101,9 +2252,27 @@
       return JSON.parse(JSON.stringify(defaultState));
     }
   }
-  function save(){
+  function saveLocalOnly(){
     if(!hasStorage) return;
     try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function save(){
+    saveLocalOnly();
+    scheduleCloudSync();
+  }
+
+  function setCloudStatus(text, kind=""){
+    const el = document.getElementById("cloudSyncStatus");
+    if(!el) return;
+    el.textContent = text;
+    el.className = "cloud-sync-status" + (kind ? " " + kind : "");
+  }
+
+  function scheduleCloudSync(){
+    if(!cloudReady || !cloudCompanyId) return;
+    if(cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(()=>syncStateToCloud(), 700);
   }
 
   const $ = id => document.getElementById(id);
@@ -4210,6 +4379,412 @@ function getContractBillingIncluded(siteId, month){
   $("invoiceFormat").addEventListener("change", renderInvoice);
 
 
+
+  function appHasMeaningfulData(s){
+    return !!(
+      (s.clients && s.clients.length) ||
+      (s.workerCompanies && s.workerCompanies.length) ||
+      (s.sites && s.sites.length) ||
+      (s.workers && s.workers.length) ||
+      (s.entries && s.entries.length) ||
+      (s.siteExpenses && s.siteExpenses.length) ||
+      (s.invoiceNumbers && s.invoiceNumbers.length) ||
+      (s.progressBillings && s.progressBillings.length) ||
+      (s.contractBillingIncludes && s.contractBillingIncludes.length) ||
+      (s.companyInfo && (
+        s.companyInfo.name || s.companyInfo.address || s.companyInfo.bankAccount ||
+        s.companyInfo.invoiceNumber || s.companyInfo.stampDataUrl
+      ))
+    );
+  }
+
+  function toCloudRows(){
+    const cid = cloudCompanyId;
+    return {
+      clients: state.clients.map(x=>({
+        id:String(x.id), company_id:cid, client_number:x.clientNumber ?? null,
+        name:x.name || "", postal_code:x.postalCode || "", address:x.address || "",
+        bill_rate:Number(x.billRate||0), color:x.color || "", closing_day:Number(x.closingDay||0),
+        payment:x.payment || ""
+      })),
+      worker_companies: state.workerCompanies.map(x=>({
+        id:String(x.id), company_id:cid, name:x.name || "", rate:Number(x.rate||0)
+      })),
+      sites: state.sites.map(x=>({
+        id:String(x.id), company_id:cid, client_id:x.clientId || null, name:x.name || "",
+        contract_type:x.contractType || "常用", revenue:Number(x.revenue||0), bill_rate:Number(x.billRate||0)
+      })),
+      workers: state.workers.map(x=>({
+        id:String(x.id), company_id:cid, company_ref_id:x.companyId || null, name:x.name || "",
+        rate:Number(x.rate||0), early_rate:Number(x.earlyRate||0), overtime_rate:Number(x.overtimeRate||0)
+      })),
+      entries: state.entries.map(x=>({
+        id:String(x.id), company_id:cid, work_date:x.date, site_id:String(x.siteId),
+        worker_id:String(x.workerId), jinko:Number(x.jinko||0), early:Number(x.early||0),
+        overtime:Number(x.overtime||0), expense:Number(x.expense||0)
+      })),
+      site_expenses: state.siteExpenses.map(x=>({
+        id:String(x.id), company_id:cid, expense_date:x.date, site_id:String(x.siteId),
+        amount:Number(x.amount||0), memo:x.memo || "", tax_type:x.taxType || "excluded"
+      })),
+      progress_billings: state.progressBillings.map(x=>({
+        id:String(x.id), company_id:cid, site_id:String(x.siteId),
+        billing_month:x.month, percent:Number(x.percent||0)
+      })),
+      contract_billing_includes: state.contractBillingIncludes.map(x=>({
+        id:String(x.id), company_id:cid, site_id:String(x.siteId),
+        billing_month:x.month, included:x.included !== false
+      })),
+      invoice_numbers: state.invoiceNumbers.map(x=>({
+        id:String(x.id), company_id:cid, client_id:String(x.clientId),
+        billing_month:x.month, sequence:Number(x.sequence||1), number:x.number || ""
+      }))
+    };
+  }
+
+  async function syncStateToCloud(){
+    if(!cloudReady || !cloudCompanyId) return;
+    if(cloudSyncInFlight){
+      cloudSyncPending = true;
+      return;
+    }
+
+    cloudSyncInFlight = true;
+    cloudSyncPending = false;
+    setCloudStatus("保存中…", "syncing");
+
+    try{
+      const rows = toCloudRows();
+      const tableNames = [
+        "entries","site_expenses","progress_billings","contract_billing_includes",
+        "invoice_numbers","workers","sites","worker_companies","clients"
+      ];
+
+      for(const table of tableNames){
+        const del = await supabaseClient.from(table).delete().eq("company_id", cloudCompanyId);
+        if(del.error) throw del.error;
+        const data = rows[table] || [];
+        if(data.length){
+          const ins = await supabaseClient.from(table).insert(data);
+          if(ins.error) throw ins.error;
+        }
+      }
+
+      const ci = state.companyInfo || {};
+      const settings = {
+        company_id:cloudCompanyId,
+        company_name:ci.name || "",
+        postal_code:ci.postalCode || "",
+        address:ci.address || "",
+        title:ci.title || "",
+        person_name:ci.personName || "",
+        invoice_registration_number:ci.invoiceNumber || "",
+        bank_account:ci.bankAccount || "",
+        invoice_font:ci.invoiceFont || "hiragino",
+        invoice_color:ci.invoiceColor || "wine",
+        invoice_tax:ci.invoiceTax || "10",
+        invoice_tax_custom:ci.invoiceTaxCustom || "",
+        stamp_data_url:ci.stampDataUrl || "",
+        stamp_file_name:ci.stampFileName || "",
+        recent_selects:state.recentSelects || {},
+        bulk_company_filter:state.bulkCompanyFilter || "all",
+        updated_at:new Date().toISOString()
+      };
+      const settingsResult = await supabaseClient.from("company_settings").upsert(settings);
+      if(settingsResult.error) throw settingsResult.error;
+
+      setCloudStatus("保存済み", "ok");
+    }catch(err){
+      console.error("cloud sync error", err);
+      setCloudStatus("保存エラー", "error");
+    }finally{
+      cloudSyncInFlight = false;
+      if(cloudSyncPending){
+        cloudSyncPending = false;
+        setTimeout(()=>syncStateToCloud(), 250);
+      }
+    }
+  }
+
+  async function fetchCompanyState(companyId){
+    const tables = [
+      "clients","worker_companies","sites","workers","entries","site_expenses",
+      "progress_billings","contract_billing_includes","invoice_numbers"
+    ];
+
+    const results = await Promise.all(
+      tables.map(t=>supabaseClient.from(t).select("*").eq("company_id", companyId))
+    );
+    for(const r of results){
+      if(r.error) throw r.error;
+    }
+
+    const settingsResult = await supabaseClient
+      .from("company_settings")
+      .select("*")
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if(settingsResult.error) throw settingsResult.error;
+
+    const map = Object.fromEntries(tables.map((t,i)=>[t, results[i].data || []]));
+    const s = settingsResult.data;
+
+    return {
+      initialized: !!s || tables.some(t=>map[t].length),
+      state:{
+        clients:map.clients.map(x=>({
+          id:x.id, clientNumber:x.client_number, name:x.name, postalCode:x.postal_code || "",
+          address:x.address || "", billRate:Number(x.bill_rate||0), color:x.color || "",
+          closingDay:Number(x.closing_day||0), payment:x.payment || ""
+        })),
+        workerCompanies:map.worker_companies.map(x=>({
+          id:x.id, name:x.name, rate:Number(x.rate||0)
+        })),
+        sites:map.sites.map(x=>({
+          id:x.id, clientId:x.client_id || "", name:x.name, contractType:x.contract_type || "常用",
+          revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0)
+        })),
+        workers:map.workers.map(x=>({
+          id:x.id, companyId:x.company_ref_id || "", name:x.name, rate:Number(x.rate||0),
+          earlyRate:Number(x.early_rate||0), overtimeRate:Number(x.overtime_rate||0)
+        })),
+        entries:map.entries.map(x=>({
+          id:x.id, date:x.work_date, siteId:x.site_id, workerId:x.worker_id,
+          jinko:Number(x.jinko||0), early:Number(x.early||0), overtime:Number(x.overtime||0),
+          expense:Number(x.expense||0)
+        })),
+        siteExpenses:map.site_expenses.map(x=>({
+          id:x.id, date:x.expense_date, siteId:x.site_id, amount:Number(x.amount||0),
+          memo:x.memo || "", taxType:x.tax_type || "excluded"
+        })),
+        progressBillings:map.progress_billings.map(x=>({
+          id:x.id, siteId:x.site_id, month:x.billing_month, percent:Number(x.percent||0)
+        })),
+        contractBillingIncludes:map.contract_billing_includes.map(x=>({
+          id:x.id, siteId:x.site_id, month:x.billing_month, included:x.included !== false
+        })),
+        invoiceNumbers:map.invoice_numbers.map(x=>({
+          id:x.id, clientId:x.client_id, month:x.billing_month,
+          sequence:Number(x.sequence||1), number:x.number || ""
+        })),
+        recentSelects:(s && s.recent_selects) || {},
+        bulkCompanyFilter:(s && s.bulk_company_filter) || "all",
+        companyInfo:{
+          name:(s && s.company_name) || "",
+          postalCode:(s && s.postal_code) || "",
+          address:(s && s.address) || "",
+          title:(s && s.title) || "",
+          personName:(s && s.person_name) || "",
+          invoiceNumber:(s && s.invoice_registration_number) || "",
+          bankAccount:(s && s.bank_account) || "",
+          invoiceFont:(s && s.invoice_font) || "hiragino",
+          invoiceColor:(s && s.invoice_color) || "wine",
+          invoiceTax:(s && s.invoice_tax) || "10",
+          invoiceTaxCustom:(s && s.invoice_tax_custom) || "",
+          stampDataUrl:(s && s.stamp_data_url) || "",
+          stampFileName:(s && s.stamp_file_name) || ""
+        }
+      }
+    };
+  }
+
+  async function getOrCreateCompany(user){
+    let company = null;
+
+    const owned = await supabaseClient
+      .from("companies")
+      .select("id,name")
+      .eq("owner_user_id", user.id)
+      .limit(1);
+    if(owned.error) throw owned.error;
+    if(owned.data && owned.data.length) company = owned.data[0];
+
+    if(!company){
+      const membership = await supabaseClient
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .limit(1);
+      if(membership.error) throw membership.error;
+
+      if(membership.data && membership.data.length){
+        const c = await supabaseClient
+          .from("companies")
+          .select("id,name")
+          .eq("id", membership.data[0].company_id)
+          .single();
+        if(c.error) throw c.error;
+        company = c.data;
+      }
+    }
+
+    if(!company){
+      const pendingName = localStorage.getItem("jinkou_pending_company_name") || "";
+      const metadataName = user.user_metadata?.company_name || "";
+      const companyName = pendingName || metadataName || "会社名未設定";
+      const created = await supabaseClient
+        .from("companies")
+        .insert({name:companyName, owner_user_id:user.id})
+        .select("id,name")
+        .single();
+      if(created.error) throw created.error;
+      company = created.data;
+    }
+
+    const memberUpsert = await supabaseClient
+      .from("company_members")
+      .upsert({company_id:company.id, user_id:user.id, role:"owner"});
+    if(memberUpsert.error) throw memberUpsert.error;
+
+    localStorage.removeItem("jinkou_pending_company_name");
+    return company;
+  }
+
+  async function bootstrapCloudForSession(session){
+    if(!session?.user) return;
+
+    setCloudStatus("クラウド読込中…", "syncing");
+    const company = await getOrCreateCompany(session.user);
+    cloudCompanyId = company.id;
+
+    const bar = $("cloudAccountBar");
+    if(bar) bar.style.display = "flex";
+    if($("cloudCompanyName")) $("cloudCompanyName").textContent = company.name || "";
+    if($("authOverlay")) $("authOverlay").style.display = "none";
+
+    const cloud = await fetchCompanyState(company.id);
+    const localSnapshot = state;
+
+    cloudReady = true;
+
+    if(!cloud.initialized && appHasMeaningfulData(localSnapshot)){
+      state = localSnapshot;
+      saveLocalOnly();
+      await syncStateToCloud();
+      alert("この端末に入っていた人工管理データをクラウドへ移行したで");
+    }else if(cloud.initialized){
+      state = normalizeImportedState(cloud.state);
+      saveLocalOnly();
+      setCloudStatus("保存済み", "ok");
+    }else{
+      state = normalizeImportedState(localSnapshot);
+      saveLocalOnly();
+      await syncStateToCloud();
+    }
+
+    renderAll();
+  }
+
+  function setAuthMode(mode){
+    const signup = mode === "signup";
+    $("authLoginTab").classList.toggle("active", !signup);
+    $("authSignupTab").classList.toggle("active", signup);
+    $("authSignupCompanyWrap").style.display = signup ? "block" : "none";
+    $("authSubmitBtn").textContent = signup ? "無料で新規登録" : "ログイン";
+    $("authPassword").setAttribute("autocomplete", signup ? "new-password" : "current-password");
+    $("authOverlay").dataset.mode = mode;
+    $("authMessage").textContent = "";
+    $("authMessage").className = "auth-message";
+  }
+
+  async function submitAuth(){
+    const mode = $("authOverlay").dataset.mode || "login";
+    const email = $("authEmail").value.trim();
+    const password = $("authPassword").value;
+    const companyName = $("authCompanyName").value.trim();
+    const message = $("authMessage");
+
+    if(!email || !password){
+      message.textContent = "メールアドレスとパスワードを入力してな";
+      message.className = "auth-message error";
+      return;
+    }
+    if(password.length < 6){
+      message.textContent = "パスワードは6文字以上にしてな";
+      message.className = "auth-message error";
+      return;
+    }
+    if(mode === "signup" && !companyName){
+      message.textContent = "会社名を入力してな";
+      message.className = "auth-message error";
+      return;
+    }
+
+    $("authSubmitBtn").disabled = true;
+    message.textContent = mode === "signup" ? "登録中…" : "ログイン中…";
+    message.className = "auth-message";
+
+    try{
+      if(mode === "signup"){
+        localStorage.setItem("jinkou_pending_company_name", companyName);
+        const result = await supabaseClient.auth.signUp({
+          email,
+          password,
+          options:{data:{company_name:companyName}}
+        });
+        if(result.error) throw result.error;
+
+        if(result.data.session){
+          await bootstrapCloudForSession(result.data.session);
+        }else{
+          message.textContent = "確認メールを送ったで。メール内のリンクを押してからログインしてな。";
+          message.className = "auth-message success";
+          setAuthMode("login");
+          $("authEmail").value = email;
+        }
+      }else{
+        const result = await supabaseClient.auth.signInWithPassword({email,password});
+        if(result.error) throw result.error;
+        await bootstrapCloudForSession(result.data.session);
+      }
+    }catch(err){
+      console.error(err);
+      message.textContent = err?.message || "接続できへんかった。入力内容を確認してな。";
+      message.className = "auth-message error";
+    }finally{
+      $("authSubmitBtn").disabled = false;
+    }
+  }
+
+  async function initSupabaseAuth(){
+    setAuthMode("login");
+
+    $("authLoginTab").addEventListener("click", ()=>setAuthMode("login"));
+    $("authSignupTab").addEventListener("click", ()=>setAuthMode("signup"));
+    $("authSubmitBtn").addEventListener("click", submitAuth);
+    $("authPassword").addEventListener("keydown", e=>{
+      if(e.key === "Enter") submitAuth();
+    });
+    $("logoutBtn").addEventListener("click", async ()=>{
+      if(!confirm("ログアウトする？")) return;
+      cloudReady = false;
+      cloudCompanyId = "";
+      await supabaseClient.auth.signOut();
+      $("cloudAccountBar").style.display = "none";
+      $("authOverlay").style.display = "flex";
+      setAuthMode("login");
+    });
+
+    const result = await supabaseClient.auth.getSession();
+    if(result.error){
+      $("authMessage").textContent = "Supabaseに接続できへんかった。通信状態を確認してな。";
+      $("authMessage").className = "auth-message error";
+      return;
+    }
+
+    if(result.data.session){
+      try{
+        await bootstrapCloudForSession(result.data.session);
+      }catch(err){
+        console.error(err);
+        $("authMessage").textContent = "クラウドデータの読込でエラーが出たで：" + (err?.message || "");
+        $("authMessage").className = "auth-message error";
+      }
+    }else{
+      $("authOverlay").style.display = "flex";
+    }
+  }
+
   function normalizeImportedState(data){
     const clean = data && typeof data === "object" ? data : {};
     return {
@@ -4322,6 +4897,7 @@ function getContractBillingIncluded(siteId, month){
   }
 
   renderAll();
+  initSupabaseAuth();
 
   if(!hasStorage){
     setTimeout(()=>alert("この開き方ではSafariの保存機能が使えへんみたい。URLとして公開して開く必要があるで。"), 400);
