@@ -1520,6 +1520,52 @@
       }
     }
 
+  
+    .stamp-settings-preview{
+      margin-top:10px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:#fff;
+    }
+    .stamp-settings-preview img{
+      width:72px;
+      height:72px;
+      object-fit:contain;
+      display:block;
+    }
+    .stamp-settings-preview .btn{
+      width:auto;
+      margin:0;
+      padding:8px 12px;
+    }
+
+    .excel-template .invoice-issuer-block{
+      position:relative !important;
+    }
+    .excel-template .invoice-company-stamp{
+      position:absolute;
+      width:74px;
+      height:74px;
+      object-fit:contain;
+      right:-8px;
+      top:58px;
+      z-index:5;
+      opacity:.9;
+      pointer-events:none;
+      mix-blend-mode:multiply;
+    }
+    @media print{
+      .excel-template .invoice-company-stamp{
+        opacity:.9 !important;
+        -webkit-print-color-adjust:exact !important;
+        print-color-adjust:exact !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1824,6 +1870,13 @@
         </select>
         <input id="invoiceTaxCustom" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="例：6.5" style="display:none;margin-top:6px">
 
+        <label>社印</label>
+        <input id="companyStampFile" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+        <div class="helper">JPG / PNG / PDF対応。PDFは1ページ目を社印として使用します。</div>
+        <div id="companyStampPreview" class="stamp-settings-preview" style="display:none">
+          <img id="companyStampPreviewImage" alt="社印プレビュー">
+          <button class="btn secondary" id="removeCompanyStampBtn" type="button">社印を削除</button>
+        </div>
 
         <button class="btn secondary" id="saveCompanyInfoBtn">自社情報を保存</button>
       </div>
@@ -1859,6 +1912,7 @@
     <button data-view="invoice"><span class="nav-icon">🧾</span><span>請求</span></button>
   </nav>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1890,6 +1944,8 @@
   state.companyInfo.invoiceColor = state.companyInfo.invoiceColor || "wine";
   state.companyInfo.invoiceTax = state.companyInfo.invoiceTax || "10";
   state.companyInfo.invoiceTaxCustom = state.companyInfo.invoiceTaxCustom || "";
+  state.companyInfo.stampDataUrl = state.companyInfo.stampDataUrl || "";
+  state.companyInfo.stampFileName = state.companyInfo.stampFileName || "";
   // 既存の元請けに番号がない場合は100から順に自動採番
   let _nextClientNo = 100;
   const _usedClientNos = new Set(
@@ -3043,6 +3099,7 @@ function renderCompanyInfoForm(){
       $("invoiceTaxCustom").value = state.companyInfo?.invoiceTaxCustom || "";
       $("invoiceTaxCustom").style.display = ($("invoiceTax").value === "custom") ? "block" : "none";
     }
+    renderCompanyStampPreview();
   }
 
   function saveCompanyInfo(){
@@ -3057,14 +3114,103 @@ function renderCompanyInfoForm(){
       invoiceFont:state.companyInfo?.invoiceFont || "hiragino",
       invoiceColor:state.companyInfo?.invoiceColor || "wine",
       invoiceTax:$("invoiceTax")?.value || "10",
-      invoiceTaxCustom:$("invoiceTaxCustom")?.value.trim() || ""
+      invoiceTaxCustom:$("invoiceTaxCustom")?.value.trim() || "",
+      stampDataUrl:state.companyInfo?.stampDataUrl || "",
+      stampFileName:state.companyInfo?.stampFileName || ""
     };
     save();
     renderInvoice();
     finishRegistration("自社情報を保存したで");
   }
 
-  
+
+  function renderCompanyStampPreview(){
+    const wrap = $("companyStampPreview");
+    const img = $("companyStampPreviewImage");
+    if(!wrap || !img) return;
+    const dataUrl = state.companyInfo?.stampDataUrl || "";
+    if(dataUrl){
+      img.src = dataUrl;
+      wrap.style.display = "flex";
+    }else{
+      img.removeAttribute("src");
+      wrap.style.display = "none";
+    }
+  }
+
+  function imageFileToStampDataUrl(file){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onerror = ()=>reject(new Error("画像を読み込めませんでした"));
+      reader.onload = ()=>{
+        const img = new Image();
+        img.onerror = ()=>reject(new Error("画像を開けませんでした"));
+        img.onload = ()=>{
+          const maxSize = 700;
+          const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function pdfFileToStampDataUrl(file){
+    if(!window.pdfjsLib){
+      throw new Error("PDF読み込み機能の準備ができませんでした。通信環境を確認してもう一度試してな");
+    }
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const pdf = await window.pdfjsLib.getDocument({data:bytes}).promise;
+    const page = await pdf.getPage(1);
+    const baseViewport = page.getViewport({scale:1});
+    const target = 700;
+    const scale = Math.min(3, target / Math.max(baseViewport.width, baseViewport.height));
+    const viewport = page.getViewport({scale});
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext("2d", {alpha:true});
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    await page.render({canvasContext:ctx, viewport}).promise;
+    return canvas.toDataURL("image/png");
+  }
+
+  async function handleCompanyStampFile(file){
+    if(!file) return;
+    const name = String(file.name || "");
+    const type = String(file.type || "").toLowerCase();
+    const isPdf = type === "application/pdf" || /\.pdf$/i.test(name);
+    const isImage = type.startsWith("image/") || /\.(jpe?g|png)$/i.test(name);
+    if(!isPdf && !isImage){
+      alert("JPG・PNG・PDFのどれかを選んでな");
+      return;
+    }
+
+    try{
+      const dataUrl = isPdf
+        ? await pdfFileToStampDataUrl(file)
+        : await imageFileToStampDataUrl(file);
+
+      state.companyInfo.stampDataUrl = dataUrl;
+      state.companyInfo.stampFileName = name;
+      save();
+      renderCompanyStampPreview();
+      renderInvoice();
+    }catch(err){
+      alert(err?.message || "社印を読み込めへんかった");
+    }
+  }
+
 function nextInvoiceSequence(clientId){
     const used = state.invoiceNumbers
       .filter(x=>x.clientId===clientId)
@@ -3573,6 +3719,7 @@ function getContractBillingIncluded(siteId, month){
               ${state.companyInfo?.postalCode ? `<div>〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
               ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
               <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
+              ${state.companyInfo?.stampDataUrl ? `<img class="invoice-company-stamp" src="${state.companyInfo.stampDataUrl}" alt="社印">` : ""}
               ${(state.companyInfo?.title || state.companyInfo?.personName)
                 ? `<div style="margin-top:9px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
                 : ""}
@@ -3702,6 +3849,22 @@ function getContractBillingIncluded(siteId, month){
     renderInvoice();
   });
   $("invoiceTaxCustom").addEventListener("input", renderInvoice);
+
+  $("companyStampFile")?.addEventListener("change", async (event)=>{
+    const file = event.target.files && event.target.files[0];
+    await handleCompanyStampFile(file);
+    event.target.value = "";
+  });
+
+  $("removeCompanyStampBtn")?.addEventListener("click", ()=>{
+    if(!state.companyInfo?.stampDataUrl) return;
+    if(!confirm("登録している社印を削除する？")) return;
+    state.companyInfo.stampDataUrl = "";
+    state.companyInfo.stampFileName = "";
+    save();
+    renderCompanyStampPreview();
+    renderInvoice();
+  });
   $("invoiceFont").addEventListener("change", ()=>{
     state.companyInfo.invoiceFont = $("invoiceFont").value || "hiragino";
     save();
@@ -3740,7 +3903,9 @@ function getContractBillingIncluded(siteId, month){
             invoiceFont: clean.companyInfo.invoiceFont || "hiragino",
             invoiceColor: clean.companyInfo.invoiceColor || "wine",
             invoiceTax: clean.companyInfo.invoiceTax || "10",
-            invoiceTaxCustom: clean.companyInfo.invoiceTaxCustom || ""
+            invoiceTaxCustom: clean.companyInfo.invoiceTaxCustom || "",
+            stampDataUrl: clean.companyInfo.stampDataUrl || "",
+            stampFileName: clean.companyInfo.stampFileName || ""
           }
         : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"}
     };
