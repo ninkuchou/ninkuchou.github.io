@@ -1664,6 +1664,27 @@
       }
     }
 
+  
+    .day-detail-title-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .day-delete-all-btn{
+      appearance:none;
+      -webkit-appearance:none;
+      border:1px solid #dc2626;
+      background:#fff;
+      color:#dc2626;
+      border-radius:8px;
+      padding:7px 10px;
+      font-size:12px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+
   </style>
 </head>
 <body>
@@ -2017,7 +2038,7 @@
   "use strict";
 
   const KEY = "jinkou_app_v3";
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -2028,6 +2049,7 @@
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
   state.siteExpenses.forEach(x=>{ if(!x.taxType) x.taxType="excluded"; });
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+  state.bulkCompanyFilter = state.bulkCompanyFilter || "all";
   if(!Array.isArray(state.invoiceNumbers)) state.invoiceNumbers = [];
   if(!Array.isArray(state.progressBillings)) state.progressBillings = [];
   if(!Array.isArray(state.contractBillingIncludes)) state.contractBillingIncludes = [];
@@ -2579,7 +2601,7 @@
     const box = $("bulkWorkerList");
     if(!box) return;
 
-    const filter = $("bulkCompanyFilter")?.value || "all";
+    const filter = $("bulkCompanyFilter")?.value || state.bulkCompanyFilter || "all";
     let workers = [...state.workers];
 
     if(filter !== "all"){
@@ -2626,6 +2648,8 @@
 
 
   $("bulkCompanyFilter").addEventListener("change", ()=>{
+    state.bulkCompanyFilter = $("bulkCompanyFilter").value || "all";
+    save();
     renderBulkWorkers();
   });
 
@@ -2929,12 +2953,13 @@
 
     const bulkFilter = $("bulkCompanyFilter");
     if(bulkFilter){
-      const current = bulkFilter.value || "all";
+      const current = state.bulkCompanyFilter || bulkFilter.value || "all";
       const companies = sortByRecent(state.workerCompanies, "bulkCompanyFilter", x=>x.id);
       const opts = companies.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
       bulkFilter.innerHTML = `<option value="all">すべて</option><option value="none">所属未設定</option>` + opts;
       const exists = [...bulkFilter.options].some(o=>o.value===current);
       bulkFilter.value = exists ? current : "all";
+      state.bulkCompanyFilter = bulkFilter.value;
     }
 
     const list = $("workerCompanyList");
@@ -3075,7 +3100,34 @@
     box.innerHTML = `<div class="calendar">${heads}${cells}</div>`;
   }
 
-  function showDayDetail(date){
+  
+  function removeAllFromDay(date){
+    const dayEntries = state.entries.filter(e=>e.date===date);
+    const dayExpenses = state.siteExpenses.filter(x=>x.date===date);
+    const totalCount = dayEntries.length + dayExpenses.length;
+
+    if(!totalCount){
+      alert("この日の入力はないで");
+      return;
+    }
+
+    if(!confirm(`${date} の人工・早出・残業・現場経費をまとめて削除する？`)) return;
+
+    state.entries = state.entries.filter(e=>e.date!==date);
+    state.siteExpenses = state.siteExpenses.filter(x=>x.date!==date);
+    save();
+    renderAll();
+
+    const detail = $("dayDetail");
+    if(detail){
+      detail.className = "empty";
+      detail.innerHTML = `${date} の入力はないで。`;
+    }
+
+    alert(`${date} の入力をまとめて削除したで`);
+  }
+
+function showDayDetail(date){
     const month = $("summaryMonth").value || monthLocal();
     const siteFilter = $("summarySite").value || "all";
     let entries = state.entries.filter(e=>e.date===date);
@@ -3139,11 +3191,18 @@
     }).join("");
 
     detail.className = "list";
-    detail.innerHTML = `<div class="day-detail-title">${date}</div>${siteBlocks}`;
+    detail.innerHTML = `
+      <div class="day-detail-title-row">
+        <div class="day-detail-title">${date}</div>
+        <button class="day-delete-all-btn" type="button" onclick="removeAllFromDay('${date}')">この日の内容をまとめて削除</button>
+      </div>
+      ${siteBlocks}
+    `;
     try{$("dayDetailCard").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}
   }
 
   window.showDayDetail = showDayDetail;
+  window.removeAllFromDay = removeAllFromDay;
 
   function renderSummary(){
     const month = $("summaryMonth").value || monthLocal();
@@ -4161,6 +4220,7 @@ function getContractBillingIncluded(siteId, month){
       entries: Array.isArray(clean.entries) ? clean.entries : [],
       siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : [],
       recentSelects: clean.recentSelects && typeof clean.recentSelects==="object" ? clean.recentSelects : {},
+      bulkCompanyFilter: clean.bulkCompanyFilter || "all",
       invoiceNumbers: Array.isArray(clean.invoiceNumbers) ? clean.invoiceNumbers : [],
       progressBillings: Array.isArray(clean.progressBillings) ? clean.progressBillings : [],
       contractBillingIncludes: Array.isArray(clean.contractBillingIncludes) ? clean.contractBillingIncludes : [],
