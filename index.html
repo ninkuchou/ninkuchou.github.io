@@ -1586,6 +1586,19 @@
       }
     }
 
+  
+    /* A4の縦スペースを使って明細行を多く表示 */
+    @media print{
+      .excel-template .invoice-detail-table td{
+        height:18px !important;
+        padding-top:2px !important;
+        padding-bottom:2px !important;
+      }
+      .excel-template .invoice-bottom-area{
+        margin-top:12px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -3708,8 +3721,8 @@ function getContractBillingIncluded(siteId, month){
       });
     });
 
-    // PDF見本同様、明細部を一定の高さに保ちつつ1ページ内に収める。
-    while(detailRows.length < 17){
+    // A4印刷時の下側余白を活かし、明細表をページ下部まで広げる。
+    while(detailRows.length < 28){
       detailRows.push(`
         <tr>
           <td class="date">&nbsp;</td><td class="desc"></td><td class="qty"></td>
