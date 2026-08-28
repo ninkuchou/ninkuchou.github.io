@@ -2117,7 +2117,6 @@
 
         <label>請求書カラー</label>
         <select id="invoiceColor">
-          <option value="wine">えんじ</option>
           <option value="navy">ネイビー</option>
           <option value="blue">ブルー</option>
           <option value="green">グリーン</option>
@@ -2127,6 +2126,7 @@
           <option value="orange">オレンジ</option>
           <option value="yellow">イエロー</option>
           <option value="black">ブラック</option>
+          <option value="wine">えんじ</option>
         </select>
 
         <label>請求書フォーマット</label>
@@ -2235,7 +2235,7 @@
   let cloudSyncInFlight = false;
   let cloudSyncPending = false;
 
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -2259,7 +2259,7 @@
   state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
   state.companyInfo.invoiceFont = state.companyInfo.invoiceFont || "hiragino";
-  state.companyInfo.invoiceColor = state.companyInfo.invoiceColor || "wine";
+  state.companyInfo.invoiceColor = state.companyInfo.invoiceColor || "navy";
   state.companyInfo.invoiceTax = state.companyInfo.invoiceTax || "10";
   state.companyInfo.invoiceTaxCustom = state.companyInfo.invoiceTaxCustom || "";
   state.companyInfo.stampDataUrl = state.companyInfo.stampDataUrl || "";
@@ -3578,7 +3578,7 @@ function renderCompanyInfoForm(){
       invoiceNumber:$("companyInfoInvoiceNumber")?.value.trim() || "",
       bankAccount:$("companyInfoBankAccount")?.value.trim() || "",
       invoiceFont:state.companyInfo?.invoiceFont || "hiragino",
-      invoiceColor:state.companyInfo?.invoiceColor || "wine",
+      invoiceColor:state.companyInfo?.invoiceColor || "navy",
       invoiceTax:$("invoiceTax")?.value || "10",
       invoiceTaxCustom:$("invoiceTaxCustom")?.value.trim() || "",
       stampDataUrl:state.companyInfo?.stampDataUrl || "",
@@ -4345,7 +4345,7 @@ function getContractBillingIncluded(siteId, month){
     const invoiceSheets = document.querySelectorAll("#invoicePreview .invoice-sheet.excel-template");
     if(invoiceSheets.length){
       const fontKey = $("invoiceFont")?.value || state.companyInfo?.invoiceFont || "hiragino";
-      const colorKey = $("invoiceColor")?.value || state.companyInfo?.invoiceColor || "wine";
+      const colorKey = $("invoiceColor")?.value || state.companyInfo?.invoiceColor || "navy";
       const themeColor = invoiceColorValue(colorKey);
 
       invoiceSheets.forEach(invoiceSheet=>{
@@ -4420,7 +4420,7 @@ function getContractBillingIncluded(siteId, month){
     renderInvoice();
   });
   $("invoiceColor").addEventListener("change", ()=>{
-    state.companyInfo.invoiceColor = $("invoiceColor").value || "wine";
+    state.companyInfo.invoiceColor = $("invoiceColor").value || "navy";
     save();
     renderInvoice();
   });
@@ -4529,7 +4529,7 @@ function getContractBillingIncluded(siteId, month){
         invoice_registration_number:ci.invoiceNumber || "",
         bank_account:ci.bankAccount || "",
         invoice_font:ci.invoiceFont || "hiragino",
-        invoice_color:ci.invoiceColor || "wine",
+        invoice_color:ci.invoiceColor || "navy",
         invoice_tax:ci.invoiceTax || "10",
         invoice_tax_custom:ci.invoiceTaxCustom || "",
         stamp_data_url:ci.stampDataUrl || "",
@@ -4626,7 +4626,7 @@ function getContractBillingIncluded(siteId, month){
           invoiceNumber:(s && s.invoice_registration_number) || "",
           bankAccount:(s && s.bank_account) || "",
           invoiceFont:(s && s.invoice_font) || "hiragino",
-          invoiceColor:(s && s.invoice_color) || "wine",
+          invoiceColor:(s && s.invoice_color) || "navy",
           invoiceTax:(s && s.invoice_tax) || "10",
           invoiceTaxCustom:(s && s.invoice_tax_custom) || "",
           stampDataUrl:(s && s.stamp_data_url) || "",
@@ -4861,13 +4861,13 @@ function getContractBillingIncluded(siteId, month){
             invoiceNumber: clean.companyInfo.invoiceNumber || "",
             bankAccount: clean.companyInfo.bankAccount || "",
             invoiceFont: clean.companyInfo.invoiceFont || "hiragino",
-            invoiceColor: clean.companyInfo.invoiceColor || "wine",
+            invoiceColor: clean.companyInfo.invoiceColor || "navy",
             invoiceTax: clean.companyInfo.invoiceTax || "10",
             invoiceTaxCustom: clean.companyInfo.invoiceTaxCustom || "",
             stampDataUrl: clean.companyInfo.stampDataUrl || "",
             stampFileName: clean.companyInfo.stampFileName || ""
           }
-        : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"wine"}
+        : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"}
     };
   }
 
