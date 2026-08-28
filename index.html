@@ -3595,6 +3595,12 @@ function getContractBillingIncluded(siteId, month){
     return Number(selected || 0);
   }
 
+  function formatJapaneseDate(dateStr){
+    const m = String(dateStr || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return String(dateStr || "");
+    return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
+  }
+
   function renderInvoice(){
     updateInvoicePeriodHint();
     const clientId = $("invoiceClient").value;
@@ -3735,7 +3741,7 @@ function getContractBillingIncluded(siteId, month){
             <div class="invoice-number">NO　${escapeHtml(number||"-")}</div>
 
             <div class="invoice-issuer-block">
-              <div class="invoice-issuer-date">${period.end}</div>
+              <div class="invoice-issuer-date">${formatJapaneseDate(period.end)}</div>
               ${state.companyInfo?.postalCode ? `<div>〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
               ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
               <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
