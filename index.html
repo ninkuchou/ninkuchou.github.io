@@ -1543,16 +1543,20 @@
       padding:8px 12px;
     }
 
+    /* 社印は右上の会社情報ブロック内に重ねる。会社情報自体の絶対配置は崩さない */
     .excel-template .invoice-issuer-block{
-      position:relative !important;
+      position:absolute !important;
+      top:72px !important;
+      right:16px !important;
+      width:38% !important;
     }
     .excel-template .invoice-company-stamp{
       position:absolute;
-      width:74px;
-      height:74px;
+      width:72px;
+      height:72px;
       object-fit:contain;
-      right:-8px;
-      top:58px;
+      right:-2px;
+      top:66px;
       z-index:5;
       opacity:.9;
       pointer-events:none;
@@ -1563,6 +1567,22 @@
         opacity:.9 !important;
         -webkit-print-color-adjust:exact !important;
         print-color-adjust:exact !important;
+      }
+    }
+
+  
+    @media print{
+      .excel-template .invoice-issuer-block{
+        position:absolute !important;
+        top:72px !important;
+        right:16px !important;
+        width:38% !important;
+      }
+      .excel-template .invoice-company-stamp{
+        right:-2px !important;
+        top:66px !important;
+        width:72px !important;
+        height:72px !important;
       }
     }
 
