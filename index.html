@@ -2074,7 +2074,7 @@
 
       <div class="card" id="dayDetailCard">
         <h2>日別詳細</h2>
-        <div id="dayDetail" class="empty">カレンダーの日付を押してな。</div>
+        <div id="dayDetail" class="empty">カレンダーの日付を押してください。</div>
       </div>
 
       <div class="card">
@@ -2192,22 +2192,22 @@
     </section>
 
     <section class="card no-print">
-      <h2>データ入出力</h2>
-      <div class="notice" style="margin-bottom:10px">
-        全データをファイルに書き出して、別端末で読み込めます。
-      </div>
-      <div class="data-actions">
-        <button class="btn secondary" id="exportDataBtn" type="button">データを書き出す</button>
-        <button class="btn secondary" id="importDataBtn" type="button">データを読み込む</button>
-      </div>
+      <details>
+        <summary style="cursor:pointer;font-weight:700;font-size:16px">設定・バックアップ</summary>
+        <div style="margin-top:14px">
+          <div class="notice" style="margin-bottom:10px">
+            データはクラウドに自動保存されます。必要に応じて、非常用のバックアップをJSONファイルとして保存・復元できます。
+          </div>
+          <div class="data-actions">
+            <button class="btn secondary" id="exportDataBtn" type="button">バックアップを書き出す</button>
+            <button class="btn secondary" id="importDataBtn" type="button">バックアップから復元する</button>
+          </div>
+          <div class="helper" style="margin-top:8px">
+            復元すると、現在の会社データがバックアップの内容に置き換わり、クラウドにも反映されます。
+          </div>
+        </div>
+      </details>
       <input class="file-input" id="importDataFile" type="file" accept=".json,application/json">
-    </section>
-
-    <section class="card">
-      <div class="notice">
-        データはこのSafari内に保存されます。Safariの履歴やWebサイトデータを消すと消える可能性があります。
-        実運用前に、必要なら次の版でバックアップ・共有機能も追加できます。
-      </div>
     </section>
   </main>
 
@@ -2463,11 +2463,11 @@
 
   $("addClientBtn").addEventListener("click", ()=>{
     const name = $("clientName").value.trim();
-    if(!name){ alert("会社名を入れてな"); return; }
+    if(!name){ alert("会社名を入力してください"); return; }
     if($("clientClosingDayPreset").value === "custom"){
       const customClosing = Number($("clientClosingDay").value||0);
       if(customClosing < 1 || customClosing > 31){
-        alert("締め日は1〜31日で入力してな");
+        alert("締め日は1〜31日で入力してください");
         return;
       }
     }
@@ -2515,12 +2515,12 @@
     $("clientPaymentCustom").value="";
     $("clientPaymentCustom").style.display="none";
     renderAll();
-    finishRegistration(wasEdit ? "元請け会社を更新したで" : "元請け会社を追加したで");
+    finishRegistration(wasEdit ? "元請け会社を更新しました" : "元請け会社を追加しました");
   });
 
   $("addSiteBtn").addEventListener("click", ()=>{
     const name = $("siteName").value.trim();
-    if(!name){ alert("現場名を入れてな"); return; }
+    if(!name){ alert("現場名を入力してください"); return; }
     const data = {
       name,
       clientId:$("siteClient").value || "",
@@ -2543,13 +2543,13 @@
     $("siteRevenue").value="";
     $("siteBillRate").value="";
     renderAll();
-    finishRegistration(wasEdit ? "現場を更新したで" : "現場を追加したで");
+    finishRegistration(wasEdit ? "現場を更新しました" : "現場を追加しました");
   });
 
 
   $("addWorkerCompanyBtn").addEventListener("click", ()=>{
     const name = $("workerCompanyName").value.trim();
-    if(!name){ alert("会社名を入れてな"); return; }
+    if(!name){ alert("会社名を入力してください"); return; }
 
     const rate = Number($("workerCompanyRate").value||0);
     const editId = editingWorkerCompanyId;
@@ -2563,7 +2563,7 @@
           rate
         };
       }else{
-        alert("編集対象が見つからへんかった。画面を更新してもう一回試してな");
+        alert("編集対象が見つかりませんでした。画面を更新してもう一度お試しください");
         return;
       }
     }else{
@@ -2580,13 +2580,13 @@
     $("workerCompanyRate").value="";
     save();
     renderAll();
-    finishRegistration(editId ? "所属会社を更新したで" : "所属会社を追加したで");
+    finishRegistration(editId ? "所属会社を更新しました" : "所属会社を追加しました");
   });
 
   $("addWorkerBtn").addEventListener("click", ()=>{
     const name = $("workerName").value.trim();
     const rate = Number($("workerRate").value||0);
-    if(!name){ alert("名前を入れてな"); return; }
+    if(!name){ alert("名前を入力してください"); return; }
     const data = {
       name,
       companyId:$("workerCompany").value || "",
@@ -2609,7 +2609,7 @@
     $("workerEarlyRate").value="";
     $("workerOvertimeRate").value="";
     renderAll();
-    finishRegistration(wasEdit ? "作業員を更新したで" : "作業員を追加したで");
+    finishRegistration(wasEdit ? "作業員を更新しました" : "作業員を追加しました");
   });
 
   $("summaryMonth").addEventListener("change", renderSummary);
@@ -2735,7 +2735,7 @@
   function removeClient(id){
     const used = state.sites.some(s=>s.clientId===id);
     if(used){
-      alert("この元請け会社は現場で使われてるから、先に現場側を変更してな");
+      alert("この元請け会社は現場で使用されています。先に現場側を変更してください");
       return;
     }
     if(!confirm("この元請け会社を削除する？")) return;
@@ -2754,7 +2754,7 @@
   function removeWorkerCompany(id){
     const used = state.workers.some(w=>w.companyId===id);
     if(used){
-      alert("この会社は作業員で使われてるから、先に作業員側を変更してな");
+      alert("この会社は作業員で使用されています。先に作業員側を変更してください");
       return;
     }
     if(!confirm("この所属会社を削除する？")) return;
@@ -2828,7 +2828,7 @@
     }
 
     if(!workers.length){
-      box.innerHTML = `<div class="empty">この所属会社の作業員はまだ登録されてないで。</div>`;
+      box.innerHTML = `<div class="empty">この所属会社の作業員はまだ登録されていません。</div>`;
       return;
     }
 
@@ -2896,13 +2896,13 @@
   function copyPreviousDayEntries(){
     const targetDate = $("entryDate")?.value || "";
     if(!targetDate){
-      alert("先に入力する日付を選んでな");
+      alert("先に入力する日付を選択してください");
       return;
     }
 
     const sourceDate = previousDateString(targetDate);
     if(!sourceDate){
-      alert("日付を確認してな");
+      alert("日付を確認してください");
       return;
     }
 
@@ -2910,7 +2910,7 @@
     const sourceExpenses = state.siteExpenses.filter(x=>x.date===sourceDate);
 
     if(!sourceEntries.length && !sourceExpenses.length){
-      alert(`${sourceDate} の入力データがないで`);
+      alert(`${sourceDate} の入力データがありません`);
       return;
     }
 
@@ -2972,29 +2972,29 @@
     const parts = [];
     if(entryCount) parts.push(`${entryCount}人分`);
     if(expenseCount) parts.push(`経費${expenseCount}件`);
-    alert(`${sourceDate} の内容を ${targetDate} にコピーしたで${parts.length ? "（" + parts.join("＋") + "）" : ""}`);
+    alert(`${sourceDate} の内容を ${targetDate} にコピーしました${parts.length ? "（" + parts.join("＋") + "）" : ""}`);
   }
 
   $("copyPreviousDayBtn")?.addEventListener("click", copyPreviousDayEntries);
 
   $("addBulkEntryBtn").addEventListener("click", ()=>{
-    if(!state.sites.length){ alert("先に現場を登録してな"); return; }
-    if(!state.workers.length){ alert("先に作業員を登録してな"); return; }
+    if(!state.sites.length){ alert("先に現場を登録してください"); return; }
+    if(!state.workers.length){ alert("先に作業員を登録してください"); return; }
 
     const date = $("entryDate").value;
     const siteId = $("entrySite").value;
     rememberRecent("entrySite", siteId);
     const checked = [...document.querySelectorAll(".bulk-check:checked")];
 
-    if(!date){ alert("日付を選んでな"); return; }
-    if(!siteId){ alert("現場を選んでな"); return; }
+    if(!date){ alert("日付を選択してください"); return; }
+    if(!siteId){ alert("現場を選択してください"); return; }
 
     const siteExpense = Number($("siteDayExpense").value||0);
     const siteExpenseTaxType = $("siteDayExpenseTaxType")?.value || "excluded";
     const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
 
     if(!checked.length && siteExpense <= 0 && !siteExpenseMemo){
-      alert("メンバーか現場経費のどっちかを入力してな");
+      alert("メンバーまたは現場経費のどちらかを入力してください");
       return;
     }
 
@@ -3052,11 +3052,11 @@
     renderRecent();
     renderSummary();
     if(checked.length && (siteExpense > 0 || siteExpenseMemo)){
-      alert(checked.length + "人分＋現場経費を登録・更新したで");
+      alert(checked.length + "人分＋現場経費を登録・更新しました");
     }else if(checked.length){
-      alert(checked.length + "人分を登録・更新したで");
+      alert(checked.length + "人分を登録・更新しました");
     }else{
-      alert("現場経費を登録したで");
+      alert("現場経費を登録しました");
     }
   });
 
@@ -3077,7 +3077,7 @@
     if(!list) return;
 
     if(!state.clients.length){
-      list.innerHTML = `<div class="empty">まだ元請け会社がないで。</div>`;
+      list.innerHTML = `<div class="empty">まだ元請け会社がありません。</div>`;
       return;
     }
 
@@ -3104,7 +3104,7 @@
       const clients = sortByRecent(state.clients, "invoiceClient", x=>x.id);
       invoiceClient.innerHTML = clients.length
         ? clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
-        : `<option value="">元請け会社を登録してな</option>`;
+        : `<option value="">元請け会社を登録してください</option>`;
       if(current && clients.some(c=>c.id===current)) invoiceClient.value = current;
     }
 
@@ -3117,7 +3117,7 @@
     const entrySite = $("entrySite");
     if(entrySite){
       const current = entrySite.value;
-      entrySite.innerHTML = entrySiteOptions || `<option value="">現場を登録してな</option>`;
+      entrySite.innerHTML = entrySiteOptions || `<option value="">現場を登録してください</option>`;
       if(current && entrySites.some(s=>s.id===current)) entrySite.value = current;
     }
 
@@ -3137,7 +3137,7 @@
 
   function renderSites(){
     if(!state.sites.length){
-      $("siteList").innerHTML = `<div class="empty">まだ現場がないで。</div>`;
+      $("siteList").innerHTML = `<div class="empty">まだ現場がありません。</div>`;
       return;
     }
     $("siteList").innerHTML = state.sites.map(s=>`
@@ -3180,7 +3180,7 @@
     const list = $("workerCompanyList");
     if(!list) return;
     if(!state.workerCompanies.length){
-      list.innerHTML = `<div class="empty">まだ所属会社がないで。</div>`;
+      list.innerHTML = `<div class="empty">まだ所属会社がありません。</div>`;
       return;
     }
     list.innerHTML = state.workerCompanies.map(c=>`
@@ -3200,7 +3200,7 @@
 
   function renderWorkers(){
     if(!state.workers.length){
-      $("workerList").innerHTML = `<div class="empty">まだ作業員がないで。</div>`;
+      $("workerList").innerHTML = `<div class="empty">まだ作業員がありません。</div>`;
       return;
     }
     $("workerList").innerHTML = state.workers.map(w=>`
@@ -3221,7 +3221,7 @@
   function renderRecent(){
     const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
     if(!list.length){
-      $("recentEntries").innerHTML = `<div class="empty">まだ入力がないで。</div>`;
+      $("recentEntries").innerHTML = `<div class="empty">まだ入力がありません。</div>`;
       return;
     }
     const entryRows = list.map(e=>{
@@ -3322,7 +3322,7 @@
     const totalCount = dayEntries.length + dayExpenses.length;
 
     if(!totalCount){
-      alert("この日の入力はないで");
+      alert("この日の入力はありません");
       return;
     }
 
@@ -3336,10 +3336,10 @@
     const detail = $("dayDetail");
     if(detail){
       detail.className = "empty";
-      detail.innerHTML = `${date} の入力はないで。`;
+      detail.innerHTML = `${date} の入力はありません。`;
     }
 
-    alert(`${date} の入力をまとめて削除したで`);
+    alert(`${date} の入力をまとめて削除しました`);
   }
 
 function showDayDetail(date){
@@ -3354,7 +3354,7 @@ function showDayDetail(date){
 
     if(!entries.length && !daySiteExpenses.length){
       detail.className = "empty";
-      detail.innerHTML = `${date} の入力はないで。`;
+      detail.innerHTML = `${date} の入力はありません。`;
       return;
     }
 
@@ -3477,7 +3477,7 @@ function showDayDetail(date){
         </div>
       </div>`;
     }).join("");
-    $("workerSummary").innerHTML = rows || `<div class="empty">この条件の入力はないで。</div>`;
+    $("workerSummary").innerHTML = rows || `<div class="empty">この条件の入力はありません。</div>`;
 
     const byCompany = {};
     entries.forEach(e=>{
@@ -3500,7 +3500,7 @@ function showDayDetail(date){
         </div>
       </div>`;
     }).join("");
-    $("companySummary").innerHTML = companyRows || `<div class="empty">この条件の入力はないで。</div>`;
+    $("companySummary").innerHTML = companyRows || `<div class="empty">この条件の入力はありません。</div>`;
   }
 
   function escapeHtml(s){
@@ -3586,7 +3586,7 @@ function renderCompanyInfoForm(){
     };
     save();
     renderInvoice();
-    finishRegistration("自社情報を保存したで");
+    finishRegistration("自社情報を保存しました");
   }
 
 
@@ -3630,7 +3630,7 @@ function renderCompanyInfoForm(){
 
   async function pdfFileToStampDataUrl(file){
     if(!window.pdfjsLib){
-      throw new Error("PDF読み込み機能の準備ができませんでした。通信環境を確認してもう一度試してな");
+      throw new Error("PDF読み込み機能の準備ができませんでした。通信環境を確認してもう一度お試しください");
     }
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -3658,7 +3658,7 @@ function renderCompanyInfoForm(){
     const isPdf = type === "application/pdf" || /\.pdf$/i.test(name);
     const isImage = type.startsWith("image/") || /\.(jpe?g|png)$/i.test(name);
     if(!isPdf && !isImage){
-      alert("JPG・PNG・PDFのどれかを選んでな");
+      alert("JPG・PNG・PDFのいずれかを選択してください");
       return;
     }
 
@@ -3673,7 +3673,7 @@ function renderCompanyInfoForm(){
       renderCompanyStampPreview();
       renderInvoice();
     }catch(err){
-      alert(err?.message || "社印を読み込めへんかった");
+      alert(err?.message || "社印を読み込めませんでした");
     }
   }
 
@@ -3885,7 +3885,7 @@ function getContractBillingIncluded(siteId, month){
       input.addEventListener("change", ()=>{
         let value = Number(input.value||0);
         if(value < 0 || value > 100){
-          alert("出来高は0〜100%で入力してな");
+          alert("出来高は0〜100%で入力してください");
           value = Math.max(0, Math.min(100, value));
           input.value = String(value);
         }
@@ -4056,7 +4056,7 @@ function getContractBillingIncluded(siteId, month){
     const number = syncInvoiceNumber(true) || $("invoiceNumber").value.trim();
 
     if(!clientId){
-      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選んでな。</div></div>`;
+      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選択してください。</div></div>`;
       return;
     }
 
@@ -4065,7 +4065,7 @@ function getContractBillingIncluded(siteId, month){
     const rows = invoiceRowsFor(clientId, month, taxRate);
 
     if(!rows.length){
-      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">この月の請求対象データがないで。</div></div>`;
+      $("invoicePreview").innerHTML = `<div class="card"><div class="empty">この月の請求対象データがありません。</div></div>`;
       return;
     }
 
@@ -4709,7 +4709,7 @@ function getContractBillingIncluded(siteId, month){
       state = localSnapshot;
       saveLocalOnly();
       await syncStateToCloud();
-      alert("この端末に入っていた人工帖のデータをクラウドへ移行したで");
+      alert("この端末に入っていた人工帖のデータをクラウドへ移行しました");
     }else if(cloud.initialized){
       state = normalizeImportedState(cloud.state);
       saveLocalOnly();
@@ -4743,17 +4743,17 @@ function getContractBillingIncluded(siteId, month){
     const message = $("authMessage");
 
     if(!email || !password){
-      message.textContent = "メールアドレスとパスワードを入力してな";
+      message.textContent = "メールアドレスとパスワードを入力してください";
       message.className = "auth-message error";
       return;
     }
     if(password.length < 6){
-      message.textContent = "パスワードは6文字以上にしてな";
+      message.textContent = "パスワードは6文字以上にしてください";
       message.className = "auth-message error";
       return;
     }
     if(mode === "signup" && !companyName){
-      message.textContent = "会社名を入力してな";
+      message.textContent = "会社名を入力してください";
       message.className = "auth-message error";
       return;
     }
@@ -4779,7 +4779,7 @@ function getContractBillingIncluded(siteId, month){
         if(result.data.session){
           await bootstrapCloudForSession(result.data.session);
         }else{
-          message.textContent = "確認メールを送ったで。メール内のリンクを押してからログインしてな。";
+          message.textContent = "確認メールを送信しました。メール内のリンクを押してからログインしてください。";
           message.className = "auth-message success";
           setAuthMode("login");
           $("authEmail").value = email;
@@ -4791,7 +4791,7 @@ function getContractBillingIncluded(siteId, month){
       }
     }catch(err){
       console.error(err);
-      message.textContent = err?.message || "接続できへんかった。入力内容を確認してな。";
+      message.textContent = err?.message || "接続できませんでした。入力内容を確認してください。";
       message.className = "auth-message error";
     }finally{
       $("authSubmitBtn").disabled = false;
@@ -4819,7 +4819,7 @@ function getContractBillingIncluded(siteId, month){
 
     const result = await supabaseClient.auth.getSession();
     if(result.error){
-      $("authMessage").textContent = "Supabaseに接続できへんかった。通信状態を確認してな。";
+      $("authMessage").textContent = "Supabaseに接続できませんでした。通信状態を確認してください。";
       $("authMessage").className = "auth-message error";
       return;
     }
@@ -4829,7 +4829,7 @@ function getContractBillingIncluded(siteId, month){
         await bootstrapCloudForSession(result.data.session);
       }catch(err){
         console.error(err);
-        $("authMessage").textContent = "クラウドデータの読込でエラーが出たで：" + (err?.message || "");
+        $("authMessage").textContent = "クラウドデータの読み込みでエラーが発生しました：" + (err?.message || "");
         $("authMessage").className = "auth-message error";
       }
     }else{
@@ -4918,7 +4918,14 @@ function getContractBillingIncluded(siteId, month){
         normalized.siteExpenses.length
       ].reduce((a,b)=>a+b,0);
 
-      if(!confirm(`このファイルのデータ（${counts}件）で現在のデータを置き換える？`)){
+      if(!confirm(
+        `バックアップのデータ（${counts}件）で現在の会社データを置き換えます。\n\n` +
+        `この変更はクラウドにも反映されます。続行しますか？`
+      )){
+        return;
+      }
+
+      if(!confirm("現在のデータは上書きされます。本当にバックアップから復元しますか？")){
         return;
       }
 
@@ -4926,9 +4933,9 @@ function getContractBillingIncluded(siteId, month){
       save();
       renderAll();
       dismissKeyboard();
-      alert("データを読み込んだで");
+      alert("バックアップから復元しました");
     }catch(e){
-      alert("このファイルは読み込めへんかった。人工帖アプリから書き出したJSONを選んでな");
+      alert("バックアップを読み込めませんでした。人工帖から書き出したJSONファイルを選択してください");
     }
   });
 
@@ -4952,7 +4959,7 @@ function getContractBillingIncluded(siteId, month){
   initSupabaseAuth();
 
   if(!hasStorage){
-    setTimeout(()=>alert("この開き方ではSafariの保存機能が使えへんみたい。URLとして公開して開く必要があるで。"), 400);
+    setTimeout(()=>alert("この開き方ではSafariの保存機能を利用できないようです。URLとして公開して開く必要があります。"), 400);
   }
 })();
 </script>
