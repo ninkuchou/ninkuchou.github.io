@@ -4161,13 +4161,20 @@
         : "選択した現場を月をまたいで集計します。下のカレンダーをスクロールして、日付を押すとその日の詳細を確認できます。";
     }
 
-    // 他の選択肢を更新した後、集計の現場選択は1000件規模を想定した同期処理で更新する。
-    renderCoreSelects();
+    // 集計の現場選択だけを更新する。
+    // 1000件規模でも、現場一覧自体が変わっていなければ
+    // モード切替では「すべての現場」1件の追加・削除だけで済む。
     syncSummarySiteOptions();
 
-    // 念のため現場別では value="all" が残っていれば即削除する。
+    // 現場別では value="all" を必ず除外する。
     if(summaryMode === "site"){
-      $("summarySite")?.querySelectorAll('option[value="all"]').forEach(opt=>opt.remove());
+      const summarySite = $("summarySite");
+      summarySite?.querySelectorAll('option[value="all"]').forEach(opt=>opt.remove());
+
+      if(summarySite && summarySite.value === "all"){
+        const firstSiteOption = [...summarySite.options].find(opt=>opt.value && opt.value !== "all");
+        summarySite.value = firstSiteOption?.value || "";
+      }
     }
 
     renderSummary();
