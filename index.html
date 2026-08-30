@@ -5863,49 +5863,24 @@ function getContractBillingIncluded(siteId, month){
     const nav = document.querySelector("nav");
     const navRect = nav ? nav.getBoundingClientRect() : null;
 
-    // 下部タブの上端から十分に余白を取る。
-    // ブラウザUIや端末サイズが変わっても、説明カードがタブに重ならないようにする。
+    // 説明カードは全ステップで、下部タブのすぐ上に固定する。
     const navTop = navRect && navRect.top > 0 ? navRect.top : viewportH - 88;
     const safeBottom = Math.max(16, viewportH - navTop + 16);
-    const safeTop = 14;
 
     card.style.setProperty("--tutorial-safe-bottom", `${safeBottom}px`);
-    card.style.setProperty("--tutorial-safe-top", `${safeTop}px`);
-
     card.classList.remove("top","bottom");
+    card.classList.add("bottom");
 
-    const rect = target ? target.getBoundingClientRect() : null;
-    const cardHeight = card.offsetHeight || 0;
+    // タブ上の空き高さに合わせて、必要な場合だけカード内部をスクロール。
+    const availableHeight = Math.max(160, navTop - 28);
 
-    const availableBottomHeight = Math.max(120, navTop - 24);
-    const availableTopHeight = Math.max(120, navTop - safeTop - 16);
-
-    if(!card.classList.contains("step7-full")){
-      card.style.maxHeight = `${Math.max(160, Math.min(360, availableTopHeight))}px`;
-      card.style.overflow = "auto";
-    }else{
-      card.style.maxHeight = "none";
+    if(card.classList.contains("step7-full")){
+      card.style.maxHeight = `${Math.max(220, availableHeight)}px`;
       card.style.overflow = "visible";
+    }else{
+      card.style.maxHeight = `${Math.max(160, Math.min(360, availableHeight))}px`;
+      card.style.overflow = "auto";
     }
-
-    if(!rect){
-      card.classList.add("bottom");
-      return;
-    }
-
-    const spaceAbove = rect.top - safeTop;
-    const spaceBelow = navTop - rect.bottom - 20;
-
-    // 対象が画面下側にある、または下側の空きが少ない場合は説明を上へ。
-    // それ以外は下部タブのすぐ上に配置する。
-    let placeTop = rect.top > navTop * 0.46 || (spaceBelow < cardHeight + 24 && spaceAbove > spaceBelow);
-
-    // ⑦のような大きい説明は、下部タブに近づきすぎる場合は必ず上側へ。
-    if(card.classList.contains("step7-full") && cardHeight + 40 > navTop - safeBottom){
-      placeTop = true;
-    }
-
-    card.classList.add(placeTop ? "top" : "bottom");
   }
 
   function showTutorialStep(){
