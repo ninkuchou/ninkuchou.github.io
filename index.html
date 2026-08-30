@@ -2991,6 +2991,16 @@
     padding:12px 0;
   }
 
+
+
+  #summaryModeToggle.tutorial-highlight{
+    border-radius:14px !important;
+    box-shadow:
+      0 0 0 4px #fff,
+      0 0 0 8px rgba(59,130,246,.95) !important;
+    z-index:10003 !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3267,7 +3277,7 @@
       <div class="card">
         <h2>集計</h2>
 
-        <div class="summary-mode-toggle" aria-label="集計方法">
+        <div id="summaryModeToggle" class="summary-mode-toggle" aria-label="集計方法">
           <button id="summaryModeMonthly" class="summary-mode-btn active" type="button">月別</button>
           <button id="summaryModeSite" class="summary-mode-btn" type="button">現場別</button>
         </div>
@@ -6704,15 +6714,21 @@ function getContractBillingIncluded(siteId, month){
       text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」ボタンで、前日の現場・作業員・人工・早出・残業・現場経費を選択した日付へコピーできます。"
     },
     {
+      view:"summary",
+      target:"#summaryModeToggle",
+      title:"⑥ 集計を確認",
+      html:`<p><strong>「月別」</strong>では、選択した月の人工・人件費・経費・粗利を確認できます。</p><p><strong>「現場別」</strong>では、1つの現場を月をまたいで集計し、人工・人件費・現場経費・売上・粗利・粗利率を確認できます。請負現場では請負金額も表示されます。</p><p>現場別のカレンダーは上下にスクロールでき、日付を押すとその日の人工・経費などの詳細を確認できます。</p>`
+    },
+    {
       view:"invoice",
       target:"#makeInvoiceBtn",
-      title:"⑥ 締め日に請求書を作成",
+      title:"⑦ 締め日に請求書を作成",
       text:"元請け会社と請求月を選ぶと、入力した人工から請求書を作成できます。作成後はPDF保存・印刷ができます。"
     },
     {
       view:"invoice",
       target:"#invoiceAlertBtn",
-      title:"⑦ 請求書の作り忘れを防止",
+      title:"⑧ 請求書の作り忘れを防止",
       html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
     }
   ];
@@ -6793,8 +6809,14 @@ function getContractBillingIncluded(siteId, month){
     if(!step) return;
 
     clearTutorialHighlight();
-    setTutorialInvoiceAlert(tutorialIndex === 6);
+    setTutorialInvoiceAlert(tutorialIndex === 7);
     activateViewForTutorial(step.view);
+
+    // 集計ステップは月別 / 現場別の切替そのものを説明するため、
+    // まず月別表示に戻して2つの切替ボタンが分かりやすい状態にする。
+    if(step.view === "summary" && typeof setSummaryMode === "function"){
+      setSummaryMode("monthly");
+    }
 
     const tutorialNav = document.querySelector("nav");
     if(tutorialNav) tutorialNav.classList.add("tutorial-nav-front");
@@ -6804,7 +6826,7 @@ function getContractBillingIncluded(siteId, month){
 
     const tutorialCard = $("tutorialCard");
     if(tutorialCard){
-      tutorialCard.classList.toggle("step7-full", tutorialIndex === 6);
+      tutorialCard.classList.toggle("step7-full", tutorialIndex === 7);
     }
 
     $("tutorialStep").textContent = `${tutorialIndex + 1} / ${tutorialSteps.length}`;
