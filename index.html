@@ -1860,6 +1860,90 @@
   }
   @media (min-width:700px){ .tutorial-card{ bottom:28px; } }
 
+
+    /* iPhone / iOS Safari: アプリ上部のブランドヘッダーを非表示 */
+    @supports (-webkit-touch-callout: none){
+      @media (max-width:600px){
+        header{display:none !important;}
+      }
+    }
+
+
+  .help-overlay{
+    position:fixed;
+    inset:0;
+    z-index:10020;
+    background:var(--bg);
+    display:none;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .help-overlay.active{display:block;}
+  .help-header{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:#fff;
+    border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .help-header h2{
+    margin:0;
+    font-size:18px;
+    flex:1;
+  }
+  .help-close{
+    width:auto;
+    min-height:40px;
+    margin:0;
+    padding:8px 14px;
+    border-radius:10px;
+  }
+  .help-content{
+    max-width:720px;
+    margin:0 auto;
+    padding:14px 14px calc(40px + env(safe-area-inset-bottom));
+  }
+  .help-section{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px;
+    margin-bottom:12px;
+  }
+  .help-section h3{
+    margin:0 0 8px;
+    font-size:15px;
+  }
+  .help-section p{
+    margin:0;
+    font-size:13px;
+    line-height:1.7;
+    color:#475569;
+  }
+  .help-section details{
+    border-top:1px solid var(--line);
+    padding:10px 0 0;
+    margin-top:10px;
+  }
+  .help-section details:first-of-type{
+    border-top:0;
+    padding-top:0;
+    margin-top:0;
+  }
+  .help-section summary{
+    cursor:pointer;
+    font-weight:700;
+    font-size:14px;
+    color:#0f172a;
+  }
+  .help-section details p{
+    margin-top:8px;
+  }
+
 </style>
 </head>
 <body>
@@ -2228,6 +2312,7 @@
             <button class="btn secondary" id="importDataBtn" type="button">バックアップから復元する</button>
           </div>
           <button class="btn secondary" id="startTutorialBtn" type="button" style="margin-top:10px">使い方チュートリアルを見る</button>
+          <button class="btn secondary" id="openHelpBtn" type="button" style="margin-top:10px">ヘルプ・使い方</button>
           <div class="helper" style="margin-top:8px">
             復元すると、現在の会社データがバックアップの内容に置き換わり、クラウドにも反映されます。
           </div>
@@ -2245,6 +2330,90 @@
     <button data-view="invoice"><span class="nav-icon">🧾</span><span>請求</span></button>
   </nav>
 
+
+
+<div id="helpOverlay" class="help-overlay" aria-hidden="true">
+  <div class="help-header">
+    <h2>ヘルプ・使い方</h2>
+    <button class="btn secondary help-close" id="closeHelpBtn" type="button">閉じる</button>
+  </div>
+
+  <div class="help-content">
+    <section class="help-section">
+      <h3>人工帖の基本的な流れ</h3>
+      <p>元請け会社 → 現場 → 所属会社・作業員を登録したあと、毎日の人工を入力します。締め日になったら請求画面から請求書を作成できます。</p>
+      <button class="btn" id="helpStartTutorialBtn" type="button">使い方チュートリアルを見る</button>
+    </section>
+
+    <section class="help-section">
+      <h3>基本操作</h3>
+
+      <details>
+        <summary>元請け会社を登録する</summary>
+        <p>「現場」タブの元請け会社登録から、会社名・基本人工単価・締め日・支払日などを登録します。請求書はここで登録した元請け会社ごとに作成されます。</p>
+      </details>
+
+      <details>
+        <summary>現場を登録する</summary>
+        <p>「現場」タブの現場登録から、現場名・元請け会社・契約区分を登録します。請負の場合は請負金額も設定できます。</p>
+      </details>
+
+      <details>
+        <summary>所属会社・作業員を登録する</summary>
+        <p>「作業員」タブで所属会社を先に登録し、そのあと作業員を追加します。作業員ごとの例外単価や早出・残業単価も設定できます。</p>
+      </details>
+
+      <details>
+        <summary>毎日の人工を入力する</summary>
+        <p>「入力」タブで日付・現場・メンバーを選び、人工を登録します。現場経費、早出、残業も同じ画面から入力できます。</p>
+      </details>
+
+      <details>
+        <summary>請求書を作成する</summary>
+        <p>「請求」タブで請求月と元請け会社を選び、「請求書を作成」を押します。請負現場は出来高率を設定して請求できます。</p>
+      </details>
+    </section>
+
+    <section class="help-section">
+      <h3>よくある質問</h3>
+
+      <details>
+        <summary>入力したデータはどこに保存されますか？</summary>
+        <p>ログイン中の会社データはクラウドに自動保存されます。同じアカウントでログインすれば、別の端末からも利用できます。</p>
+      </details>
+
+      <details>
+        <summary>バックアップは必要ですか？</summary>
+        <p>通常はクラウドへ自動保存されるため必須ではありません。念のため手元に残したい場合は、「設定・バックアップ」からJSON形式で書き出せます。</p>
+      </details>
+
+      <details>
+        <summary>バックアップから復元するとどうなりますか？</summary>
+        <p>現在の会社データが、バックアップファイルの内容に置き換わります。復元内容はクラウドにも反映されるため、実行前に内容を確認してください。</p>
+      </details>
+
+      <details>
+        <summary>請求書に人工が表示されません</summary>
+        <p>請求月・元請け会社・現場の紐づけ、人工入力の日付を確認してください。請負現場の場合は、その月の出来高率も確認してください。</p>
+      </details>
+
+      <details>
+        <summary>ログインできません</summary>
+        <p>メールアドレスとパスワードを確認してください。新規登録直後の場合は、確認メール内のリンクからメールアドレス認証が完了しているか確認してください。</p>
+      </details>
+
+      <details>
+        <summary>クラウド保存が「保存エラー」になります</summary>
+        <p>通信状態を確認して、少し時間を置いてからもう一度操作してください。改善しない場合は、いったん画面を再読み込みして再ログインしてください。</p>
+      </details>
+    </section>
+
+    <section class="help-section">
+      <h3>困ったとき</h3>
+      <p>操作で迷った場合は、まず上の「使い方チュートリアル」を確認してください。お問い合わせ窓口は今後ここに追加できます。</p>
+    </section>
+  </div>
+</div>
 
 <div id="tutorialOverlay" class="tutorial-overlay" aria-hidden="true">
   <div class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
@@ -4469,6 +4638,31 @@ function getContractBillingIncluded(siteId, month){
 
 
 
+
+
+  function openHelp(){
+    const overlay = $("helpOverlay");
+    if(!overlay) return;
+    overlay.classList.add("active");
+    overlay.setAttribute("aria-hidden","false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeHelp(){
+    const overlay = $("helpOverlay");
+    if(!overlay) return;
+    overlay.classList.remove("active");
+    overlay.setAttribute("aria-hidden","true");
+    document.body.style.overflow = "";
+  }
+
+  $("openHelpBtn")?.addEventListener("click", openHelp);
+  $("closeHelpBtn")?.addEventListener("click", closeHelp);
+
+  $("helpStartTutorialBtn")?.addEventListener("click", ()=>{
+    closeHelp();
+    setTimeout(()=>startTutorial(true), 100);
+  });
 
   const TUTORIAL_SEEN_KEY = "jinkou_tutorial_seen_v1";
   let tutorialIndex = 0;
