@@ -4023,8 +4023,12 @@
       const current = select.value;
       const clients = sortByRecent(state.clients, "siteClient", x=>x.id);
       const opts = clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
-      select.innerHTML = `<option value="">未選択</option>` + opts;
-      if(current && clients.some(c=>c.id===current)){
+      select.innerHTML =
+        `<option value="">未選択</option>` +
+        `<option value="${SELF_COMPANY_CLIENT_ID}">自社</option>` +
+        opts;
+
+      if(current === SELF_COMPANY_CLIENT_ID || clients.some(c=>c.id===current)){
         select.value = current;
       }
     }
