@@ -2290,7 +2290,7 @@
         <input id="companyStampFile" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
         <div class="helper">JPG / PNG / PDF対応。PDFは1ページ目を社印として使用します。</div>
         <button class="btn secondary" id="generateCompanyStampBtn" type="button" style="margin-top:10px">会社名から社印を作成</button>
-        <div class="helper">入力中の会社名を全文入れた、請求書用の簡易角印を自動作成します。</div>
+        <div class="helper">会社名を全文入れ、右上から縦書きで左へ進む角印を自動作成します。</div>
         <div id="companyStampPreview" class="stamp-settings-preview" style="display:none">
           <img id="companyStampPreviewImage" alt="社印プレビュー">
           <button class="btn secondary" id="removeCompanyStampBtn" type="button">社印を削除</button>
@@ -3802,33 +3802,36 @@ function renderCompanyInfoForm(){
 
 
 
-  function splitCompanyNameForStamp(name){
-    const chars = Array.from(String(name || "").trim());
-    const n = chars.length;
-    if(n <= 4) return [chars.join("")];
-    if(n <= 10){
-      const cut = Math.ceil(n / 2);
-      return [chars.slice(0, cut).join(""), chars.slice(cut).join("")];
-    }
-    if(n <= 18){
-      const lineCount = 3;
-      const base = Math.ceil(n / lineCount);
-      const lines = [];
-      for(let i=0;i<n;i+=base) lines.push(chars.slice(i, i+base).join(""));
-      return lines.slice(0,3);
-    }
 
-    // 長い会社名は4行に分け、全文を必ず収める
-    const lineCount = 4;
-    const base = Math.ceil(n / lineCount);
-    const lines = [];
-    for(let i=0;i<n;i+=base) lines.push(chars.slice(i, i+base).join(""));
-    return lines.slice(0,4);
+  function roundedRectPath(ctx, x, y, w, h, r){
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  function stampGridSize(charCount){
+    if(charCount <= 3){
+      return {rows:Math.max(1, charCount), cols:1};
+    }
+    const side = Math.ceil(Math.sqrt(charCount));
+    return {rows:side, cols:side};
   }
 
   function generateCompanyStampDataUrl(companyName){
     const name = String(companyName || "").trim();
     if(!name) throw new Error("先に自社情報の会社名を入力してください");
+
+    const chars = Array.from(name.replace(/\s+/g, ""));
+    if(!chars.length) throw new Error("会社名を入力してください");
 
     const size = 720;
     const canvas = document.createElement("canvas");
@@ -3840,56 +3843,60 @@ function renderCompanyInfoForm(){
     const red = "#c91520";
     const center = size / 2;
 
-    // 外枠・内枠（角印）
+    // 角を少し丸めた角印
     ctx.strokeStyle = red;
-    ctx.lineCap = "square";
-    ctx.lineJoin = "miter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 
     ctx.lineWidth = 28;
-    ctx.strokeRect(58, 58, 604, 604);
+    roundedRectPath(ctx, 58, 58, 604, 604, 34);
+    ctx.stroke();
 
     ctx.lineWidth = 10;
-    ctx.strokeRect(94, 94, 532, 532);
+    roundedRectPath(ctx, 94, 94, 532, 532, 24);
+    ctx.stroke();
 
-    const lines = splitCompanyNameForStamp(name);
-    const maxTextWidth = 455;
-    const totalTextHeight = 430;
+    const {rows, cols} = stampGridSize(chars.length);
 
-    // 行数に応じた初期サイズから、全文が円内に収まるまで縮小
-    let fontSize = lines.length === 1 ? 180 :
-                   lines.length === 2 ? 142 :
-                   lines.length === 3 ? 105 : 82;
+    // 内枠の中に均等配置
+    const boxX = 118;
+    const boxY = 118;
+    const boxW = 484;
+    const boxH = 484;
+    const cellW = boxW / cols;
+    const cellH = boxH / rows;
+
+    let fontSize = Math.floor(Math.min(cellW, cellH) * 0.76);
+    fontSize = Math.max(44, Math.min(fontSize, 180));
 
     const fontStack = '"Hiragino Mincho ProN","Yu Mincho","YuMincho","HGS明朝E",serif';
+    ctx.fillStyle = red;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = red;
+    ctx.font = `900 ${fontSize}px ${fontStack}`;
 
-    function setFont(px){
-      ctx.font = `900 ${px}px ${fontStack}`;
-    }
+    // 右上から下へ。1列終わったら左の列へ進む。
+    chars.forEach((char, index)=>{
+      const colFromRight = Math.floor(index / rows);
+      const row = index % rows;
+      const col = cols - 1 - colFromRight;
 
-    setFont(fontSize);
-    while(fontSize > 42){
-      const widest = Math.max(...lines.map(line=>ctx.measureText(line).width));
-      const lineHeight = fontSize * 1.08;
-      const blockHeight = lineHeight * lines.length;
-      if(widest <= maxTextWidth && blockHeight <= totalTextHeight) break;
-      fontSize -= 2;
-      setFont(fontSize);
-    }
+      if(col < 0) return;
 
-    const lineHeight = fontSize * 1.08;
-    const startY = center - ((lines.length - 1) * lineHeight) / 2;
+      const x = boxX + cellW * (col + 0.5);
+      const y = boxY + cellH * (row + 0.5);
 
-    // 印影らしく、文字を少しだけ横方向に詰める
-    lines.forEach((line, index)=>{
       ctx.save();
-      ctx.translate(center, startY + index * lineHeight);
-      const width = ctx.measureText(line).width;
-      const squeeze = width > maxTextWidth ? maxTextWidth / width : 1;
-      ctx.scale(squeeze, 1);
-      ctx.fillText(line, 0, 0);
+
+      // セル内に収まるように文字だけ少し縮小
+      const measured = ctx.measureText(char);
+      const charWidth = Math.max(1, measured.width);
+      const maxW = cellW * 0.78;
+      const scaleX = Math.min(1, maxW / charWidth);
+
+      ctx.translate(x, y);
+      ctx.scale(scaleX, 1);
+      ctx.fillText(char, 0, 0);
       ctx.restore();
     });
 
@@ -3898,6 +3905,15 @@ function renderCompanyInfoForm(){
 
   function createCompanyStampFromName(){
     const companyName = $("companyInfoName")?.value.trim() || state.companyInfo?.name || "";
+
+    // iPhone Safariで入力欄/キーボードが開きっぱなしにならないよう、
+    // 社印作成前にフォーカスを確実に外す。
+    dismissKeyboard();
+    try{
+      document.activeElement?.blur?.();
+      $("companyInfoName")?.blur?.();
+    }catch(e){}
+
     try{
       const dataUrl = generateCompanyStampDataUrl(companyName);
       state.companyInfo.stampDataUrl = dataUrl;
@@ -3905,8 +3921,16 @@ function renderCompanyInfoForm(){
       save();
       renderCompanyStampPreview();
       renderInvoice();
+
+      // 描画後にも再度フォーカスを外して、iOSのキーボード残留を防ぐ。
+      setTimeout(()=>{
+        dismissKeyboard();
+        try{ document.activeElement?.blur?.(); }catch(e){}
+      }, 50);
+
       alert("会社名から角印を作成しました");
     }catch(err){
+      dismissKeyboard();
       alert(err?.message || "社印を作成できませんでした");
     }
   }
