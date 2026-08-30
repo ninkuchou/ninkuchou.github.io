@@ -4669,7 +4669,7 @@ function getContractBillingIncluded(siteId, month){
       if(r.contractType==="請負"){
         detailRows.push(`
           <tr class="site-row">
-            <td class="date">${period.end.slice(5).replace("-","月")}日</td>
+            <td class="date">${Number(period.end.slice(5,7))}月${Number(period.end.slice(8,10))}日</td>
             <td class="desc">${escapeHtml(r.site.name)}</td>
             <td class="qty"></td>
             <td class="unit"></td>
