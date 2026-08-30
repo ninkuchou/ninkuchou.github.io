@@ -2185,9 +2185,8 @@
     padding:8px 9px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap
   }
   .invoice-check-done{
-    min-width:72px;height:34px;padding:0 8px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:800;color:#16a34a;
-    white-space:nowrap
+    width:34px;height:34px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;
+    display:grid;place-items:center;cursor:pointer;font-size:17px;color:#16a34a
   }
   .invoice-check-empty{
     padding:12px;border-radius:12px;background:#f8fafc;color:#64748b;
@@ -2207,7 +2206,6 @@
     .invoice-check-main{align-items:flex-start}
     .invoice-check-actions{gap:5px}
     .invoice-check-create{padding:8px 7px}
-    .invoice-check-done{min-width:66px;padding:0 6px;font-size:10px}
   }
 
 
@@ -2847,7 +2845,7 @@
           <h2>請求チェック</h2>
           <span id="invoiceChecklistCount" class="invoice-check-count">0</span>
         </div>
-        <div class="invoice-check-copy">締め日が来た請求を表示します。請求書を作成したら「✓ 作成済み」を押すと完了扱いになります。</div>
+        <div class="invoice-check-copy">締め日が来た請求を表示します。請求書を作成したら「✓」を押すと作成済みとして完了扱いになります。</div>
         <div id="invoiceChecklistList" class="invoice-check-list"></div>
         <button id="invoiceChecklistHistoryToggle" class="invoice-check-history-toggle" type="button">作成済みを表示</button>
         <div id="invoiceChecklistHistory" class="invoice-check-history"></div>
@@ -5841,7 +5839,7 @@ function getContractBillingIncluded(siteId, month){
       view:"invoice",
       target:"#invoiceAlertBtn",
       title:"⑦ 請求書の作り忘れを防止",
-      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓ 作成済み」を押して、完了扱いにしてください。</p>`
+      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
     }
   ];
 
@@ -6964,7 +6962,7 @@ function getContractBillingIncluded(siteId, month){
                 data-invoice-month="${item.month}">請求書を作成</button>
               <button class="invoice-check-done" type="button"
                 data-invoice-done="${item.key}"
-                aria-label="${escapeHtml(item.client.name)} ${Number(monthNumber)}月分を作成済みにする">✓ 作成済み</button>
+                aria-label="${escapeHtml(item.client.name)} ${Number(monthNumber)}月分を作成済みにする">✓</button>
             </div>
           </div>
         </div>`;
