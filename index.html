@@ -2411,6 +2411,32 @@
     transform:scale(1.15);
   }
 
+
+  /* チュートリアル中の該当タブを暗幕より前に出して明るく表示 */
+  .tutorial-tab-highlight{
+    position:relative !important;
+    z-index:10006 !important;
+    background:#ffffff !important;
+    color:#0f3d73 !important;
+    opacity:1 !important;
+    filter:none !important;
+    box-shadow:
+      0 0 0 4px rgba(255,255,255,.98),
+      0 0 0 8px rgba(37,99,235,.95),
+      0 8px 24px rgba(15,23,42,.22) !important;
+    outline:none !important;
+    border-radius:14px !important;
+  }
+  .tutorial-tab-highlight .nav-icon,
+  .tutorial-tab-highlight span{
+    color:#0f3d73 !important;
+    opacity:1 !important;
+    filter:none !important;
+  }
+  .tutorial-tab-highlight .nav-icon{
+    transform:scale(1.18);
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -2544,6 +2570,7 @@
         <label>元請け会社</label>
         <select id="siteClient">
           <option value="__self_company__">自社</option></select>
+        <div class="helper">元請け会社は請求先です。「自社」を選択した現場は請求書の対象になりません。</div>
 
         <label>契約区分</label>
         <select id="siteContractType">
@@ -2639,6 +2666,7 @@
     <section id="view-workers" class="view">
       <div class="card">
         <h2>所属会社登録</h2>
+        <div class="helper" style="margin-bottom:10px">所属会社は作業員が所属する会社です。自社・協力会社などを登録してください。</div>
         <label>会社名</label>
         <input id="workerCompanyName" placeholder="例：自社 / ○○興業">
         <label>基本支払人工単価</label>
@@ -2656,6 +2684,7 @@
         <input id="workerName" placeholder="例：田中">
         <label>所属会社</label>
         <select id="workerCompany"></select>
+        <div class="helper">この作業員が所属する自社・協力会社などを選択してください。</div>
         <label>作業員別の例外単価（任意）</label>
         <input id="workerRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら所属会社の基本単価">
 
@@ -2900,10 +2929,6 @@
         <p>「請求」タブで請求月と元請け会社を選び、「請求書を作成」を押します。請負現場は出来高率を設定して請求できます。</p>
       </details>
 
-      <details>
-        <summary>請求書の作り忘れを防ぐ</summary>
-        <p>締め日が来た請求があると、画面上部に請求通知アイコンが表示されます。通知を押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して作成済みにしてください。</p>
-      </details>
     </section>
 
     <section class="help-section">
@@ -5649,19 +5674,19 @@ function getContractBillingIncluded(siteId, month){
       view:"sites",
       target:"#clientName",
       title:"① 元請け会社を登録",
-      text:"まずは取引先の元請け会社を登録します。会社名・基本人工単価・締め日などを入力してください。"
+      text:"元請け会社は請求先です。まずは取引先の会社名・基本人工単価・締め日などを登録してください。"
     },
     {
       view:"sites",
       target:"#siteName",
       title:"② 現場を登録",
-      text:"次に現場を登録して、元請け会社と紐づけます。常用・請負の契約区分もここで設定できます。"
+      text:"次に現場を登録して、元請け会社と紐づけます。自社案件の場合は元請け会社で「自社」を選択してください。自社を選んだ現場は請求書の対象になりません。常用・請負の契約区分もここで設定できます。"
     },
     {
       view:"workers",
       target:"#workerCompanyName",
       title:"③ 所属会社を登録",
-      text:"作業員の所属会社を、自社・協力会社などで登録してください。登録した所属会社は、作業員登録時に選択できます。"
+      text:"所属会社は作業員が所属する会社です。自社・協力会社などを登録してください。元請け会社（請求先）とは別の項目です。登録した所属会社は、作業員登録時に選択できます。"
     },
     {
       view:"workers",
