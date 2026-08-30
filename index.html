@@ -2956,6 +2956,41 @@
   .site-profit-cell.gross b.positive{ color:#15803d; }
   .site-profit-cell.gross b.negative{ color:#b91c1c; }
 
+
+
+  .site-calendar-scroll{
+    max-height:620px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-right:2px;
+  }
+  .site-calendar-month{
+    padding:2px 0 18px;
+    border-bottom:1px solid #e2e8f0;
+    margin-bottom:16px;
+  }
+  .site-calendar-month:last-child{
+    border-bottom:0;
+    margin-bottom:0;
+    padding-bottom:2px;
+  }
+  .site-calendar-month-title{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:#fff;
+    padding:6px 0 8px;
+    font-size:14px;
+    font-weight:900;
+    color:#0f172a;
+  }
+  .site-calendar-empty{
+    color:#94a3b8;
+    font-size:12px;
+    padding:12px 0;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3259,7 +3294,7 @@
 
       <div id="monthlySummaryDetails">
         <div class="card">
-          <h2>月間カレンダー</h2>
+          <h2 id="summaryCalendarTitle">月間カレンダー</h2>
           <div id="summaryCalendar"></div>
         </div>
 
@@ -3665,19 +3700,30 @@
     try{
       const active = document.activeElement;
       if(active && typeof active.blur === "function") active.blur();
-      document.querySelectorAll("input, textarea, select").forEach(el=>{
-        if(el === document.activeElement && typeof el.blur === "function") el.blur();
-      });
+
+      // iOS Safariでnumber/selectの入力UIが残る場合があるため、
+      // 一時的にbodyへフォーカスを移してから即座に解除する。
+      const hadTabindex = document.body.hasAttribute("tabindex");
+      const oldTabindex = document.body.getAttribute("tabindex");
       document.body.setAttribute("tabindex","-1");
       document.body.focus({preventScroll:true});
+      document.body.blur();
+
+      if(hadTabindex){
+        document.body.setAttribute("tabindex", oldTabindex ?? "");
+      }else{
+        document.body.removeAttribute("tabindex");
+      }
     }catch(e){}
+
     setTimeout(()=>{
       try{
-        if(document.activeElement && typeof document.activeElement.blur === "function"){
-          document.activeElement.blur();
+        const active = document.activeElement;
+        if(active && active !== document.body && typeof active.blur === "function"){
+          active.blur();
         }
       }catch(e){}
-    }, 100);
+    }, 120);
   }
 
   function finishRegistration(message){
@@ -4022,7 +4068,7 @@
       $("summaryMonthWrap").style.display = summaryMode === "monthly" ? "" : "none";
     }
     if($("monthlySummaryDetails")){
-      $("monthlySummaryDetails").style.display = summaryMode === "monthly" ? "" : "none";
+      $("monthlySummaryDetails").style.display = "";
     }
     if($("siteLifetimeSummary")){
       $("siteLifetimeSummary").classList.toggle("active", summaryMode === "site");
@@ -4030,9 +4076,12 @@
     if($("summaryModeHint")){
       $("summaryModeHint").textContent = summaryMode === "monthly"
         ? "選択した月の人工・経費・粗利を集計します。"
-        : "月をまたいで、現場の開始から現在までの人工・経費・売上・粗利を集計します。";
+        : "選択した現場を月をまたいで集計します。下のカレンダーをスクロールして、日付を押すとその日の詳細を確認できます。";
     }
 
+    // モードに合わせて現場選択肢を切り替える。
+    // 月別＝「すべての現場」あり / 現場別＝1現場のみ。
+    renderCoreSelects();
     renderSummary();
   }
 
@@ -4495,21 +4544,36 @@
       });
     }
 
+    // iPhone Safariでは、入力欄にフォーカスが残ったままalertを出すと
+    // 数値入力UIが画面上に残って操作不能になることがあるため、
+    // 先に確実にフォーカスを外してから完了メッセージを表示する。
+    dismissKeyboard();
+
     save();
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
     $("siteDayExpense").value="";
     if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
     $("siteDayExpenseMemo").value="";
-    dismissKeyboard();
     renderRecent();
     renderSummary();
+
+    let completeMessage = "";
     if(checked.length && (siteExpense > 0 || siteExpenseMemo)){
-      alert(checked.length + "人分＋現場経費を登録・更新しました");
+      completeMessage = checked.length + "人分＋現場経費を登録・更新しました";
     }else if(checked.length){
-      alert(checked.length + "人分を登録・更新しました");
+      completeMessage = checked.length + "人分を登録・更新しました";
     }else{
-      alert("現場経費を登録しました");
+      completeMessage = "現場経費を登録しました";
     }
+
+    // visualViewport/キーボードが閉じる時間を確保してから表示。
+    requestAnimationFrame(()=>{
+      dismissKeyboard();
+      setTimeout(()=>{
+        dismissKeyboard();
+        alert(completeMessage);
+      }, 280);
+    });
   });
 
 
@@ -4586,9 +4650,27 @@
     }).join("");
     const summarySite = $("summarySite");
     if(summarySite){
-      const current = summarySite.value || "all";
-      summarySite.innerHTML = `<option value="all">すべての現場</option>` + summarySiteOptions;
-      if(current==="all" || summarySites.some(s=>s.id===current)) summarySite.value = current;
+      const current = summarySite.value || "";
+
+      if(summaryMode === "site"){
+        // 現場別モードでは「すべての現場」を表示しない。
+        summarySite.innerHTML = summarySiteOptions || `<option value="">現場を登録してください</option>`;
+
+        if(current && summarySites.some(s=>s.id===current)){
+          summarySite.value = current;
+        }else if(summarySites.length){
+          // 「すべての現場」から切り替えた場合などは、直近の現場を自動選択。
+          summarySite.value = summarySites[0].id;
+        }
+      }else{
+        summarySite.innerHTML = `<option value="all">すべての現場</option>` + summarySiteOptions;
+
+        if(current==="all" || summarySites.some(s=>s.id===current)){
+          summarySite.value = current || "all";
+        }else{
+          summarySite.value = "all";
+        }
+      }
     }
   }
 
@@ -4712,10 +4794,8 @@
   }
 
 
-  function renderCalendar(entries, month, siteFilter){
+  function calendarHtmlForMonth(entries, month, siteFilter){
     siteFilter = siteFilter || "all";
-    const box = $("summaryCalendar");
-    if(!box) return;
 
     const [year, mon] = month.split("-").map(Number);
     const first = new Date(year, mon-1, 1);
@@ -4733,9 +4813,6 @@
     for(let day=1; day<=lastDay; day++){
       const date = `${year}-${String(mon).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
       const dayEntries = entries.filter(e=>e.date===date);
-      const total = dayEntries.reduce((a,e)=>a+Number(e.jinko||0),0);
-      const daySharedExpenses = state.siteExpenses.filter(x=>x.date===date && (siteFilter==="all" || x.siteId===siteFilter));
-      const daySharedExpenseTotal = daySharedExpenses.reduce((a,x)=>a+Number(x.amount||0),0);
 
       const bySite = {};
       dayEntries.forEach(e=>{
@@ -4760,16 +4837,62 @@
         return `<span class="cal-client-tag" title="${escapeHtml(c?.name||"")}" style="background:${clientColor(c)}"></span>`;
       }).join("");
 
+      const dayExpenses = state.siteExpenses.filter(x=>
+        x.date===date && (siteFilter==="all" || x.siteId===siteFilter)
+      );
+      const expenseMark = dayExpenses.length
+        ? `<span class="cal-chip">経費 ${dayExpenses.length}件</span>`
+        : "";
+
       const more = siteRows.length > 3 ? `<div class="cal-more">ほか${siteRows.length-3}現場</div>` : "";
+
       cells += `
         <div class="cal-day" onclick="showDayDetail('${date}')">
           <div class="cal-date">${day}日</div>
           ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
-          ${chips}${more}
+          ${chips}${expenseMark}${more}
         </div>`;
     }
 
-    box.innerHTML = `<div class="calendar">${heads}${cells}</div>`;
+    return `<div class="calendar">${heads}${cells}</div>`;
+  }
+
+  function renderSiteScrollableCalendar(entries, siteFilter){
+    const box = $("summaryCalendar");
+    if(!box) return;
+
+    let expenses = state.siteExpenses;
+    if(siteFilter!=="all"){
+      expenses = expenses.filter(x=>x.siteId===siteFilter);
+    }
+
+    const months = [...new Set([
+      ...entries.map(e=>String(e.date||"").slice(0,7)),
+      ...expenses.map(x=>String(x.date||"").slice(0,7))
+    ].filter(m=>/^\d{4}-\d{2}$/.test(m)))].sort().reverse();
+
+    if(!months.length){
+      box.innerHTML = `<div class="site-calendar-empty">この現場の入力実績はありません。</div>`;
+      return;
+    }
+
+    box.innerHTML = `<div class="site-calendar-scroll">${
+      months.map(month=>{
+        const monthEntries = entries.filter(e=>e.date.startsWith(month));
+        const [y,m] = month.split("-").map(Number);
+        return `<section class="site-calendar-month">
+          <div class="site-calendar-month-title">${y}年${m}月</div>
+          ${calendarHtmlForMonth(monthEntries, month, siteFilter)}
+        </section>`;
+      }).join("")
+    }</div>`;
+  }
+
+  function renderCalendar(entries, month, siteFilter){
+    siteFilter = siteFilter || "all";
+    const box = $("summaryCalendar");
+    if(!box) return;
+    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter);
   }
 
   
@@ -4924,10 +5047,10 @@ function showDayDetail(date){
   }
 
   function renderSiteLifetimeSummary(){
-    const siteFilter = $("summarySite")?.value || "all";
-    const targetSites = siteFilter === "all"
-      ? state.sites
-      : state.sites.filter(s=>s.id===siteFilter);
+    const siteFilter = $("summarySite")?.value || "";
+    const targetSites = siteFilter
+      ? state.sites.filter(s=>s.id===siteFilter)
+      : [];
 
     const stats = targetSites
       .map(siteLifetimeStats)
@@ -4954,7 +5077,7 @@ function showDayDetail(date){
       <div class="metric"><span>売上</span><b>${yen(revenue)}</b></div>
       <div class="metric"><span>粗利</span><b>${yen(gross)}</b></div>
       <div class="metric"><span>粗利率</span><b>${grossRate.toFixed(1)}%</b></div>
-      ${contractTotal > 0 ? `<div class="metric"><span>請負金額${siteFilter==="all" ? "合計" : ""}</span><b>${yen(contractTotal)}</b></div>` : ""}
+      ${contractTotal > 0 ? `<div class="metric"><span>請負金額</span><b>${yen(contractTotal)}</b></div>` : ""}
       <div class="metric"><span>早出 / 残業</span><b>${totalEarly.toFixed(1)}h / ${totalOvertime.toFixed(1)}h</b></div>
     `;
 
@@ -4992,25 +5115,37 @@ function showDayDetail(date){
     }
 
     return {
-      entries: state.entries.filter(e=>siteFilter==="all" || e.siteId===siteFilter)
+      entries: siteFilter
+        ? state.entries.filter(e=>e.siteId===siteFilter)
+        : []
     };
   }
 
   function renderSummary(){
-    const siteFilter = $("summarySite").value || "all";
+    const selectedSite = $("summarySite")?.value || "";
+    const siteFilter = summaryMode === "site" ? selectedSite : (selectedSite || "all");
 
     let entries = [];
 
     if(summaryMode === "site"){
       const result = renderSiteLifetimeSummary();
       entries = result.entries;
-      if($("monthlySummaryDetails")) $("monthlySummaryDetails").style.display = "none";
+
+      if($("monthlySummaryDetails")) $("monthlySummaryDetails").style.display = "";
       if($("siteLifetimeSummary")) $("siteLifetimeSummary").classList.add("active");
+      if($("summaryCalendarTitle")) $("summaryCalendarTitle").textContent = "現場カレンダー";
+
+      if(siteFilter){
+        renderSiteScrollableCalendar(entries, siteFilter);
+      }else if($("summaryCalendar")){
+        $("summaryCalendar").innerHTML = `<div class="site-calendar-empty">現場を登録してください。</div>`;
+      }
     }else{
       const month = $("summaryMonth").value || monthLocal();
       entries = state.entries.filter(e=>e.date.startsWith(month));
       if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
 
+      if($("summaryCalendarTitle")) $("summaryCalendarTitle").textContent = "月間カレンダー";
       renderCalendar(entries, month, siteFilter);
 
       const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
