@@ -6859,12 +6859,44 @@ function getContractBillingIncluded(siteId, month){
 })();
 
 
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(err => {
-        console.warn("Service Worker registration failed", err);
+  const devMode = new URLSearchParams(window.location.search).get("dev") === "1";
+
+  async function enableDevMode(){
+    try{
+      if("serviceWorker" in navigator){
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(reg => reg.unregister()));
+      }
+
+      if("caches" in window){
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+
+      const reloadKey = "jinkou_dev_mode_reloaded";
+      if(sessionStorage.getItem(reloadKey) !== "1"){
+        sessionStorage.setItem(reloadKey, "1");
+        const url = new URL(window.location.href);
+        url.searchParams.set("dev", "1");
+        url.searchParams.set("_dev", Date.now().toString());
+        window.location.replace(url.toString());
+      }
+    }catch(err){
+      console.warn("開発モードのキャッシュ解除に失敗しました", err);
+    }
+  }
+
+  if(devMode){
+    window.addEventListener("load", enableDevMode);
+  }else{
+    sessionStorage.removeItem("jinkou_dev_mode_reloaded");
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(err => {
+          console.warn("Service Worker registration failed", err);
+        });
       });
-    });
+    }
   }
 </script>
 </body>
