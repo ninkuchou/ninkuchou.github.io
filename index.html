@@ -5698,7 +5698,7 @@ function getContractBillingIncluded(siteId, month){
       view:"input",
       target:"#addBulkEntryBtn",
       title:"⑤ 毎日の人工を入力",
-      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」にチェックを入れて、入力ボタンを押すだけで登録できます。"
+      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」ボタンを押して前日の内容を反映し、そのまま入力ボタンを押すだけで登録できます。"
     },
     {
       view:"invoice",
@@ -6736,14 +6736,7 @@ function getContractBillingIncluded(siteId, month){
     }
 
     if(!pending.length){
-      list.innerHTML = `<div class="invoice-check-empty">現在、請求待ちはありません。</div>
-      <div class="tutorial-step">
-        <div class="tutorial-step-icon">🧾</div>
-        <div>
-          <strong>請求書の作り忘れを防止</strong>
-          <p>締め日が来た請求があると、画面上部に請求通知アイコンが表示されます。通知から請求タブを開き、請求書を作成したら「✓」で作成済みにしてください。</p>
-        </div>
-      </div>`;
+      list.innerHTML = `<div class="invoice-check-empty">現在、請求待ちはありません。</div>`;
     }else{
       list.innerHTML = pending.map(item=>{
         const [,monthNumber] = item.month.split("-");
