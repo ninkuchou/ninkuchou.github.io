@@ -2813,6 +2813,63 @@
     }
   }
 
+
+
+  /* ===== PDF複数ページ：ページ境界を安定化 ===== */
+  @media print{
+    /* 各請求ページを独立した印刷ブロックとして扱う */
+    #invoicePreview .invoice-page{
+      display:block !important;
+      position:relative !important;
+      width:100% !important;
+      margin:0 !important;
+      padding:0 !important;
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+    }
+
+    /* 最終ページ以外は必ずページ末尾で改ページ */
+    #invoicePreview .invoice-page:not(.invoice-page-last){
+      break-after:page !important;
+      page-break-after:always !important;
+    }
+
+    #invoicePreview .invoice-page.invoice-page-last{
+      break-after:auto !important;
+      page-break-after:auto !important;
+    }
+
+    /* 以前のbreak-before指定は使わない */
+    #invoicePreview .invoice-page + .invoice-page,
+    #invoicePreview .invoice-page-continuation{
+      break-before:auto !important;
+      page-break-before:auto !important;
+      margin-top:0 !important;
+    }
+
+    /* 続紙の帯は必ずそのページの先頭に置く */
+    #invoicePreview .invoice-page-continuation .invoice-paper-inner{
+      padding-top:0 !important;
+      margin-top:0 !important;
+    }
+
+    #invoicePreview .invoice-page-continuation .top-wine-bar{
+      margin-top:0 !important;
+      transform:none !important;
+    }
+
+    /* 途中ページの明細下端の太線を消す。
+       PDFで次ページの帯が前ページに出たように見えるのを防ぐ。 */
+    #invoicePreview .invoice-page:not(.invoice-page-last) .invoice-detail-table{
+      border-bottom:0 !important;
+    }
+
+    /* 最終ページだけ明細の下端線を残す */
+    #invoicePreview .invoice-page.invoice-page-last .invoice-detail-table{
+      border-bottom:4px solid var(--inv-wine) !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
