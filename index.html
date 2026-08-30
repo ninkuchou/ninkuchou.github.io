@@ -2782,6 +2782,37 @@
     }
   }
 
+
+
+  /* ===== 複数ページ請求書：2ページ目以降を必ず新しい用紙の先頭から開始 ===== */
+  @media print{
+    .invoice-page{
+      break-after:auto !important;
+      page-break-after:auto !important;
+    }
+
+    .invoice-page + .invoice-page,
+    .invoice-page-continuation{
+      break-before:page !important;
+      page-break-before:always !important;
+      margin-top:0 !important;
+    }
+
+    .invoice-page-continuation{
+      break-inside:avoid-page !important;
+      page-break-inside:avoid !important;
+    }
+
+    .invoice-page-continuation .invoice-paper-inner{
+      padding-top:16px !important;
+      margin-top:0 !important;
+    }
+
+    .invoice-page-continuation .top-wine-bar{
+      margin-top:0 !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
