@@ -1979,13 +1979,60 @@
       }
     }
 
+
+  .cloud-mobile-logo{
+    display:none;
+  }
+
+  @supports (-webkit-touch-callout: none){
+    @media (max-width:600px){
+      .cloud-account-bar{
+        position:relative;
+        min-height:42px;
+      }
+      .cloud-mobile-logo{
+        display:block;
+        position:absolute;
+        left:50%;
+        top:50%;
+        transform:translate(-50%,-50%);
+        width:min(34vw,138px);
+        height:auto;
+        max-height:30px;
+        object-fit:contain;
+        pointer-events:none;
+        z-index:1;
+      }
+      .cloud-account-bar > div,
+      .cloud-account-bar > button{
+        position:relative;
+        z-index:2;
+      }
+    }
+  }
+
+
+  .auth-logo-wordmark{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    margin-bottom:4px;
+  }
+  .auth-logo-wordmark img{
+    display:block;
+    width:min(230px,72%);
+    height:auto;
+    max-height:58px;
+    object-fit:contain;
+  }
+
 </style>
 </head>
 <body>
 
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card">
-      <div class="auth-logo">人工帖</div>
+      <div class="auth-logo auth-logo-wordmark"><img src="jinkoucho_wordmark.png" alt="人工帖"></div>
       <div class="auth-copy">人工・現場・請求をかんたん管理</div>
 
       <div class="auth-tabs">
@@ -2021,6 +2068,7 @@
       <span id="cloudCompanyName" class="cloud-company-name"></span>
       <span id="cloudSyncStatus" class="cloud-sync-status">クラウド接続中</span>
     </div>
+    <img class="cloud-mobile-logo" src="jinkoucho_wordmark.png" alt="人工帖">
     <button id="logoutBtn" type="button">ログアウト</button>
   </div>
 
