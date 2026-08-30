@@ -2515,6 +2515,26 @@
     overflow:visible !important;
   }
 
+
+  .tutorial-card{
+    --tutorial-safe-bottom:92px;
+    --tutorial-safe-top:14px;
+  }
+
+  .tutorial-card.bottom{
+    top:auto !important;
+    bottom:var(--tutorial-safe-bottom) !important;
+  }
+
+  .tutorial-card.top{
+    top:var(--tutorial-safe-top) !important;
+    bottom:auto !important;
+  }
+
+  .tutorial-card.step7-full{
+    overflow:visible !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -5838,19 +5858,52 @@ function getContractBillingIncluded(siteId, month){
   function positionTutorialCard(target){
     const card = $("tutorialCard");
     if(!card) return;
+
+    const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+    const nav = document.querySelector("nav");
+    const navRect = nav ? nav.getBoundingClientRect() : null;
+
+    // 下部タブの上端から十分に余白を取る。
+    // ブラウザUIや端末サイズが変わっても、説明カードがタブに重ならないようにする。
+    const navTop = navRect && navRect.top > 0 ? navRect.top : viewportH - 88;
+    const safeBottom = Math.max(16, viewportH - navTop + 16);
+    const safeTop = 14;
+
+    card.style.setProperty("--tutorial-safe-bottom", `${safeBottom}px`);
+    card.style.setProperty("--tutorial-safe-top", `${safeTop}px`);
+
     card.classList.remove("top","bottom");
 
-    if(!target){
+    const rect = target ? target.getBoundingClientRect() : null;
+    const cardHeight = card.offsetHeight || 0;
+
+    const availableBottomHeight = Math.max(120, navTop - 24);
+    const availableTopHeight = Math.max(120, navTop - safeTop - 16);
+
+    if(!card.classList.contains("step7-full")){
+      card.style.maxHeight = `${Math.max(160, Math.min(360, availableTopHeight))}px`;
+      card.style.overflow = "auto";
+    }else{
+      card.style.maxHeight = "none";
+      card.style.overflow = "visible";
+    }
+
+    if(!rect){
       card.classList.add("bottom");
       return;
     }
 
-    const rect = target.getBoundingClientRect();
-    const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
-    const cardHeight = card.offsetHeight || 0;
-    const spaceAbove = rect.top;
-    const spaceBelow = viewportH - rect.bottom;
-    const placeTop = rect.top > viewportH * 0.42 || (spaceBelow < cardHeight + 24 && spaceAbove > spaceBelow);
+    const spaceAbove = rect.top - safeTop;
+    const spaceBelow = navTop - rect.bottom - 20;
+
+    // 対象が画面下側にある、または下側の空きが少ない場合は説明を上へ。
+    // それ以外は下部タブのすぐ上に配置する。
+    let placeTop = rect.top > navTop * 0.46 || (spaceBelow < cardHeight + 24 && spaceAbove > spaceBelow);
+
+    // ⑦のような大きい説明は、下部タブに近づきすぎる場合は必ず上側へ。
+    if(card.classList.contains("step7-full") && cardHeight + 40 > navTop - safeBottom){
+      placeTop = true;
+    }
 
     card.classList.add(placeTop ? "top" : "bottom");
   }
@@ -5893,6 +5946,23 @@ function getContractBillingIncluded(siteId, month){
       setTimeout(()=>positionTutorialCard(target), 180);
     }, 120);
   }
+
+
+  function refreshTutorialPosition(){
+    if(!tutorialActive) return;
+    const step = tutorialSteps[tutorialIndex];
+    if(!step) return;
+    const target = document.querySelector(step.target);
+    positionTutorialCard(target);
+  }
+
+  window.addEventListener("resize", ()=>{
+    if(tutorialActive) setTimeout(refreshTutorialPosition, 50);
+  });
+
+  window.addEventListener("orientationchange", ()=>{
+    if(tutorialActive) setTimeout(refreshTutorialPosition, 180);
+  });
 
   function startTutorial(force=false){
     if(tutorialActive) return;
