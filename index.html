@@ -2701,6 +2701,68 @@
     .excel-template .payment-value{ justify-content:center !important; }
   }
 
+
+
+  /* ===== PDF印刷：空白2ページ目防止 =====
+     画面上では下段2ボックスの高さを揃えたまま、
+     印刷時だけ余計な固定高さを外してA4内に収める。
+  */
+  @media print{
+    html, body{
+      height:auto !important;
+      min-height:0 !important;
+      overflow:visible !important;
+    }
+
+    .invoice-page-first.invoice-page-last{
+      break-after:auto !important;
+      page-break-after:auto !important;
+      break-inside:avoid-page !important;
+      page-break-inside:avoid !important;
+      overflow:hidden !important;
+    }
+
+    .invoice-page-first.invoice-page-last .invoice-paper-inner{
+      padding-bottom:0 !important;
+      margin-bottom:0 !important;
+    }
+
+    .excel-template .invoice-bottom-second-row{
+      align-items:stretch !important;
+      margin-bottom:0 !important;
+    }
+
+    .excel-template .invoice-bottom-second-row > div:first-child,
+    .excel-template .invoice-bottom-second-row > .invoice-payment-box,
+    .excel-template .invoice-bank,
+    .excel-template .invoice-payment-box{
+      min-height:0 !important;
+      height:auto !important;
+      align-self:stretch !important;
+    }
+
+    .excel-template .invoice-bank,
+    .excel-template .invoice-payment-box{
+      display:flex !important;
+      flex-direction:column !important;
+    }
+
+    .excel-template .bank-title,
+    .excel-template .payment-title{
+      height:22px !important;
+      min-height:22px !important;
+      flex:0 0 22px !important;
+    }
+
+    .excel-template .bank-body,
+    .excel-template .payment-value{
+      min-height:26px !important;
+      flex:1 1 auto !important;
+      padding-top:2px !important;
+      padding-bottom:2px !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
