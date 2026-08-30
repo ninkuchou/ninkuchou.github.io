@@ -2075,25 +2075,108 @@
   }
 
 
+  /* 上部アカウントバー：会社名の下に保存状態、ロゴは画面中央 */
+  .cloud-account-bar{
+    position:relative !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    min-height:50px !important;
+  }
+  .cloud-account-info{
+    min-width:0 !important;
+    max-width:38% !important;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:flex-start !important;
+    justify-content:center !important;
+    gap:3px !important;
+    overflow:hidden !important;
+  }
+  .cloud-company-name{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    flex:none !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  .cloud-sync-status{
+    display:block !important;
+    flex:none !important;
+    margin:0 !important;
+    font-size:10px !important;
+    line-height:1.2 !important;
+    white-space:nowrap !important;
+  }
+  .cloud-mobile-logo{
+    position:absolute !important;
+    left:50% !important;
+    top:50% !important;
+    transform:translate(-50%,-50%) !important;
+    justify-self:auto !important;
+    margin:0 !important;
+    z-index:1;
+  }
+  #logoutBtn{
+    margin-left:auto !important;
+    position:relative;
+    z-index:2;
+  }
+  @media (max-width:600px){
+    .cloud-account-bar{min-height:54px !important}
+    .cloud-account-info{max-width:36% !important}
+    .cloud-mobile-logo{width:min(34vw,138px) !important;max-height:30px !important}
+  }
+
+  /* 請求チェック */
   .invoice-check-card{border-top:5px solid #7c3aed !important}
   .invoice-check-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
   .invoice-check-head h2{margin:0;color:#6d28d9 !important}
-  .invoice-check-count{display:inline-flex;min-width:28px;height:28px;padding:0 8px;border-radius:999px;align-items:center;justify-content:center;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:800}
+  .invoice-check-count{
+    display:inline-flex;min-width:28px;height:28px;padding:0 8px;border-radius:999px;
+    align-items:center;justify-content:center;background:#ede9fe;color:#6d28d9;
+    font-size:12px;font-weight:800
+  }
   .invoice-check-copy{font-size:12px;color:#64748b;line-height:1.55;margin-bottom:10px}
   .invoice-check-list{display:grid;gap:8px}
   .invoice-check-item{border:1px solid #e2e8f0;border-radius:14px;padding:10px;background:#fff}
   .invoice-check-main{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .invoice-check-info{min-width:0}
-  .invoice-check-info strong{display:block;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .invoice-check-info strong{
+    display:block;font-size:13px;color:#0f172a;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis
+  }
   .invoice-check-info small{display:block;margin-top:3px;color:#64748b;font-size:11px}
   .invoice-check-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}
-  .invoice-check-create{border:0;border-radius:10px;background:#0f3d73;color:#fff;padding:8px 9px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
-  .invoice-check-done{width:34px;height:34px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;display:grid;place-items:center;cursor:pointer;font-size:17px;color:#16a34a}
-  .invoice-check-empty{padding:12px;border-radius:12px;background:#f8fafc;color:#64748b;font-size:12px;text-align:center}
-  .invoice-check-history-toggle{display:block;margin:9px auto 0;border:0;background:transparent;color:#64748b;text-decoration:underline;font-size:11px;cursor:pointer}
+  .invoice-check-create{
+    border:0;border-radius:10px;background:#0f3d73;color:#fff;
+    padding:8px 9px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap
+  }
+  .invoice-check-done{
+    width:34px;height:34px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;
+    display:grid;place-items:center;cursor:pointer;font-size:17px;color:#16a34a
+  }
+  .invoice-check-empty{
+    padding:12px;border-radius:12px;background:#f8fafc;color:#64748b;
+    font-size:12px;text-align:center
+  }
+  .invoice-check-history-toggle{
+    display:block;margin:9px auto 0;border:0;background:transparent;color:#64748b;
+    text-decoration:underline;font-size:11px;cursor:pointer
+  }
   .invoice-check-history{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1}
   .invoice-check-history.open{display:grid;gap:6px}
-  .invoice-check-history-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#64748b;padding:4px 2px}
+  .invoice-check-history-row{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:11px;color:#64748b;padding:5px 2px
+  }
+  @media(max-width:430px){
+    .invoice-check-main{align-items:flex-start}
+    .invoice-check-actions{gap:5px}
+    .invoice-check-create{padding:8px 7px}
+  }
 
 </style>
 
@@ -2182,7 +2265,7 @@
           <h2>請求チェック</h2>
           <span id="invoiceChecklistCount" class="invoice-check-count">0</span>
         </div>
-        <div class="invoice-check-copy">締め日を過ぎた請求だけ表示されます。請求書を作成したら ✓ を押すと一覧から消えます。</div>
+        <div class="invoice-check-copy">締め日が来た請求を表示します。請求書を作成したら ✓ を押してください。</div>
         <div id="invoiceChecklistList" class="invoice-check-list"></div>
         <button id="invoiceChecklistHistoryToggle" class="invoice-check-history-toggle" type="button">作成済みを表示</button>
         <div id="invoiceChecklistHistory" class="invoice-check-history"></div>
@@ -6217,8 +6300,12 @@ function getContractBillingIncluded(siteId, month){
 
 
   function invoiceChecklistStore(){
-    if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
-    if(!state.recentSelects.invoiceChecklistCompleted || typeof state.recentSelects.invoiceChecklistCompleted !== "object"){
+    if(!state.recentSelects || typeof state.recentSelects !== "object"){
+      state.recentSelects = {};
+    }
+    if(!state.recentSelects.invoiceChecklistCompleted ||
+       typeof state.recentSelects.invoiceChecklistCompleted !== "object" ||
+       Array.isArray(state.recentSelects.invoiceChecklistCompleted)){
       state.recentSelects.invoiceChecklistCompleted = {};
     }
     return state.recentSelects.invoiceChecklistCompleted;
@@ -6230,43 +6317,59 @@ function getContractBillingIncluded(siteId, month){
 
   function invoiceChecklistDueDate(client, month){
     const [year, mon] = month.split("-").map(Number);
-    const closing = Number(client?.closingDay || 0);
-    const day = closing ? Math.min(closing, daysInMonth(year, mon)) : daysInMonth(year, mon);
+    const closingDay = Number(client?.closingDay || 0);
+    const day = closingDay
+      ? Math.min(closingDay, daysInMonth(year, mon))
+      : daysInMonth(year, mon);
     return `${year}-${pad2(mon)}-${pad2(day)}`;
   }
 
   function invoiceChecklistMonthsBack(count=12){
     const now = new Date();
-    const months = [];
+    const result = [];
     for(let i=0;i<count;i++){
-      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-      months.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}`);
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      result.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}`);
     }
-    return months;
+    return result;
   }
 
   function invoiceChecklistItems(){
-    const today = dateLocal();
+    const today = todayLocal();
     const completed = invoiceChecklistStore();
     const taxRate = currentInvoiceTaxRate();
     const pending = [];
     const history = [];
 
+    // 「自社」は state.clients に保存しない擬似元請けなので、ここには入らない
     state.clients.forEach(client=>{
       invoiceChecklistMonthsBack(12).forEach(month=>{
         const dueDate = invoiceChecklistDueDate(client, month);
         if(dueDate > today) return;
+
         const rows = invoiceRowsFor(client.id, month, taxRate);
         if(!rows.length) return;
+
         const key = invoiceChecklistKey(client.id, month);
-        const subtotal = rows.reduce((sum,row)=>sum + Number(row.amount||0), 0);
-        const item = {key, client, month, dueDate, subtotal, completedAt:completed[key] || ""};
+        const subtotal = rows.reduce((sum,row)=>sum + Number(row.amount || 0), 0);
+        const item = {
+          key,
+          client,
+          month,
+          dueDate,
+          subtotal,
+          completedAt: completed[key] || ""
+        };
+
         if(item.completedAt) history.push(item);
         else pending.push(item);
       });
     });
 
-    pending.sort((a,b)=>a.dueDate.localeCompare(b.dueDate) || a.client.name.localeCompare(b.client.name,"ja"));
+    pending.sort((a,b)=>
+      a.dueDate.localeCompare(b.dueDate) ||
+      String(a.client.name || "").localeCompare(String(b.client.name || ""), "ja")
+    );
     history.sort((a,b)=>String(b.completedAt).localeCompare(String(a.completedAt)));
     return {pending, history};
   }
@@ -6274,15 +6377,22 @@ function getContractBillingIncluded(siteId, month){
   function openInvoiceFromChecklist(clientId, month){
     const navBtn = document.querySelector('nav button[data-view="invoice"]');
     if(navBtn) navBtn.click();
-    setTimeout(()=>{
-      if($("invoiceClient")) $("invoiceClient").value = clientId;
-      if($("invoiceMonth")) $("invoiceMonth").value = month;
-      rememberRecent("invoiceClient", clientId);
-      updateInvoicePeriodHint();
-      renderProgressBillingInputs();
-      renderInvoice();
-      window.scrollTo({top:0, behavior:"smooth"});
-    }, 0);
+
+    if($("invoiceClient")) $("invoiceClient").value = clientId;
+    if($("invoiceMonth")) $("invoiceMonth").value = month;
+
+    rememberRecent("invoiceClient", clientId);
+
+    if($("invoiceNumber")){
+      $("invoiceNumber").value = "";
+      $("invoiceNumber").dataset.autoValue = "";
+    }
+
+    updateInvoicePeriodHint();
+    syncInvoiceNumber(true);
+    renderProgressBillingInputs();
+    renderInvoice();
+    window.scrollTo({top:0, behavior:"smooth"});
   }
 
   function completeInvoiceChecklistItem(key){
@@ -6312,17 +6422,21 @@ function getContractBillingIncluded(siteId, month){
       list.innerHTML = `<div class="invoice-check-empty">現在、請求待ちはありません。</div>`;
     }else{
       list.innerHTML = pending.map(item=>{
-        const [,m] = item.month.split("-");
-        const [,dm,dd] = item.dueDate.split("-");
+        const [,monthNumber] = item.month.split("-");
+        const [,dueMonth,dueDay] = item.dueDate.split("-");
         return `<div class="invoice-check-item">
           <div class="invoice-check-main">
             <div class="invoice-check-info">
               <strong>${escapeHtml(item.client.name)}</strong>
-              <small>${Number(m)}月分 ・ 締め日 ${Number(dm)}/${Number(dd)} ・ ${yen(item.subtotal)}</small>
+              <small>${Number(monthNumber)}月分 ・ 締め日 ${Number(dueMonth)}/${Number(dueDay)} ・ ${yen(item.subtotal)}</small>
             </div>
             <div class="invoice-check-actions">
-              <button class="invoice-check-create" type="button" data-invoice-client="${item.client.id}" data-invoice-month="${item.month}">請求書を作成</button>
-              <button class="invoice-check-done" type="button" title="作成済みにする" data-invoice-done="${item.key}">✓</button>
+              <button class="invoice-check-create" type="button"
+                data-invoice-client="${item.client.id}"
+                data-invoice-month="${item.month}">請求書を作成</button>
+              <button class="invoice-check-done" type="button"
+                data-invoice-done="${item.key}"
+                aria-label="${escapeHtml(item.client.name)} ${Number(monthNumber)}月分を作成済みにする">✓</button>
             </div>
           </div>
         </div>`;
@@ -6330,22 +6444,33 @@ function getContractBillingIncluded(siteId, month){
     }
 
     list.querySelectorAll("[data-invoice-client]").forEach(btn=>{
-      btn.addEventListener("click", ()=>openInvoiceFromChecklist(btn.dataset.invoiceClient, btn.dataset.invoiceMonth));
-    });
-    list.querySelectorAll("[data-invoice-done]").forEach(btn=>{
-      btn.addEventListener("click", ()=>completeInvoiceChecklistItem(btn.dataset.invoiceDone));
+      btn.addEventListener("click", ()=>{
+        openInvoiceFromChecklist(btn.dataset.invoiceClient, btn.dataset.invoiceMonth);
+      });
     });
 
-    historyBox.innerHTML = history.length ? history.slice(0,30).map(item=>{
-      const [,m] = item.month.split("-");
-      return `<div class="invoice-check-history-row">
-        <span>${escapeHtml(item.client.name)}　${Number(m)}月分</span>
-        <button class="edit-link" type="button" data-invoice-undo="${item.key}">戻す</button>
-      </div>`;
-    }).join("") : `<div class="invoice-check-empty">作成済みはまだありません。</div>`;
+    list.querySelectorAll("[data-invoice-done]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        completeInvoiceChecklistItem(btn.dataset.invoiceDone);
+      });
+    });
+
+    if(!history.length){
+      historyBox.innerHTML = `<div class="invoice-check-empty">作成済みはまだありません。</div>`;
+    }else{
+      historyBox.innerHTML = history.slice(0,30).map(item=>{
+        const [,monthNumber] = item.month.split("-");
+        return `<div class="invoice-check-history-row">
+          <span>${escapeHtml(item.client.name)}　${Number(monthNumber)}月分</span>
+          <button class="edit-link" type="button" data-invoice-undo="${item.key}">戻す</button>
+        </div>`;
+      }).join("");
+    }
 
     historyBox.querySelectorAll("[data-invoice-undo]").forEach(btn=>{
-      btn.addEventListener("click", ()=>undoInvoiceChecklistItem(btn.dataset.invoiceUndo));
+      btn.addEventListener("click", ()=>{
+        undoInvoiceChecklistItem(btn.dataset.invoiceUndo);
+      });
     });
   }
 
@@ -6369,9 +6494,10 @@ function getContractBillingIncluded(siteId, month){
 
   $("invoiceChecklistHistoryToggle")?.addEventListener("click", ()=>{
     const box = $("invoiceChecklistHistory");
-    const btn = $("invoiceChecklistHistoryToggle");
-    const open = box.classList.toggle("open");
-    btn.textContent = open ? "作成済みを閉じる" : "作成済みを表示";
+    const button = $("invoiceChecklistHistoryToggle");
+    if(!box || !button) return;
+    const isOpen = box.classList.toggle("open");
+    button.textContent = isOpen ? "作成済みを閉じる" : "作成済みを表示";
   });
 
   setupInvoicePreviewPinchZoom();
