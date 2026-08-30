@@ -2074,6 +2074,27 @@
     cursor:pointer;
   }
 
+
+  .invoice-check-card{border-top:5px solid #7c3aed !important}
+  .invoice-check-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .invoice-check-head h2{margin:0;color:#6d28d9 !important}
+  .invoice-check-count{display:inline-flex;min-width:28px;height:28px;padding:0 8px;border-radius:999px;align-items:center;justify-content:center;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:800}
+  .invoice-check-copy{font-size:12px;color:#64748b;line-height:1.55;margin-bottom:10px}
+  .invoice-check-list{display:grid;gap:8px}
+  .invoice-check-item{border:1px solid #e2e8f0;border-radius:14px;padding:10px;background:#fff}
+  .invoice-check-main{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .invoice-check-info{min-width:0}
+  .invoice-check-info strong{display:block;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .invoice-check-info small{display:block;margin-top:3px;color:#64748b;font-size:11px}
+  .invoice-check-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  .invoice-check-create{border:0;border-radius:10px;background:#0f3d73;color:#fff;padding:8px 9px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .invoice-check-done{width:34px;height:34px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;display:grid;place-items:center;cursor:pointer;font-size:17px;color:#16a34a}
+  .invoice-check-empty{padding:12px;border-radius:12px;background:#f8fafc;color:#64748b;font-size:12px;text-align:center}
+  .invoice-check-history-toggle{display:block;margin:9px auto 0;border:0;background:transparent;color:#64748b;text-decoration:underline;font-size:11px;cursor:pointer}
+  .invoice-check-history{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1}
+  .invoice-check-history.open{display:grid;gap:6px}
+  .invoice-check-history-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#64748b;padding:4px 2px}
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -2156,6 +2177,17 @@
 
   <main>
     <section id="view-input" class="view active">
+      <div id="invoiceChecklistCard" class="card invoice-check-card">
+        <div class="invoice-check-head">
+          <h2>請求チェック</h2>
+          <span id="invoiceChecklistCount" class="invoice-check-count">0</span>
+        </div>
+        <div class="invoice-check-copy">締め日を過ぎた請求だけ表示されます。請求書を作成したら ✓ を押すと一覧から消えます。</div>
+        <div id="invoiceChecklistList" class="invoice-check-list"></div>
+        <button id="invoiceChecklistHistoryToggle" class="invoice-check-history-toggle" type="button">作成済みを表示</button>
+        <div id="invoiceChecklistHistory" class="invoice-check-history"></div>
+      </div>
+
       <div class="card">
         <h2>まとめて人工入力</h2>
         <label>日付</label>
@@ -2202,7 +2234,8 @@
         <label>現場名</label>
         <input id="siteName" placeholder="例：○○倉庫新築工事">
         <label>元請け会社</label>
-        <select id="siteClient"></select>
+        <select id="siteClient">
+          <option value="__self_company__">自社</option></select>
 
         <label>契約区分</label>
         <select id="siteContractType">
@@ -2765,6 +2798,22 @@
 
   const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
 
+
+  function hasDuplicateSiteExpense({date, siteId, amount, memo, taxType, excludeId=""}){
+    const normalizedMemo = (memo || "").trim();
+    const normalizedTaxType = taxType || "excluded";
+    const normalizedAmount = Number(amount || 0);
+
+    return state.siteExpenses.some(x =>
+      x.id !== excludeId &&
+      x.date === date &&
+      x.siteId === siteId &&
+      Number(x.amount || 0) === normalizedAmount &&
+      (x.memo || "").trim() === normalizedMemo &&
+      (x.taxType || "excluded") === normalizedTaxType
+    );
+  }
+
   function rememberRecent(key, value){
     if(!key || !value || value==="all" || value==="none" || value==="custom" || value==="0") return;
     const list = Array.isArray(state.recentSelects[key]) ? state.recentSelects[key] : [];
@@ -3042,7 +3091,27 @@
   $("summaryMonth").addEventListener("change", renderSummary);
   $("summarySite").addEventListener("change", renderSummary);
 
-  function clientById(id){ return state.clients.find(x=>x.id===id); }
+
+  const SELF_COMPANY_CLIENT_ID = "__self_company__";
+
+  function isSelfCompanyClientId(id){
+    return id === SELF_COMPANY_CLIENT_ID;
+  }
+
+  function clientById(id){
+    if(isSelfCompanyClientId(id)){
+      return {
+        id:SELF_COMPANY_CLIENT_ID,
+        name:"自社",
+        clientNumber:"",
+        postalCode:"",
+        address:"",
+        billRate:0,
+        color:"#94a3b8",
+        closingDay:"",
+        payment:""
+      };
+    } return state.clients.find(x=>x.id===id); }
   function clientColor(client){
     return client?.color || "#64748b";
   }
@@ -3382,6 +3451,15 @@
       );
 
       if(!sameAlreadyExists){
+        if(hasDuplicateSiteExpense({
+        date:targetDate,
+        siteId:src.siteId,
+        amount:Number(src.amount||0),
+        memo:src.memo || "",
+        taxType:src.taxType || "excluded"
+      })){
+        alert("同じ現場経費がすでに登録されています。");
+      }else{
         state.siteExpenses.push({
           id:uid(),
           date:targetDate,
@@ -3390,6 +3468,7 @@
           taxType:src.taxType || "excluded",
           memo:src.memo || ""
         });
+      }
         expenseCount++;
       }
     });
@@ -4562,7 +4641,7 @@ function getContractBillingIncluded(siteId, month){
   function invoiceRowsFor(clientId, month, taxRate=10){
     const client = clientById(clientId);
     const period = billingPeriodFor(client, month);
-    const clientSites = state.sites.filter(s=>s.clientId===clientId);
+    const clientSites = state.sites.filter(s=>!isSelfCompanyClientId(s.clientId) && s.clientId===clientId);
     const siteIds = new Set(clientSites.map(s=>s.id));
     const entries = state.entries.filter(
       e=>dateInRange(e.date, period.start, period.end) && siteIds.has(e.siteId)
@@ -4797,6 +4876,9 @@ function getContractBillingIncluded(siteId, month){
   }
 
   function renderInvoice(){
+    const __invoiceClientId = $("invoiceClient")?.value || "";
+    if(isSelfCompanyClientId(__invoiceClientId)) return;
+
     updateInvoicePeriodHint();
     const clientId = $("invoiceClient").value;
     rememberRecent("invoiceClient", clientId);
@@ -6133,6 +6215,140 @@ function getContractBillingIncluded(siteId, month){
     }
   });
 
+
+  function invoiceChecklistStore(){
+    if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+    if(!state.recentSelects.invoiceChecklistCompleted || typeof state.recentSelects.invoiceChecklistCompleted !== "object"){
+      state.recentSelects.invoiceChecklistCompleted = {};
+    }
+    return state.recentSelects.invoiceChecklistCompleted;
+  }
+
+  function invoiceChecklistKey(clientId, month){
+    return `${clientId}__${month}`;
+  }
+
+  function invoiceChecklistDueDate(client, month){
+    const [year, mon] = month.split("-").map(Number);
+    const closing = Number(client?.closingDay || 0);
+    const day = closing ? Math.min(closing, daysInMonth(year, mon)) : daysInMonth(year, mon);
+    return `${year}-${pad2(mon)}-${pad2(day)}`;
+  }
+
+  function invoiceChecklistMonthsBack(count=12){
+    const now = new Date();
+    const months = [];
+    for(let i=0;i<count;i++){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      months.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}`);
+    }
+    return months;
+  }
+
+  function invoiceChecklistItems(){
+    const today = dateLocal();
+    const completed = invoiceChecklistStore();
+    const taxRate = currentInvoiceTaxRate();
+    const pending = [];
+    const history = [];
+
+    state.clients.forEach(client=>{
+      invoiceChecklistMonthsBack(12).forEach(month=>{
+        const dueDate = invoiceChecklistDueDate(client, month);
+        if(dueDate > today) return;
+        const rows = invoiceRowsFor(client.id, month, taxRate);
+        if(!rows.length) return;
+        const key = invoiceChecklistKey(client.id, month);
+        const subtotal = rows.reduce((sum,row)=>sum + Number(row.amount||0), 0);
+        const item = {key, client, month, dueDate, subtotal, completedAt:completed[key] || ""};
+        if(item.completedAt) history.push(item);
+        else pending.push(item);
+      });
+    });
+
+    pending.sort((a,b)=>a.dueDate.localeCompare(b.dueDate) || a.client.name.localeCompare(b.client.name,"ja"));
+    history.sort((a,b)=>String(b.completedAt).localeCompare(String(a.completedAt)));
+    return {pending, history};
+  }
+
+  function openInvoiceFromChecklist(clientId, month){
+    const navBtn = document.querySelector('nav button[data-view="invoice"]');
+    if(navBtn) navBtn.click();
+    setTimeout(()=>{
+      if($("invoiceClient")) $("invoiceClient").value = clientId;
+      if($("invoiceMonth")) $("invoiceMonth").value = month;
+      rememberRecent("invoiceClient", clientId);
+      updateInvoicePeriodHint();
+      renderProgressBillingInputs();
+      renderInvoice();
+      window.scrollTo({top:0, behavior:"smooth"});
+    }, 0);
+  }
+
+  function completeInvoiceChecklistItem(key){
+    const completed = invoiceChecklistStore();
+    completed[key] = new Date().toISOString();
+    save();
+    renderInvoiceChecklist();
+  }
+
+  function undoInvoiceChecklistItem(key){
+    const completed = invoiceChecklistStore();
+    delete completed[key];
+    save();
+    renderInvoiceChecklist();
+  }
+
+  function renderInvoiceChecklist(){
+    const list = $("invoiceChecklistList");
+    const count = $("invoiceChecklistCount");
+    const historyBox = $("invoiceChecklistHistory");
+    if(!list || !count || !historyBox) return;
+
+    const {pending, history} = invoiceChecklistItems();
+    count.textContent = String(pending.length);
+
+    if(!pending.length){
+      list.innerHTML = `<div class="invoice-check-empty">現在、請求待ちはありません。</div>`;
+    }else{
+      list.innerHTML = pending.map(item=>{
+        const [,m] = item.month.split("-");
+        const [,dm,dd] = item.dueDate.split("-");
+        return `<div class="invoice-check-item">
+          <div class="invoice-check-main">
+            <div class="invoice-check-info">
+              <strong>${escapeHtml(item.client.name)}</strong>
+              <small>${Number(m)}月分 ・ 締め日 ${Number(dm)}/${Number(dd)} ・ ${yen(item.subtotal)}</small>
+            </div>
+            <div class="invoice-check-actions">
+              <button class="invoice-check-create" type="button" data-invoice-client="${item.client.id}" data-invoice-month="${item.month}">請求書を作成</button>
+              <button class="invoice-check-done" type="button" title="作成済みにする" data-invoice-done="${item.key}">✓</button>
+            </div>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    list.querySelectorAll("[data-invoice-client]").forEach(btn=>{
+      btn.addEventListener("click", ()=>openInvoiceFromChecklist(btn.dataset.invoiceClient, btn.dataset.invoiceMonth));
+    });
+    list.querySelectorAll("[data-invoice-done]").forEach(btn=>{
+      btn.addEventListener("click", ()=>completeInvoiceChecklistItem(btn.dataset.invoiceDone));
+    });
+
+    historyBox.innerHTML = history.length ? history.slice(0,30).map(item=>{
+      const [,m] = item.month.split("-");
+      return `<div class="invoice-check-history-row">
+        <span>${escapeHtml(item.client.name)}　${Number(m)}月分</span>
+        <button class="edit-link" type="button" data-invoice-undo="${item.key}">戻す</button>
+      </div>`;
+    }).join("") : `<div class="invoice-check-empty">作成済みはまだありません。</div>`;
+
+    historyBox.querySelectorAll("[data-invoice-undo]").forEach(btn=>{
+      btn.addEventListener("click", ()=>undoInvoiceChecklistItem(btn.dataset.invoiceUndo));
+    });
+  }
+
   function renderAll(){
     renderClients();
     renderWorkerCompanies();
@@ -6142,12 +6358,21 @@ function getContractBillingIncluded(siteId, month){
     renderWorkers();
     renderRecent();
     renderSummary();
+    renderInvoiceChecklist();
     if($("invoiceClient")){
       renderCompanyInfoForm();
       renderProgressBillingInputs();
       renderInvoice();
     }
   }
+
+
+  $("invoiceChecklistHistoryToggle")?.addEventListener("click", ()=>{
+    const box = $("invoiceChecklistHistory");
+    const btn = $("invoiceChecklistHistoryToggle");
+    const open = box.classList.toggle("open");
+    btn.textContent = open ? "作成済みを閉じる" : "作成済みを表示";
+  });
 
   setupInvoicePreviewPinchZoom();
   if(isMobileLikeDevice() && !window.__invoiceFitResizeBound){
