@@ -5782,11 +5782,43 @@ function getContractBillingIncluded(siteId, month){
     },
     {
       view:"invoice",
-      target:"#invoiceChecklistCard",
+      target:"#invoiceAlertBtn",
       title:"⑦ 請求書の作り忘れを防止",
-      html:`<p>締め日が来た請求があると、画面上部に請求通知アイコンが表示されます。</p><div class="tutorial-icon-demo"><div class="tutorial-icon-demo-label">実際に表示される通知アイコン</div><button class="invoice-alert-btn tutorial-demo-alert" type="button" aria-hidden="true" tabindex="-1">🧾<span>1</span></button></div><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
+      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><div class="tutorial-icon-demo"><div class="tutorial-icon-demo-label">実際に表示される通知アイコン</div><button class="invoice-alert-btn tutorial-demo-alert" type="button" aria-hidden="true" tabindex="-1">🧾<span>1</span></button></div><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
     }
   ];
+
+  let tutorialForcedInvoiceAlert = null;
+
+  function setTutorialInvoiceAlert(show){
+    const btn = $("invoiceAlertBtn");
+    const count = $("invoiceAlertCount");
+    if(!btn) return;
+
+    if(show){
+      if(!tutorialForcedInvoiceAlert){
+        tutorialForcedInvoiceAlert = {
+          display: btn.style.display,
+          count: count ? count.textContent : "",
+          title: btn.getAttribute("title") || "",
+          ariaLabel: btn.getAttribute("aria-label") || ""
+        };
+      }
+      btn.style.display = "inline-flex";
+      if(count) count.textContent = "1";
+      btn.setAttribute("title", "請求待ちがあります");
+      btn.setAttribute("aria-label", "請求待ちを確認");
+      return;
+    }
+
+    if(tutorialForcedInvoiceAlert){
+      btn.style.display = tutorialForcedInvoiceAlert.display;
+      if(count) count.textContent = tutorialForcedInvoiceAlert.count;
+      btn.setAttribute("title", tutorialForcedInvoiceAlert.title);
+      btn.setAttribute("aria-label", tutorialForcedInvoiceAlert.ariaLabel);
+      tutorialForcedInvoiceAlert = null;
+    }
+  }
 
   function activateViewForTutorial(view){
     const btn = document.querySelector(`nav button[data-view="${view}"]`);
@@ -5824,6 +5856,7 @@ function getContractBillingIncluded(siteId, month){
     if(!step) return;
 
     clearTutorialHighlight();
+    setTutorialInvoiceAlert(tutorialIndex === 6);
     activateViewForTutorial(step.view);
 
     const tutorialNav = document.querySelector("nav");
@@ -5871,6 +5904,7 @@ function getContractBillingIncluded(siteId, month){
   function finishTutorial(){
     tutorialActive = false;
     clearTutorialHighlight();
+    setTutorialInvoiceAlert(false);
     $("tutorialCard")?.classList.remove("step7-full");
     $("tutorialOverlay").classList.remove("active");
     $("tutorialOverlay").setAttribute("aria-hidden","true");
