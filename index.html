@@ -2059,10 +2059,11 @@
         <label>会社名</label>
         <input id="clientName" placeholder="例：○○建設">
         <label>請求先郵便番号（任意）</label>
-        <input id="clientPostalCode" inputmode="numeric" placeholder="例：123-4567">
+        <input id="clientPostalCode" type="text" inputmode="text" autocomplete="postal-code" placeholder="例：123-4567">
+        <button class="btn secondary" id="clientPostalLookupBtn" type="button" style="margin-top:8px">郵便番号から住所を入力</button>
 
         <label>請求先住所（任意）</label>
-        <input id="clientAddress" placeholder="例：兵庫県神戸市...">
+        <input id="clientAddress" autocomplete="street-address" placeholder="例：兵庫県神戸市...">
         <label>基本人工単価</label>
         <input id="clientBillRate" inputmode="numeric" type="number" min="0" placeholder="例：30000">
 
@@ -2259,10 +2260,11 @@
         <input id="companyInfoName" placeholder="例：株式会社○○">
 
         <label>郵便番号</label>
-        <input id="companyInfoPostalCode" inputmode="numeric" placeholder="例：123-4567">
+        <input id="companyInfoPostalCode" type="text" inputmode="text" autocomplete="postal-code" placeholder="例：123-4567">
+        <button class="btn secondary" id="companyPostalLookupBtn" type="button" style="margin-top:8px">郵便番号から住所を入力</button>
 
         <label>住所</label>
-        <input id="companyInfoAddress" placeholder="例：兵庫県神戸市...">
+        <input id="companyInfoAddress" autocomplete="street-address" placeholder="例：兵庫県神戸市...">
 
         <label>肩書き</label>
         <input id="companyInfoTitle" placeholder="例：代表取締役">
@@ -3762,6 +3764,84 @@ function showDayDetail(date){
   }
 
   
+
+  function normalizePostalCode(value){
+    return String(value || "").replace(/[^\d]/g, "").slice(0, 7);
+  }
+
+  function formatPostalCode(value){
+    const digits = normalizePostalCode(value);
+    if(digits.length <= 3) return digits;
+    return digits.slice(0,3) + "-" + digits.slice(3);
+  }
+
+  async function lookupAddressByPostalCode(postalInputId, addressInputId, buttonId){
+    const postalInput = $(postalInputId);
+    const addressInput = $(addressInputId);
+    const button = $(buttonId);
+    if(!postalInput || !addressInput) return;
+
+    const zipcode = normalizePostalCode(postalInput.value);
+    if(zipcode.length !== 7){
+      alert("郵便番号は7桁で入力してください");
+      postalInput.focus();
+      return;
+    }
+
+    postalInput.value = formatPostalCode(zipcode);
+
+    const originalText = button?.textContent || "";
+    if(button){
+      button.disabled = true;
+      button.textContent = "住所を検索中…";
+    }
+
+    try{
+      const response = await fetch(
+        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${encodeURIComponent(zipcode)}`
+      );
+      if(!response.ok){
+        throw new Error("住所検索に失敗しました");
+      }
+
+      const data = await response.json();
+      const result = data?.results?.[0];
+
+      if(!result){
+        alert("この郵便番号に該当する住所が見つかりませんでした");
+        return;
+      }
+
+      const address =
+        `${result.address1 || ""}${result.address2 || ""}${result.address3 || ""}`;
+
+      addressInput.value = address;
+      addressInput.dispatchEvent(new Event("input", {bubbles:true}));
+
+      dismissKeyboard();
+    }catch(err){
+      console.error("postal lookup error", err);
+      alert("住所を取得できませんでした。通信状態を確認してもう一度お試しください");
+    }finally{
+      if(button){
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+  }
+
+  function enablePostalFormatting(inputId){
+    const input = $(inputId);
+    if(!input) return;
+
+    input.addEventListener("blur", ()=>{
+      const digits = normalizePostalCode(input.value);
+      if(digits.length === 7){
+        input.value = formatPostalCode(digits);
+      }
+    });
+  }
+
 function renderCompanyInfoForm(){
     if(!$("companyInfoName")) return;
     $("companyInfoName").value = state.companyInfo?.name || "";
@@ -4760,6 +4840,26 @@ function getContractBillingIncluded(siteId, month){
   $("invoiceTaxCustom").addEventListener("input", renderInvoice);
 
   $("generateCompanyStampBtn")?.addEventListener("click", createCompanyStampFromName);
+
+
+  enablePostalFormatting("clientPostalCode");
+  enablePostalFormatting("companyInfoPostalCode");
+
+  $("clientPostalLookupBtn")?.addEventListener("click", ()=>{
+    lookupAddressByPostalCode(
+      "clientPostalCode",
+      "clientAddress",
+      "clientPostalLookupBtn"
+    );
+  });
+
+  $("companyPostalLookupBtn")?.addEventListener("click", ()=>{
+    lookupAddressByPostalCode(
+      "companyInfoPostalCode",
+      "companyInfoAddress",
+      "companyPostalLookupBtn"
+    );
+  });
 
   $("companyStampFile")?.addEventListener("change", async (event)=>{
     const file = event.target.files && event.target.files[0];
