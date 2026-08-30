@@ -2437,6 +2437,43 @@
     transform:scale(1.18);
   }
 
+
+  nav.tutorial-nav-front{
+    z-index:10005 !important;
+    background:#ffffff !important;
+    opacity:1 !important;
+    filter:none !important;
+  }
+
+  nav.tutorial-nav-front button{
+    opacity:1 !important;
+    filter:none !important;
+  }
+
+  nav.tutorial-nav-front .tutorial-tab-highlight{
+    background:#ffffff !important;
+    color:#0f3d73 !important;
+    opacity:1 !important;
+    filter:none !important;
+    z-index:10006 !important;
+    box-shadow:
+      0 0 0 4px rgba(255,255,255,.98),
+      0 0 0 8px rgba(37,99,235,.95),
+      0 8px 24px rgba(15,23,42,.22) !important;
+  }
+
+  nav.tutorial-nav-front .tutorial-tab-highlight .nav-icon,
+  nav.tutorial-nav-front .tutorial-tab-highlight span{
+    color:#0f3d73 !important;
+    opacity:1 !important;
+    filter:none !important;
+  }
+
+  /* 強調対象以外のタブは少しだけ抑える */
+  nav.tutorial-nav-front button:not(.tutorial-tab-highlight){
+    opacity:.42 !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -5722,6 +5759,7 @@ function getContractBillingIncluded(siteId, month){
   function clearTutorialHighlight(){
     document.querySelectorAll(".tutorial-highlight").forEach(el=>el.classList.remove("tutorial-highlight"));
     document.querySelectorAll(".tutorial-tab-highlight").forEach(el=>el.classList.remove("tutorial-tab-highlight"));
+    document.querySelector("nav")?.classList.remove("tutorial-nav-front");
   }
 
   function positionTutorialCard(target){
@@ -5750,6 +5788,9 @@ function getContractBillingIncluded(siteId, month){
 
     clearTutorialHighlight();
     activateViewForTutorial(step.view);
+
+    const tutorialNav = document.querySelector("nav");
+    if(tutorialNav) tutorialNav.classList.add("tutorial-nav-front");
 
     const tutorialTab = document.querySelector(`nav button[data-view="${step.view}"]`);
     if(tutorialTab) tutorialTab.classList.add("tutorial-tab-highlight");
