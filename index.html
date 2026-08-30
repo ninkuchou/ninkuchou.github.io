@@ -1760,6 +1760,7 @@
     max-width:720px;
     margin:8px auto 0;
     padding:7px 14px;
+    position:relative;
     display:grid;
     grid-template-columns:minmax(0,1fr) auto auto;
     align-items:center;
@@ -1893,6 +1894,9 @@
     position:relative !important; z-index:10002 !important;
     outline:4px solid rgba(37,99,235,.95) !important; outline-offset:4px;
     border-radius:10px; box-shadow:0 0 0 8px rgba(255,255,255,.92);
+  }
+  .invoice-alert-btn.tutorial-highlight{
+    position:absolute !important;
   }
   @media (min-width:700px){ .tutorial-card.bottom{ bottom:28px; } .tutorial-card.top{ top:28px; } }
 
@@ -6294,7 +6298,7 @@ function getContractBillingIncluded(siteId, month){
     cloudCompanyId = company.id;
 
     const bar = $("cloudAccountBar");
-    if(bar) bar.style.display = "flex";
+    if(bar) bar.style.display = "grid";
     if($("cloudCompanyName")) $("cloudCompanyName").textContent = company.name || "";
     if($("authOverlay")) $("authOverlay").style.display = "none";
 
