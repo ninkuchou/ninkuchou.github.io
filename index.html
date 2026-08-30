@@ -2859,6 +2859,11 @@
         <summary>請求書を作成する</summary>
         <p>「請求」タブで請求月と元請け会社を選び、「請求書を作成」を押します。請負現場は出来高率を設定して請求できます。</p>
       </details>
+
+      <details>
+        <summary>請求書の作り忘れを防ぐ</summary>
+        <p>締め日が来た請求があると、画面上部に請求通知アイコンが表示されます。通知を押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して作成済みにしてください。</p>
+      </details>
     </section>
 
     <section class="help-section">
@@ -6625,7 +6630,14 @@ function getContractBillingIncluded(siteId, month){
     }
 
     if(!pending.length){
-      list.innerHTML = `<div class="invoice-check-empty">現在、請求待ちはありません。</div>`;
+      list.innerHTML = `<div class="invoice-check-empty">現在、請求待ちはありません。</div>
+      <div class="tutorial-step">
+        <div class="tutorial-step-icon">🧾</div>
+        <div>
+          <strong>請求書の作り忘れを防止</strong>
+          <p>締め日が来た請求があると、画面上部に請求通知アイコンが表示されます。通知から請求タブを開き、請求書を作成したら「✓」で作成済みにしてください。</p>
+        </div>
+      </div>`;
     }else{
       list.innerHTML = pending.map(item=>{
         const [,monthNumber] = item.month.split("-");
