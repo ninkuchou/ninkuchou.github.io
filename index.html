@@ -1871,11 +1871,9 @@
   @media (min-width:700px){ .tutorial-card{ bottom:28px; } }
 
 
-    /* iPhone / iOS Safari: アプリ上部のブランドヘッダーを非表示 */
-    @supports (-webkit-touch-callout: none){
-      @media (max-width:600px){
-        header{display:none !important;}
-      }
+    /* スマートフォン: アプリ上部のブランドヘッダーを非表示 */
+    @media (max-width:600px){
+      header{display:none !important;}
     }
 
 
@@ -1958,28 +1956,26 @@
     
 
 
-    /* iPhone / iPad: 請求書はPCと同じ幅で描画し、見た目だけ縮小する */
-    @supports (-webkit-touch-callout: none){
-      @media (max-width:600px){
-        #invoicePreview{
-          overflow:auto;
-          -webkit-overflow-scrolling:touch;
-          touch-action:pan-x pan-y;
-          position:relative;
-        }
-        #invoicePreview .invoice-sheet.excel-template{
-          width:720px !important;
-          min-width:720px !important;
-          max-width:none !important;
-          margin-left:0 !important;
-          margin-right:0 !important;
-          transform-origin:top left !important;
-          transform:scale(var(--invoice-preview-scale, 1));
-        }
-        #invoicePreview .invoice-sheet.excel-template .invoice-paper-inner{
-          min-width:720px !important;
-          width:720px !important;
-        }
+    /* スマートフォン: 請求書はPCと同じ幅で描画し、見た目だけ縮小する */
+    @media (max-width:600px){
+      #invoicePreview{
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+        touch-action:pan-x pan-y;
+        position:relative;
+      }
+      #invoicePreview .invoice-sheet.excel-template{
+        width:720px !important;
+        min-width:720px !important;
+        max-width:none !important;
+        margin-left:0 !important;
+        margin-right:0 !important;
+        transform-origin:top left !important;
+        transform:scale(var(--invoice-preview-scale, 1));
+      }
+      #invoicePreview .invoice-sheet.excel-template .invoice-paper-inner{
+        min-width:720px !important;
+        width:720px !important;
       }
     }
 
@@ -2000,22 +1996,20 @@
     justify-self:center;
   }
 
-  @supports (-webkit-touch-callout: none){
-    @media (max-width:600px){
-      .cloud-account-bar{
-        min-height:42px;
-        grid-template-columns:minmax(0,1fr) auto auto;
-      }
-      .cloud-mobile-logo{
-        width:min(34vw,138px);
-        max-height:30px;
-      }
-      .cloud-account-info{
-        min-width:0;
-      }
-      .cloud-company-name{
-        max-width:100%;
-      }
+  @media (max-width:600px){
+    .cloud-account-bar{
+      min-height:42px;
+      grid-template-columns:minmax(0,1fr) auto auto;
+    }
+    .cloud-mobile-logo{
+      width:min(34vw,138px);
+      max-height:30px;
+    }
+    .cloud-account-info{
+      min-width:0;
+    }
+    .cloud-company-name{
+      max-width:100%;
     }
   }
 
@@ -2106,7 +2100,7 @@
 
       <div id="authSignupCompanyWrap" style="display:none">
         <label>会社名</label>
-        <input id="authCompanyName" type="text" autocomplete="organization" placeholder="例：株式会社REFISE">
+        <input id="authCompanyName" type="text" autocomplete="organization" placeholder="例：株式会社人工帖">
       </div>
 
       <label>メールアドレス</label>
@@ -4715,9 +4709,9 @@ function getContractBillingIncluded(siteId, month){
   let invoicePinchStartDistance = 0;
   let invoicePinchStartScale = 1;
 
-  function isIOSLikeDevice(){
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent)
-      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function isMobileLikeDevice(){
+    return window.matchMedia("(max-width: 600px)").matches
+      && (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
   }
 
   function touchDistance(t1, t2){
@@ -4753,13 +4747,13 @@ function getContractBillingIncluded(siteId, month){
 
   function fitInvoicePreviewToWidth(){
     const preview = $("invoicePreview");
-    if(!preview || !isIOSLikeDevice()) return;
+    if(!preview || !isMobileLikeDevice()) return;
 
     const sheet = preview.querySelector(".invoice-sheet.excel-template");
     if(!sheet) return;
 
     // 請求書そのものは常にPC相当の720px幅。
-    // iPhoneでは表示領域に収まる倍率だけ計算する。
+    // スマートフォンでは表示領域に収まる倍率だけ計算する。
     const availableWidth = Math.max(1, preview.clientWidth || window.innerWidth);
     const naturalWidth = 720;
     const fitScale = Math.min(1, availableWidth / naturalWidth);
@@ -4770,7 +4764,7 @@ function getContractBillingIncluded(siteId, month){
 
   function setupInvoicePreviewPinchZoom(){
     const preview = $("invoicePreview");
-    if(!preview || !isIOSLikeDevice() || preview.dataset.pinchReady === "1") return;
+    if(!preview || !isMobileLikeDevice() || preview.dataset.pinchReady === "1") return;
 
     preview.dataset.pinchReady = "1";
 
@@ -5095,7 +5089,7 @@ function getContractBillingIncluded(siteId, month){
     }
 
     $("invoicePreview").innerHTML = pages.join("");
-    if(isIOSLikeDevice()){
+    if(isMobileLikeDevice()){
       setTimeout(fitInvoicePreviewToWidth, 60);
     }
 
@@ -6156,7 +6150,7 @@ function getContractBillingIncluded(siteId, month){
   }
 
   setupInvoicePreviewPinchZoom();
-  if(isIOSLikeDevice() && !window.__invoiceFitResizeBound){
+  if(isMobileLikeDevice() && !window.__invoiceFitResizeBound){
     window.__invoiceFitResizeBound = true;
     window.addEventListener("resize", ()=>{
       clearTimeout(window.__invoiceFitTimer);
