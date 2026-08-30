@@ -1994,7 +1994,13 @@
 
 
   .cloud-mobile-logo{
-    display:none;
+    display:block;
+    width:min(180px,24vw);
+    height:auto;
+    max-height:34px;
+    object-fit:contain;
+    pointer-events:none;
+    justify-self:center;
   }
 
   @supports (-webkit-touch-callout: none){
@@ -2004,13 +2010,8 @@
         grid-template-columns:minmax(0,1fr) auto auto;
       }
       .cloud-mobile-logo{
-        display:block;
         width:min(34vw,138px);
-        height:auto;
         max-height:30px;
-        object-fit:contain;
-        pointer-events:none;
-        justify-self:center;
       }
       .cloud-account-info{
         min-width:0;
