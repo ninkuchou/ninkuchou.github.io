@@ -1,4 +1,4 @@
-const CACHE_NAME = "jinkoucho-pwa-v2";
+const CACHE_NAME = "jinkoucho-pwa-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
