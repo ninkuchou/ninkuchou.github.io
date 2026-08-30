@@ -3822,8 +3822,12 @@ function renderCompanyInfoForm(){
     if(charCount <= 3){
       return {rows:Math.max(1, charCount), cols:1};
     }
-    const side = Math.ceil(Math.sqrt(charCount));
-    return {rows:side, cols:side};
+
+    // 4・9・16文字などは正方形。
+    // それ以外は、丸ごと空く列ができないよう必要な列数だけ使う。
+    const rows = Math.ceil(Math.sqrt(charCount));
+    const cols = Math.ceil(charCount / rows);
+    return {rows, cols};
   }
 
   function generateCompanyStampDataUrl(companyName){
@@ -3871,6 +3875,7 @@ function renderCompanyInfoForm(){
 
     const fontStack = '"Hiragino Mincho ProN","Yu Mincho","YuMincho","HGS明朝E",serif';
     ctx.fillStyle = red;
+    ctx.strokeStyle = red;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = `900 ${fontSize}px ${fontStack}`;
@@ -3888,14 +3893,24 @@ function renderCompanyInfoForm(){
 
       ctx.save();
 
-      // セル内に収まるように文字だけ少し縮小
+      // 篆書体風に見せるため、少し縦長・横詰め・太めに描画する。
       const measured = ctx.measureText(char);
       const charWidth = Math.max(1, measured.width);
-      const maxW = cellW * 0.78;
-      const scaleX = Math.min(1, maxW / charWidth);
+      const maxW = cellW * 0.72;
+      const fitX = Math.min(1, maxW / charWidth);
+      const scaleX = fitX * 0.92;
+      const scaleY = 1.10;
 
-      ctx.translate(x, y);
-      ctx.scale(scaleX, 1);
+      // ごくわずかな位置ずらしで、機械的すぎない印影にする。
+      const jitterX = ((index % 3) - 1) * 1.5;
+      const jitterY = (((index * 2) % 3) - 1) * 1.2;
+
+      ctx.translate(x + jitterX, y + jitterY);
+      ctx.scale(scaleX, scaleY);
+
+      // うっすら輪郭を重ねて、明朝体を印鑑らしい太さに寄せる。
+      ctx.lineWidth = Math.max(1.4, fontSize * 0.018);
+      ctx.strokeText(char, 0, 0);
       ctx.fillText(char, 0, 0);
       ctx.restore();
     });
