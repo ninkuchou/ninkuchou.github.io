@@ -618,7 +618,7 @@
 
     .excel-template .invoice-upper{
       position:relative;
-      min-height:245px;
+      min-height:270px;
     }
 
     .excel-template .invoice-doc-title{
@@ -668,7 +668,7 @@
 
     .excel-template .invoice-issuer-block{
       position:absolute;
-      top:72px;
+      top:64px;
       right:16px;
       width:38%;
       font-size:12px;
@@ -964,7 +964,7 @@
 
       /* 画面表示の寸法をそのまま使う */
       .excel-template .invoice-upper{
-        min-height:245px !important;
+        min-height:270px !important;
       }
 
       .excel-template .invoice-doc-title{
@@ -1546,7 +1546,7 @@
     /* 社印は右上の会社情報ブロック内に重ねる。会社情報自体の絶対配置は崩さない */
     .excel-template .invoice-issuer-block{
       position:absolute !important;
-      top:72px !important;
+      top:64px !important;
       right:16px !important;
       width:38% !important;
     }
@@ -1556,7 +1556,7 @@
       height:72px;
       object-fit:contain;
       right:24px;
-      top:66px;
+      top:58px;
       z-index:5;
       opacity:.9;
       pointer-events:none;
@@ -1574,13 +1574,13 @@
     @media print{
       .excel-template .invoice-issuer-block{
         position:absolute !important;
-        top:72px !important;
+        top:64px !important;
         right:16px !important;
         width:38% !important;
       }
       .excel-template .invoice-company-stamp{
         right:24px !important;
-        top:66px !important;
+        top:58px !important;
         width:72px !important;
         height:72px !important;
       }
@@ -4870,7 +4870,7 @@ function getContractBillingIncluded(siteId, month){
 
     const isIOSPrintDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const firstCapacity = isIOSPrintDevice ? 30 : 36;
+    const firstCapacity = isIOSPrintDevice ? 29 : 35;
     const continuationCapacity = isIOSPrintDevice ? 36 : 40;
     const actualRows = [...detailRows];
     const pages = [];
