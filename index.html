@@ -2670,7 +2670,7 @@
           <option value="__self_company__">自社</option></select>
         <div class="helper">元請け会社は請求先です。「自社」を選択した現場は請求書の対象になりません。</div>
 
-        <label>契約区分</label>
+        <label id="siteContractTypeLabel">契約区分</label>
         <select id="siteContractType">
           <option value="常用">常用</option>
           <option value="請負">請負</option>
@@ -2682,9 +2682,9 @@
           <div class="helper">請負工事の請求書に表示する工事内容です。</div>
         </div>
 
-        <label>請負金額（任意）</label>
+        <label id="siteRevenueLabel">請負金額（任意）</label>
         <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
-        <label>現場別の例外単価 / 1人工（任意）</label>
+        <label id="siteBillRateLabel">現場別の例外単価 / 1人工（任意）</label>
         <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
         <button class="btn" id="addSiteBtn">現場を追加</button>
       </div>
@@ -3429,26 +3429,55 @@
   });
 
 
+  const SELF_COMPANY_CLIENT_ID = "__self_company__";
+
+  function isSelfCompanyClientId(id){
+    return id === SELF_COMPANY_CLIENT_ID;
+  }
+
+  function updateSiteBillingFieldsVisibility(){
+    const isSelf = isSelfCompanyClientId($("siteClient")?.value || "");
+
+    const ids = ["siteContractTypeLabel","siteContractType","siteRevenueLabel","siteRevenue","siteBillRateLabel","siteBillRate"];
+    ids.forEach(id=>{
+      const el = $(id);
+      if(el) el.style.display = isSelf ? "none" : "";
+    });
+
+    if(isSelf){
+      if($("siteContractType")) $("siteContractType").value = "常用";
+      if($("siteContractWorkContent")) $("siteContractWorkContent").value = "";
+      if($("siteRevenue")) $("siteRevenue").value = "";
+      if($("siteBillRate")) $("siteBillRate").value = "";
+    }
+
+    updateSiteContractFields();
+  }
+
   function updateSiteContractFields(){
-    const isContract = ($("siteContractType")?.value || "常用") === "請負";
+    const isSelf = isSelfCompanyClientId($("siteClient")?.value || "");
+    const isContract = !isSelf && ($("siteContractType")?.value || "常用") === "請負";
     if($("siteContractWorkContentWrap")){
       $("siteContractWorkContentWrap").style.display = isContract ? "block" : "none";
     }
   }
 
+  $("siteClient")?.addEventListener("change", updateSiteBillingFieldsVisibility);
   $("siteContractType")?.addEventListener("change", updateSiteContractFields);
-  updateSiteContractFields();
+  updateSiteBillingFieldsVisibility();
 
   $("addSiteBtn").addEventListener("click", ()=>{
     const name = $("siteName").value.trim();
     if(!name){ alert("現場名を入力してください"); return; }
+    const clientId = $("siteClient").value || "";
+    const isSelf = isSelfCompanyClientId(clientId);
     const data = {
       name,
-      clientId:$("siteClient").value || "",
-      contractType:$("siteContractType") ? ($("siteContractType").value || "常用") : "常用",
-      contractWorkContent:$("siteContractWorkContent")?.value.trim() || "",
-      revenue:Number($("siteRevenue").value||0),
-      billRate:Number($("siteBillRate").value||0)
+      clientId,
+      contractType:isSelf ? "常用" : ($("siteContractType") ? ($("siteContractType").value || "常用") : "常用"),
+      contractWorkContent:isSelf ? "" : ($("siteContractWorkContent")?.value.trim() || ""),
+      revenue:isSelf ? 0 : Number($("siteRevenue").value||0),
+      billRate:isSelf ? 0 : Number($("siteBillRate").value||0)
     };
     if(editingSiteId){
       const s = siteById(editingSiteId);
@@ -3463,9 +3492,9 @@
     $("siteName").value="";
     if($("siteContractType")) $("siteContractType").value="常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value="";
-    updateSiteContractFields();
     $("siteRevenue").value="";
     $("siteBillRate").value="";
+    updateSiteBillingFieldsVisibility();
     renderAll();
     finishRegistration(wasEdit ? "現場を更新しました" : "現場を追加しました");
   });
@@ -3539,12 +3568,6 @@
   $("summaryMonth").addEventListener("change", renderSummary);
   $("summarySite").addEventListener("change", renderSummary);
 
-
-  const SELF_COMPANY_CLIENT_ID = "__self_company__";
-
-  function isSelfCompanyClientId(id){
-    return id === SELF_COMPANY_CLIENT_ID;
-  }
 
   function clientById(id){
     if(isSelfCompanyClientId(id)){
@@ -3641,9 +3664,9 @@
     $("siteClient").value = s.clientId || "";
     if($("siteContractType")) $("siteContractType").value = s.contractType || "常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value = s.contractWorkContent || "";
-    updateSiteContractFields();
     $("siteRevenue").value = s.revenue || "";
     $("siteBillRate").value = s.billRate || "";
+    updateSiteBillingFieldsVisibility();
     $("addSiteBtn").textContent = "現場を更新";
     try{$("siteName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
     $("siteName").focus();
@@ -4031,6 +4054,7 @@
       if(current === SELF_COMPANY_CLIENT_ID || clients.some(c=>c.id===current)){
         select.value = current;
       }
+      updateSiteBillingFieldsVisibility();
     }
 
     const list = $("clientList");
