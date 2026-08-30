@@ -2858,14 +2858,8 @@
       transform:none !important;
     }
 
-    /* 途中ページの明細下端の太線を消す。
-       PDFで次ページの帯が前ページに出たように見えるのを防ぐ。 */
-    #invoicePreview .invoice-page:not(.invoice-page-last) .invoice-detail-table{
-      border-bottom:0 !important;
-    }
-
-    /* 最終ページだけ明細の下端線を残す */
-    #invoicePreview .invoice-page.invoice-page-last .invoice-detail-table{
+    /* 明細下端の太線は途中ページも含めて全ページで残す */
+    #invoicePreview .invoice-page .invoice-detail-table{
       border-bottom:4px solid var(--inv-wine) !important;
     }
   }
