@@ -2289,6 +2289,8 @@
         <label>社印</label>
         <input id="companyStampFile" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
         <div class="helper">JPG / PNG / PDF対応。PDFは1ページ目を社印として使用します。</div>
+        <button class="btn secondary" id="generateCompanyStampBtn" type="button" style="margin-top:10px">会社名から社印を作成</button>
+        <div class="helper">入力中の会社名を全文入れた、請求書用の簡易角印を自動作成します。</div>
         <div id="companyStampPreview" class="stamp-settings-preview" style="display:none">
           <img id="companyStampPreviewImage" alt="社印プレビュー">
           <button class="btn secondary" id="removeCompanyStampBtn" type="button">社印を削除</button>
@@ -3800,6 +3802,116 @@ function renderCompanyInfoForm(){
   }
 
 
+
+  function splitCompanyNameForStamp(name){
+    const chars = Array.from(String(name || "").trim());
+    const n = chars.length;
+    if(n <= 4) return [chars.join("")];
+    if(n <= 10){
+      const cut = Math.ceil(n / 2);
+      return [chars.slice(0, cut).join(""), chars.slice(cut).join("")];
+    }
+    if(n <= 18){
+      const lineCount = 3;
+      const base = Math.ceil(n / lineCount);
+      const lines = [];
+      for(let i=0;i<n;i+=base) lines.push(chars.slice(i, i+base).join(""));
+      return lines.slice(0,3);
+    }
+
+    // 長い会社名は4行に分け、全文を必ず収める
+    const lineCount = 4;
+    const base = Math.ceil(n / lineCount);
+    const lines = [];
+    for(let i=0;i<n;i+=base) lines.push(chars.slice(i, i+base).join(""));
+    return lines.slice(0,4);
+  }
+
+  function generateCompanyStampDataUrl(companyName){
+    const name = String(companyName || "").trim();
+    if(!name) throw new Error("先に自社情報の会社名を入力してください");
+
+    const size = 720;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d", {alpha:true});
+    ctx.clearRect(0,0,size,size);
+
+    const red = "#c91520";
+    const center = size / 2;
+
+    // 外枠・内枠（角印）
+    ctx.strokeStyle = red;
+    ctx.lineCap = "square";
+    ctx.lineJoin = "miter";
+
+    ctx.lineWidth = 28;
+    ctx.strokeRect(58, 58, 604, 604);
+
+    ctx.lineWidth = 10;
+    ctx.strokeRect(94, 94, 532, 532);
+
+    const lines = splitCompanyNameForStamp(name);
+    const maxTextWidth = 455;
+    const totalTextHeight = 430;
+
+    // 行数に応じた初期サイズから、全文が円内に収まるまで縮小
+    let fontSize = lines.length === 1 ? 180 :
+                   lines.length === 2 ? 142 :
+                   lines.length === 3 ? 105 : 82;
+
+    const fontStack = '"Hiragino Mincho ProN","Yu Mincho","YuMincho","HGS明朝E",serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = red;
+
+    function setFont(px){
+      ctx.font = `900 ${px}px ${fontStack}`;
+    }
+
+    setFont(fontSize);
+    while(fontSize > 42){
+      const widest = Math.max(...lines.map(line=>ctx.measureText(line).width));
+      const lineHeight = fontSize * 1.08;
+      const blockHeight = lineHeight * lines.length;
+      if(widest <= maxTextWidth && blockHeight <= totalTextHeight) break;
+      fontSize -= 2;
+      setFont(fontSize);
+    }
+
+    const lineHeight = fontSize * 1.08;
+    const startY = center - ((lines.length - 1) * lineHeight) / 2;
+
+    // 印影らしく、文字を少しだけ横方向に詰める
+    lines.forEach((line, index)=>{
+      ctx.save();
+      ctx.translate(center, startY + index * lineHeight);
+      const width = ctx.measureText(line).width;
+      const squeeze = width > maxTextWidth ? maxTextWidth / width : 1;
+      ctx.scale(squeeze, 1);
+      ctx.fillText(line, 0, 0);
+      ctx.restore();
+    });
+
+    return canvas.toDataURL("image/png");
+  }
+
+  function createCompanyStampFromName(){
+    const companyName = $("companyInfoName")?.value.trim() || state.companyInfo?.name || "";
+    try{
+      const dataUrl = generateCompanyStampDataUrl(companyName);
+      state.companyInfo.stampDataUrl = dataUrl;
+      state.companyInfo.stampFileName = "会社名から自動作成";
+      save();
+      renderCompanyStampPreview();
+      renderInvoice();
+      alert("会社名から角印を作成しました");
+    }catch(err){
+      alert(err?.message || "社印を作成できませんでした");
+    }
+  }
+
   function renderCompanyStampPreview(){
     const wrap = $("companyStampPreview");
     const img = $("companyStampPreviewImage");
@@ -4608,6 +4720,8 @@ function getContractBillingIncluded(siteId, month){
     renderInvoice();
   });
   $("invoiceTaxCustom").addEventListener("input", renderInvoice);
+
+  $("generateCompanyStampBtn")?.addEventListener("click", createCompanyStampFromName);
 
   $("companyStampFile")?.addEventListener("change", async (event)=>{
     const file = event.target.files && event.target.files[0];
