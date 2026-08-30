@@ -2139,6 +2139,7 @@
         <label>新しいパスワード（確認）</label>
         <input id="newPasswordConfirm" type="password" autocomplete="new-password" placeholder="もう一度入力">
         <button id="updatePasswordBtn" class="btn auth-submit" type="button">パスワードを変更</button>
+        <button id="resetBackBtn" class="auth-reset-back" type="button">ログイン画面に戻る</button>
         <div id="newPasswordMessage" class="auth-message"></div>
       </div>
     </div>
@@ -5957,6 +5958,24 @@ function getContractBillingIncluded(siteId, month){
     $("updatePasswordBtn")?.addEventListener("click", updateRecoveredPassword);
     $("newPasswordConfirm")?.addEventListener("keydown", e=>{
       if(e.key === "Enter") updateRecoveredPassword();
+    });
+
+    $("resetBackBtn")?.addEventListener("click", async ()=>{
+      try{
+        clearPasswordResetFlow();
+        await supabaseClient.auth.signOut();
+      }catch(err){
+        console.warn("password reset cancel signout", err);
+      }
+      if($("newPassword")) $("newPassword").value = "";
+      if($("newPasswordConfirm")) $("newPasswordConfirm").value = "";
+      if($("newPasswordMessage")){
+        $("newPasswordMessage").textContent = "";
+        $("newPasswordMessage").className = "auth-message";
+      }
+      showAuthPanel("normal");
+      setAuthMode("login");
+      if($("authOverlay")) $("authOverlay").style.display = "flex";
     });
 
     supabaseClient.auth.onAuthStateChange((event)=>{
