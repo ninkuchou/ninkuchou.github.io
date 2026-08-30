@@ -4058,6 +4058,88 @@
 
   let summaryMode = "monthly";
 
+  let summarySiteOptionsSignature = "";
+
+  function summarySiteSignature(sites){
+    // 現場の追加・削除・名称・元請け・契約区分が変わった時だけ
+    // 1000件規模のoption一覧を作り直すための軽量シグネチャ。
+    return sites.map(s=>[
+      s.id,
+      s.name || "",
+      s.clientId || "",
+      s.contractType || "常用"
+    ].join("\u001f")).join("\u001e");
+  }
+
+  function syncSummarySiteOptions(){
+    const select = $("summarySite");
+    if(!select) return;
+
+    const sites = sortByRecent(state.sites, "summarySite", x=>x.id);
+    const signature = summarySiteSignature(sites);
+    const current = select.value || "";
+
+    // 現場データ自体が変わった時だけ全optionを再生成する。
+    if(signature !== summarySiteOptionsSignature){
+      const fragment = document.createDocumentFragment();
+
+      sites.forEach(s=>{
+        const c = s.clientId ? clientById(s.clientId) : null;
+        const option = document.createElement("option");
+        option.value = s.id;
+        option.textContent = c
+          ? `${s.name}｜${c.name}｜${s.contractType || "常用"}`
+          : `${s.name}｜${s.contractType || "常用"}`;
+        fragment.appendChild(option);
+      });
+
+      select.replaceChildren(fragment);
+      summarySiteOptionsSignature = signature;
+    }
+
+    // モード切替では1000件を触らず、「すべての現場」1件だけ追加・削除する。
+    let allOption = select.querySelector('option[value="all"]');
+
+    if(summaryMode === "monthly"){
+      if(!allOption){
+        allOption = document.createElement("option");
+        allOption.value = "all";
+        allOption.textContent = "すべての現場";
+        select.insertBefore(allOption, select.firstChild);
+      }
+    }else if(allOption){
+      allOption.remove();
+    }
+
+    if(!sites.length){
+      if(!select.querySelector('option[value=""]')){
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "現場を登録してください";
+        select.appendChild(emptyOption);
+      }
+      select.value = "";
+      return;
+    }
+
+    // 空状態用optionが残っていれば除去。
+    select.querySelectorAll('option[value=""]').forEach(opt=>opt.remove());
+
+    if(summaryMode === "site"){
+      if(current && current !== "all" && sites.some(s=>s.id===current)){
+        select.value = current;
+      }else{
+        select.value = sites[0].id;
+      }
+    }else{
+      if(current === "all" || sites.some(s=>s.id===current)){
+        select.value = current || "all";
+      }else{
+        select.value = "all";
+      }
+    }
+  }
+
   function setSummaryMode(mode){
     summaryMode = mode === "site" ? "site" : "monthly";
 
@@ -4079,16 +4161,27 @@
         : "選択した現場を月をまたいで集計します。下のカレンダーをスクロールして、日付を押すとその日の詳細を確認できます。";
     }
 
-    // モードに合わせて現場選択肢を切り替える。
-    // 月別＝「すべての現場」あり / 現場別＝1現場のみ。
+    // 他の選択肢を更新した後、集計の現場選択は1000件規模を想定した同期処理で更新する。
     renderCoreSelects();
+    syncSummarySiteOptions();
+
+    // 念のため現場別では value="all" が残っていれば即削除する。
+    if(summaryMode === "site"){
+      $("summarySite")?.querySelectorAll('option[value="all"]').forEach(opt=>opt.remove());
+    }
+
     renderSummary();
   }
 
   $("summaryModeMonthly")?.addEventListener("click", ()=>setSummaryMode("monthly"));
   $("summaryModeSite")?.addEventListener("click", ()=>setSummaryMode("site"));
   $("summaryMonth").addEventListener("change", renderSummary);
-  $("summarySite").addEventListener("change", renderSummary);
+  $("summarySite").addEventListener("change", ()=>{
+    if(summaryMode === "site" && $("summarySite").value === "all"){
+      syncSummarySiteOptions();
+    }
+    renderSummary();
+  });
 
 
   function clientById(id){
@@ -4642,36 +4735,8 @@
       if(current && entrySites.some(s=>s.id===current)) entrySite.value = current;
     }
 
-    const summarySites = sortByRecent(state.sites, "summarySite", x=>x.id);
-    const summarySiteOptions = summarySites.map(s=>{
-      const c = s.clientId ? clientById(s.clientId) : null;
-      const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
-      return `<option value="${s.id}">${escapeHtml(label)}</option>`;
-    }).join("");
-    const summarySite = $("summarySite");
-    if(summarySite){
-      const current = summarySite.value || "";
-
-      if(summaryMode === "site"){
-        // 現場別モードでは「すべての現場」を表示しない。
-        summarySite.innerHTML = summarySiteOptions || `<option value="">現場を登録してください</option>`;
-
-        if(current && summarySites.some(s=>s.id===current)){
-          summarySite.value = current;
-        }else if(summarySites.length){
-          // 「すべての現場」から切り替えた場合などは、直近の現場を自動選択。
-          summarySite.value = summarySites[0].id;
-        }
-      }else{
-        summarySite.innerHTML = `<option value="all">すべての現場</option>` + summarySiteOptions;
-
-        if(current==="all" || summarySites.some(s=>s.id===current)){
-          summarySite.value = current || "all";
-        }else{
-          summarySite.value = "all";
-        }
-      }
-    }
+    // 集計の現場選択はモード別の専用関数で生成する。
+    syncSummarySiteOptions();
   }
 
   function renderSites(){
