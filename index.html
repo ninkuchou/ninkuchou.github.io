@@ -2645,7 +2645,7 @@
       return "ログイン状態の期限切れの可能性あり。一度ログアウトして再ログインして。";
     }
     if(lower.includes("row-level security") || lower.includes("permission") || lower.includes("not allowed") || lower.includes("forbidden")){
-      return "Supabaseの権限設定（RLS）で保存を拒否されてる可能性あり。";
+      return `Supabaseの権限設定（RLS）で保存を拒否されています。\n\n詳細: ${raw}`;
     }
     if(lower.includes("column") || lower.includes("schema") || lower.includes("does not exist")){
       return "Supabaseのテーブル列が今のアプリと合ってない可能性あり。";
@@ -5420,7 +5420,9 @@ function getContractBillingIncluded(siteId, month){
           const result = await supabaseClient
             .from(table)
             .upsert(batch, {onConflict:"id"});
-          if(result.error) throw result.error;
+          if(result.error){
+            throw new Error(`${table}: ${result.error.message || result.error.details || result.error.hint || "保存に失敗しました"}`);
+          }
         }
       }
 
@@ -5436,7 +5438,9 @@ function getContractBillingIncluded(siteId, month){
             .delete()
             .eq("company_id", cloudCompanyId)
             .in("id", batch);
-          if(result.error) throw result.error;
+          if(result.error){
+            throw new Error(`${table}: ${result.error.message || result.error.details || result.error.hint || "削除に失敗しました"}`);
+          }
         }
       }
 
@@ -5463,7 +5467,9 @@ function getContractBillingIncluded(siteId, month){
       const settingsResult = await supabaseClient
         .from("company_settings")
         .upsert(settings);
-      if(settingsResult.error) throw settingsResult.error;
+      if(settingsResult.error){
+        throw new Error(`company_settings: ${settingsResult.error.message || settingsResult.error.details || settingsResult.error.hint || "保存に失敗しました"}`);
+      }
 
       // 成功した状態を次回差分比較の基準にする。
       cloudBaselineRows = cloneCloudRows(rows);
