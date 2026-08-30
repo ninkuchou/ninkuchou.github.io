@@ -2502,6 +2502,15 @@
     opacity:1 !important;
   }
 
+
+  .tutorial-card.step7-full{
+    max-height:none !important;
+    overflow:visible !important;
+  }
+  .tutorial-card.step7-full .tutorial-text{
+    overflow:visible !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -5823,6 +5832,11 @@ function getContractBillingIncluded(siteId, month){
     const tutorialTab = document.querySelector(`nav button[data-view="${step.view}"]`);
     if(tutorialTab) tutorialTab.classList.add("tutorial-tab-highlight");
 
+    const tutorialCard = $("tutorialCard");
+    if(tutorialCard){
+      tutorialCard.classList.toggle("step7-full", tutorialIndex === 6);
+    }
+
     $("tutorialStep").textContent = `${tutorialIndex + 1} / ${tutorialSteps.length}`;
     $("tutorialTitle").textContent = step.title;
     if(step.html){
@@ -5857,6 +5871,7 @@ function getContractBillingIncluded(siteId, month){
   function finishTutorial(){
     tutorialActive = false;
     clearTutorialHighlight();
+    $("tutorialCard")?.classList.remove("step7-full");
     $("tutorialOverlay").classList.remove("active");
     $("tutorialOverlay").setAttribute("aria-hidden","true");
     localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
