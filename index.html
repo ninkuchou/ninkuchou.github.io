@@ -1763,19 +1763,32 @@
     max-width:900px;
     margin:8px auto 0;
     padding:7px 12px;
-    display:flex;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto;
     align-items:center;
-    justify-content:space-between;
     gap:10px;
     font-size:11px;
     color:#64748b;
   }
+  .cloud-account-info{
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    overflow:hidden;
+  }
   .cloud-company-name{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
     font-weight:800;
     color:#334155;
-    margin-right:8px;
+    margin-right:0;
+    flex:1 1 auto;
   }
   .cloud-sync-status{
+    flex:0 0 auto;
     white-space:nowrap;
   }
   .cloud-sync-status.syncing{ color:#b45309; }
@@ -1987,26 +2000,23 @@
   @supports (-webkit-touch-callout: none){
     @media (max-width:600px){
       .cloud-account-bar{
-        position:relative;
         min-height:42px;
+        grid-template-columns:minmax(0,1fr) auto auto;
       }
       .cloud-mobile-logo{
         display:block;
-        position:absolute;
-        left:50%;
-        top:50%;
-        transform:translate(-50%,-50%);
         width:min(34vw,138px);
         height:auto;
         max-height:30px;
         object-fit:contain;
         pointer-events:none;
-        z-index:1;
+        justify-self:center;
       }
-      .cloud-account-bar > div,
-      .cloud-account-bar > button{
-        position:relative;
-        z-index:2;
+      .cloud-account-info{
+        min-width:0;
+      }
+      .cloud-company-name{
+        max-width:100%;
       }
     }
   }
@@ -2064,7 +2074,7 @@
   </header>
 
   <div id="cloudAccountBar" class="cloud-account-bar" style="display:none">
-    <div>
+    <div class="cloud-account-info">
       <span id="cloudCompanyName" class="cloud-company-name"></span>
       <span id="cloudSyncStatus" class="cloud-sync-status">クラウド接続中</span>
     </div>
@@ -2610,11 +2620,40 @@
     scheduleCloudSync();
   }
 
-  function setCloudStatus(text, kind=""){
+  let lastCloudErrorDetail = "";
+
+  function setCloudStatus(text, kind="", detail=""){
     const el = document.getElementById("cloudSyncStatus");
     if(!el) return;
+    lastCloudErrorDetail = detail || "";
     el.textContent = text;
     el.className = "cloud-sync-status" + (kind ? " " + kind : "");
+    el.title = detail || "";
+    el.dataset.detail = detail || "";
+    el.style.cursor = detail ? "pointer" : "default";
+  }
+
+  function explainCloudError(err){
+    const raw = String(
+      err?.message || err?.error_description || err?.details || err?.hint || err || "不明なエラー"
+    ).trim();
+    const lower = raw.toLowerCase();
+    if(lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("network request failed")){
+      return "通信に失敗した。電波・Wi-Fi・Safari再読込を確認して。";
+    }
+    if(lower.includes("jwt") || lower.includes("auth") || lower.includes("session") || lower.includes("token")){
+      return "ログイン状態の期限切れの可能性あり。一度ログアウトして再ログインして。";
+    }
+    if(lower.includes("row-level security") || lower.includes("permission") || lower.includes("not allowed") || lower.includes("forbidden")){
+      return "Supabaseの権限設定（RLS）で保存を拒否されてる可能性あり。";
+    }
+    if(lower.includes("column") || lower.includes("schema") || lower.includes("does not exist")){
+      return "Supabaseのテーブル列が今のアプリと合ってない可能性あり。";
+    }
+    if(lower.includes("duplicate") || lower.includes("unique")){
+      return "重複データ制約で保存に失敗してる可能性あり。";
+    }
+    return raw;
   }
 
   function scheduleCloudSync(){
@@ -5062,6 +5101,11 @@ function getContractBillingIncluded(siteId, month){
     );
   });
 
+  $("cloudSyncStatus")?.addEventListener("click", ()=>{
+    const detail = lastCloudErrorDetail || $("cloudSyncStatus")?.dataset?.detail || "";
+    if(detail) alert("保存エラーの詳細\n\n" + detail);
+  });
+
   $("companyStampFile")?.addEventListener("change", async (event)=>{
     const file = event.target.files && event.target.files[0];
     await handleCompanyStampFile(file);
@@ -5427,7 +5471,8 @@ function getContractBillingIncluded(siteId, month){
       setCloudStatus("保存済み", "ok");
     }catch(err){
       console.error("cloud delta sync error", err);
-      setCloudStatus("保存エラー", "error");
+      const detail = explainCloudError(err);
+      setCloudStatus("保存エラー", "error", detail);
     }finally{
       cloudSyncInFlight = false;
       if(cloudSyncPending){
