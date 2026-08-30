@@ -2474,6 +2474,34 @@
     opacity:.42 !important;
   }
 
+
+  /* チュートリアル中：選択中以外のタブを枠ごと暗くする */
+  nav.tutorial-nav-front{
+    background:transparent !important;
+  }
+
+  nav.tutorial-nav-front button:not(.tutorial-tab-highlight){
+    background:rgba(15,23,42,.62) !important;
+    color:rgba(255,255,255,.58) !important;
+    opacity:1 !important;
+    filter:none !important;
+    box-shadow:none !important;
+    border-color:rgba(15,23,42,.62) !important;
+  }
+
+  nav.tutorial-nav-front button:not(.tutorial-tab-highlight) .nav-icon,
+  nav.tutorial-nav-front button:not(.tutorial-tab-highlight) span{
+    color:rgba(255,255,255,.58) !important;
+    opacity:1 !important;
+    filter:none !important;
+  }
+
+  nav.tutorial-nav-front .tutorial-tab-highlight{
+    background:#ffffff !important;
+    color:#0f3d73 !important;
+    opacity:1 !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
