@@ -2605,6 +2605,102 @@
     }
   }
 
+
+
+  /* ===== 請求書下段2ボックス：高さを完全に揃える ===== */
+  .excel-template .invoice-bottom-second-row{
+    align-items:stretch !important;
+  }
+
+  .excel-template .invoice-bottom-second-row > div:first-child,
+  .excel-template .invoice-bottom-second-row > .invoice-payment-box{
+    height:100% !important;
+    align-self:stretch !important;
+    display:flex !important;
+    flex-direction:column !important;
+  }
+
+  .excel-template .invoice-bottom-second-row > div:first-child{
+    min-height:72px !important;
+  }
+
+  .excel-template .invoice-bank,
+  .excel-template .invoice-payment-box{
+    height:100% !important;
+    min-height:72px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:flex-start !important;
+    box-sizing:border-box !important;
+  }
+
+  .excel-template .bank-title,
+  .excel-template .payment-title{
+    height:24px !important;
+    min-height:24px !important;
+    flex:0 0 24px !important;
+    display:flex !important;
+    align-items:center !important;
+    box-sizing:border-box !important;
+  }
+
+  .excel-template .bank-body,
+  .excel-template .payment-value{
+    flex:1 1 auto !important;
+    min-height:30px !important;
+    display:flex !important;
+    align-items:center !important;
+    box-sizing:border-box !important;
+  }
+
+  .excel-template .bank-body{
+    justify-content:flex-start !important;
+  }
+
+  .excel-template .payment-value{
+    justify-content:center !important;
+  }
+
+  @media print{
+    .excel-template .invoice-bottom-second-row{
+      align-items:stretch !important;
+    }
+
+    .excel-template .invoice-bottom-second-row > div:first-child,
+    .excel-template .invoice-bottom-second-row > .invoice-payment-box,
+    .excel-template .invoice-bank,
+    .excel-template .invoice-payment-box{
+      height:100% !important;
+      min-height:72px !important;
+      display:flex !important;
+      flex-direction:column !important;
+      align-self:stretch !important;
+      box-sizing:border-box !important;
+    }
+
+    .excel-template .bank-title,
+    .excel-template .payment-title{
+      height:24px !important;
+      min-height:24px !important;
+      flex:0 0 24px !important;
+      display:flex !important;
+      align-items:center !important;
+      box-sizing:border-box !important;
+    }
+
+    .excel-template .bank-body,
+    .excel-template .payment-value{
+      flex:1 1 auto !important;
+      min-height:30px !important;
+      display:flex !important;
+      align-items:center !important;
+      box-sizing:border-box !important;
+    }
+
+    .excel-template .bank-body{ justify-content:flex-start !important; }
+    .excel-template .payment-value{ justify-content:center !important; }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
