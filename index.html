@@ -2397,6 +2397,20 @@
     color:#94a3b8;
   }
 
+
+  .tutorial-tab-highlight{
+    position:relative !important;
+    z-index:10004 !important;
+    outline:3px solid rgba(37,99,235,.98) !important;
+    outline-offset:-2px !important;
+    box-shadow:0 0 0 5px rgba(255,255,255,.92), 0 0 0 9px rgba(37,99,235,.18) !important;
+    border-radius:14px !important;
+    transform:translateY(-2px);
+  }
+  .tutorial-tab-highlight .nav-icon{
+    transform:scale(1.15);
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -5659,13 +5673,19 @@ function getContractBillingIncluded(siteId, month){
       view:"input",
       target:"#addBulkEntryBtn",
       title:"⑤ 毎日の人工を入力",
-      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。"
+      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」にチェックを入れて、入力ボタンを押すだけで登録できます。"
     },
     {
       view:"invoice",
       target:"#makeInvoiceBtn",
       title:"⑥ 締め日に請求書を作成",
-      html:`<p>元請け会社と請求月を選ぶと、入力した人工から請求書を作成できます。</p><div class="tutorial-icon-demo"><div class="tutorial-icon-demo-label">忘れ防止アイコンの例</div><button class="invoice-alert-btn tutorial-demo-alert" type="button" aria-hidden="true" tabindex="-1">🧾<span>1</span></button></div><p>締め日が来た請求があると、画面上部にこのアイコンが表示されます。通知を押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
+      text:"元請け会社と請求月を選ぶと、入力した人工から請求書を作成できます。"
+    },
+    {
+      view:"invoice",
+      target:"#invoiceChecklistCard",
+      title:"⑦ 請求書の作り忘れを防止",
+      html:`<p>締め日が来た請求があると、画面上部に請求通知アイコンが表示されます。</p><div class="tutorial-icon-demo"><div class="tutorial-icon-demo-label">実際に表示される通知アイコン</div><button class="invoice-alert-btn tutorial-demo-alert" type="button" aria-hidden="true" tabindex="-1">🧾<span>1</span></button></div><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
     }
   ];
 
@@ -5676,6 +5696,7 @@ function getContractBillingIncluded(siteId, month){
 
   function clearTutorialHighlight(){
     document.querySelectorAll(".tutorial-highlight").forEach(el=>el.classList.remove("tutorial-highlight"));
+    document.querySelectorAll(".tutorial-tab-highlight").forEach(el=>el.classList.remove("tutorial-tab-highlight"));
   }
 
   function positionTutorialCard(target){
@@ -5704,6 +5725,9 @@ function getContractBillingIncluded(siteId, month){
 
     clearTutorialHighlight();
     activateViewForTutorial(step.view);
+
+    const tutorialTab = document.querySelector(`nav button[data-view="${step.view}"]`);
+    if(tutorialTab) tutorialTab.classList.add("tutorial-tab-highlight");
 
     $("tutorialStep").textContent = `${tutorialIndex + 1} / ${tutorialSteps.length}`;
     $("tutorialTitle").textContent = step.title;
