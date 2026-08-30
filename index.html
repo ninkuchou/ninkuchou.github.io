@@ -2185,8 +2185,9 @@
     padding:8px 9px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap
   }
   .invoice-check-done{
-    width:34px;height:34px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;
-    display:grid;place-items:center;cursor:pointer;font-size:17px;color:#16a34a
+    min-width:72px;height:34px;padding:0 8px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:800;color:#16a34a;
+    white-space:nowrap
   }
   .invoice-check-empty{
     padding:12px;border-radius:12px;background:#f8fafc;color:#64748b;
@@ -2206,6 +2207,7 @@
     .invoice-check-main{align-items:flex-start}
     .invoice-check-actions{gap:5px}
     .invoice-check-create{padding:8px 7px}
+    .invoice-check-done{min-width:66px;padding:0 6px;font-size:10px}
   }
 
 
@@ -2625,6 +2627,7 @@
         <label>日付</label>
         <div class="date-wrap"><input id="entryDate" type="date"></div>
         <button class="btn secondary" id="copyPreviousDayBtn" type="button" style="margin-top:8px">前日と同じ内容を入力</button>
+        <div class="helper">前日の現場・作業員・人工・早出・残業・現場経費を、選択した日付へコピーします。</div>
 
         <label>現場</label>
         <select id="entrySite"></select>
@@ -2675,6 +2678,7 @@
           <option value="常用">常用</option>
           <option value="請負">請負</option>
         </select>
+        <div id="siteContractTypeHelp" class="helper">常用＝人工単価で請求 / 請負＝工事金額・出来高率で請求</div>
 
         <div id="siteContractWorkContentWrap" style="display:none">
           <label>工事内容</label>
@@ -2843,7 +2847,7 @@
           <h2>請求チェック</h2>
           <span id="invoiceChecklistCount" class="invoice-check-count">0</span>
         </div>
-        <div class="invoice-check-copy">締め日が来た請求を表示します。請求書を作成したら ✓ を押してください。</div>
+        <div class="invoice-check-copy">締め日が来た請求を表示します。請求書を作成したら「✓ 作成済み」を押すと完了扱いになります。</div>
         <div id="invoiceChecklistList" class="invoice-check-list"></div>
         <button id="invoiceChecklistHistoryToggle" class="invoice-check-history-toggle" type="button">作成済みを表示</button>
         <div id="invoiceChecklistHistory" class="invoice-check-history"></div>
@@ -2902,6 +2906,7 @@
 
         <button class="btn" id="makeInvoiceBtn">請求書を作成</button>
         <button class="btn secondary" id="printInvoiceBtn">PDF保存・印刷</button>
+        <div class="helper">請求書を作成後、「PDF保存・印刷」からPDF保存・印刷できます。PDF保存後は端末の共有機能から送付できます。</div>
       </div>
 
       <div class="card no-print" id="companyInfoCard">
@@ -3438,7 +3443,7 @@
   function updateSiteBillingFieldsVisibility(){
     const isSelf = isSelfCompanyClientId($("siteClient")?.value || "");
 
-    const ids = ["siteContractTypeLabel","siteContractType","siteRevenueLabel","siteRevenue","siteBillRateLabel","siteBillRate"];
+    const ids = ["siteContractTypeLabel","siteContractType","siteContractTypeHelp","siteRevenueLabel","siteRevenue","siteBillRateLabel","siteBillRate"];
     ids.forEach(id=>{
       const el = $(id);
       if(el) el.style.display = isSelf ? "none" : "";
@@ -5806,7 +5811,7 @@ function getContractBillingIncluded(siteId, month){
       view:"sites",
       target:"#siteName",
       title:"② 現場を登録",
-      text:"次に現場を登録して、元請け会社と紐づけます。自社案件の場合は元請け会社で「自社」を選択してください。自社を選んだ現場は請求書の対象になりません。常用・請負の契約区分もここで設定できます。"
+      text:"次に現場を登録して、元請け会社と紐づけます。自社案件の場合は元請け会社で「自社」を選択してください。自社を選んだ現場は請求書の対象になりません。常用は人工単価で請求、請負は工事金額・出来高率で請求します。"
     },
     {
       view:"workers",
@@ -5824,19 +5829,19 @@ function getContractBillingIncluded(siteId, month){
       view:"input",
       target:"#addBulkEntryBtn",
       title:"⑤ 毎日の人工を入力",
-      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」ボタンを押して前日の内容を反映し、そのまま入力ボタンを押すだけで登録できます。"
+      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」ボタンで、前日の現場・作業員・人工・早出・残業・現場経費を選択した日付へコピーできます。"
     },
     {
       view:"invoice",
       target:"#makeInvoiceBtn",
       title:"⑥ 締め日に請求書を作成",
-      text:"元請け会社と請求月を選ぶと、入力した人工から請求書を作成できます。"
+      text:"元請け会社と請求月を選ぶと、入力した人工から請求書を作成できます。作成後はPDF保存・印刷ができます。"
     },
     {
       view:"invoice",
       target:"#invoiceAlertBtn",
       title:"⑦ 請求書の作り忘れを防止",
-      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
+      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓ 作成済み」を押して、完了扱いにしてください。</p>`
     }
   ];
 
@@ -6225,7 +6230,7 @@ function getContractBillingIncluded(siteId, month){
       // 成功した状態を次回差分比較の基準にする。
       cloudBaselineRows = cloneCloudRows(rows);
 
-      setCloudStatus("保存済み", "ok");
+      setCloudStatus("クラウド保存済み", "ok");
     }catch(err){
       console.error("cloud delta sync error", err);
       const detail = explainCloudError(err);
@@ -6396,7 +6401,7 @@ function getContractBillingIncluded(siteId, month){
       state = normalizeImportedState(cloud.state);
       saveLocalOnly();
       cloudBaselineRows = cloneCloudRows(toCloudRows());
-      setCloudStatus("保存済み", "ok");
+      setCloudStatus("クラウド保存済み", "ok");
     }else{
       // クラウドが空なら、端末の旧データを使わず空の状態から開始する。
       state = normalizeImportedState(defaultState);
@@ -6404,7 +6409,7 @@ function getContractBillingIncluded(siteId, month){
       cloudBaselineRows = Object.fromEntries(
         CLOUD_TABLES_PARENT_FIRST.map(t=>[t, []])
       );
-      setCloudStatus("保存済み", "ok");
+      setCloudStatus("クラウド保存済み", "ok");
     }
 
     renderAll();
@@ -6959,7 +6964,7 @@ function getContractBillingIncluded(siteId, month){
                 data-invoice-month="${item.month}">請求書を作成</button>
               <button class="invoice-check-done" type="button"
                 data-invoice-done="${item.key}"
-                aria-label="${escapeHtml(item.client.name)} ${Number(monthNumber)}月分を作成済みにする">✓</button>
+                aria-label="${escapeHtml(item.client.name)} ${Number(monthNumber)}月分を作成済みにする">✓ 作成済み</button>
             </div>
           </div>
         </div>`;
