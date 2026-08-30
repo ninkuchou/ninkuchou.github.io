@@ -1944,6 +1944,25 @@
     margin-top:8px;
   }
 
+
+    /* iPhone / iPad: 請求書プレビューを2本指ピンチで拡大・縮小 */
+    @supports (-webkit-touch-callout: none){
+      @media (max-width:600px){
+        #invoicePreview{
+          overflow:auto;
+          -webkit-overflow-scrolling:touch;
+          touch-action:pan-x pan-y;
+          transform-origin:top left;
+        }
+      }
+    }
+
+    @media print{
+      #invoicePreview{
+        zoom:1 !important;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -4509,6 +4528,91 @@ function getContractBillingIncluded(siteId, month){
     return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
   }
 
+
+  let invoicePreviewZoom = 1;
+  let invoicePinchStartDistance = 0;
+  let invoicePinchStartZoom = 1;
+
+  function isIOSLikeDevice(){
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
+  function touchDistance(t1, t2){
+    const dx = t2.clientX - t1.clientX;
+    const dy = t2.clientY - t1.clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  function applyInvoicePreviewZoom(value){
+    const preview = $("invoicePreview");
+    if(!preview) return;
+    invoicePreviewZoom = Math.max(0.4, Math.min(2.5, value));
+    preview.style.zoom = String(invoicePreviewZoom);
+  }
+
+  function fitInvoicePreviewToWidth(){
+    const preview = $("invoicePreview");
+    if(!preview || !isIOSLikeDevice()) return;
+
+    // 一度等倍に戻して実寸幅を測る
+    preview.style.zoom = "1";
+    invoicePreviewZoom = 1;
+
+    requestAnimationFrame(()=>{
+      const sheet = preview.querySelector(".invoice-sheet.excel-template");
+      if(!sheet) return;
+
+      const viewportWidth = Math.max(
+        1,
+        window.innerWidth - 24
+      );
+
+      const sheetWidth = Math.max(
+        sheet.scrollWidth,
+        sheet.getBoundingClientRect().width
+      );
+
+      if(!sheetWidth) return;
+
+      // 横幅が全部収まる倍率。拡大はせず、必要な時だけ縮小する。
+      const fitZoom = Math.min(1, viewportWidth / sheetWidth);
+      applyInvoicePreviewZoom(fitZoom);
+    });
+  }
+
+  function setupInvoicePreviewPinchZoom(){
+    const preview = $("invoicePreview");
+    if(!preview || !isIOSLikeDevice()) return;
+
+    preview.addEventListener("touchstart", (event)=>{
+      if(event.touches.length !== 2) return;
+      invoicePinchStartDistance = touchDistance(event.touches[0], event.touches[1]);
+      invoicePinchStartZoom = invoicePreviewZoom;
+    }, {passive:true});
+
+    preview.addEventListener("touchmove", (event)=>{
+      if(event.touches.length !== 2 || !invoicePinchStartDistance) return;
+
+      const currentDistance = touchDistance(event.touches[0], event.touches[1]);
+      if(!currentDistance) return;
+
+      const nextZoom = invoicePinchStartZoom * (currentDistance / invoicePinchStartDistance);
+      applyInvoicePreviewZoom(nextZoom);
+
+      // ページ全体ではなく請求書プレビューだけを拡大・縮小する。
+      event.preventDefault();
+    }, {passive:false});
+
+    const endPinch = ()=>{
+      invoicePinchStartDistance = 0;
+      invoicePinchStartZoom = invoicePreviewZoom;
+    };
+
+    preview.addEventListener("touchend", endPinch, {passive:true});
+    preview.addEventListener("touchcancel", endPinch, {passive:true});
+  }
+
   function renderInvoice(){
     updateInvoicePeriodHint();
     const clientId = $("invoiceClient").value;
@@ -4802,6 +4906,9 @@ function getContractBillingIncluded(siteId, month){
     }
 
     $("invoicePreview").innerHTML = pages.join("");
+    if(isIOSLikeDevice()){
+      setTimeout(fitInvoicePreviewToWidth, 60);
+    }
 
     // フォント・テーマ色はHTML文字列に埋め込まず、DOMへ直接適用する
     const invoiceSheets = document.querySelectorAll("#invoicePreview .invoice-sheet.excel-template");
@@ -5668,6 +5775,13 @@ function getContractBillingIncluded(siteId, month){
     }
   }
 
+  setupInvoicePreviewPinchZoom();
+  if(isIOSLikeDevice()){
+    window.addEventListener("resize", ()=>{
+      clearTimeout(window.__invoiceFitTimer);
+      window.__invoiceFitTimer = setTimeout(fitInvoicePreviewToWidth, 120);
+    });
+  }
   renderAll();
   initSupabaseAuth();
 
