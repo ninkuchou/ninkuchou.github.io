@@ -1193,10 +1193,15 @@
     .excel-template .invoice-bottom-second-row{
       width:100%;
       display:grid;
-      grid-template-columns:1.45fr 1fr;
+      grid-template-columns:1.35fr 1.15fr .38fr 1.35fr;
       gap:18px;
       margin-top:14px;
       align-items:start;
+    }
+
+    .excel-template .invoice-bottom-second-row > div:first-child{
+      grid-column:1 / span 2;
+      min-width:0;
     }
 
     .excel-template .invoice-bank{
@@ -1205,8 +1210,10 @@
     }
 
     .excel-template .invoice-payment-box{
+      grid-column:3 / span 2;
       width:100%;
       margin:0;
+      min-width:0;
     }
 
     .excel-template .payment-title{
@@ -1240,7 +1247,7 @@
 
       .excel-template .invoice-bottom-second-row{
         width:100% !important;
-        grid-template-columns:1.45fr 1fr !important;
+        grid-template-columns:1.35fr 1.15fr .38fr 1.35fr !important;
         gap:18px !important;
       }
     }
@@ -5385,83 +5392,123 @@ function getContractBillingIncluded(siteId, month){
     const paymentDate = concretePaymentDate(client, period);
 
     const detailRows = [];
-    rows.forEach(r=>{
-      if(r.contractType==="請負"){
-        detailRows.push(`
-          <tr class="site-row">
-            <td class="date">${Number(period.end.slice(5,7))}月${Number(period.end.slice(8,10))}日</td>
-            <td class="desc">${escapeHtml(r.site.name)}</td>
-            <td class="qty"></td>
-            <td class="unit"></td>
-            <td class="price"></td>
-            <td class="amount"></td>
-            <td class="note"></td>
-          </tr>
-        `);
 
-        const pct = Number(r.percent||0);
-        const pctText = pct.toFixed(pct%1 ? 1 : 0);
+    // 常用明細は「現場ごと」ではなく「日付ごと」にまとめる。
+    // 同じ日付の別現場を連続表示し、2行目以降の日付は省略する。
+    const dailyItems = [];
+    const contractRows = [];
+
+    rows.forEach((r, siteOrder)=>{
+      if(r.contractType === "請負"){
+        contractRows.push({r, siteOrder});
+        return;
+      }
+
+      (r.dailyLabor || []).forEach((d, itemOrder)=>{
+        dailyItems.push({
+          date:d.date,
+          type:"labor",
+          typeOrder:0,
+          siteOrder,
+          itemOrder,
+          siteName:r.site.name,
+          rate:Number(r.rate || 0),
+          labor:d
+        });
+      });
+
+      (r.dailyExpenses || []).forEach((d, itemOrder)=>{
+        dailyItems.push({
+          date:d.date,
+          type:"expense",
+          typeOrder:1,
+          siteOrder,
+          itemOrder,
+          siteName:r.site.name,
+          expense:d
+        });
+      });
+    });
+
+    dailyItems.sort((a,b)=>
+      a.date.localeCompare(b.date) ||
+      a.siteOrder - b.siteOrder ||
+      a.typeOrder - b.typeOrder ||
+      a.itemOrder - b.itemOrder
+    );
+
+    let lastDetailDate = "";
+
+    dailyItems.forEach(item=>{
+      const md = item.date.slice(5).split("-");
+      const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
+      const displayDate = item.date === lastDetailDate ? "" : dateLabel;
+      lastDetailDate = item.date;
+
+      if(item.type === "labor"){
+        const d = item.labor;
+        const dailyAmount = Number(d.jinko || 0) * Number(item.rate || 0);
         detailRows.push(`
           <tr>
-            <td class="date"></td>
-            <td class="desc">${escapeHtml(r.site?.contractWorkContent || "請負工事")}（出来高 ${pctText}%）</td>
-            <td class="qty">1</td>
-            <td class="unit">式</td>
-            <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
-            <td class="amount">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
+            <td class="date">${displayDate}</td>
+            <td class="desc">${escapeHtml(item.siteName)}</td>
+            <td class="qty">${Number(d.jinko).toFixed(Number(d.jinko)%1 ? 2 : 0)}</td>
+            <td class="unit">人工</td>
+            <td class="price">${Math.round(item.rate).toLocaleString("ja-JP")}</td>
+            <td class="amount">${Math.round(dailyAmount).toLocaleString("ja-JP")}</td>
             <td class="note"></td>
           </tr>
         `);
         return;
       }
 
-      // 常用は日付ごとに人工→経費の順で並べる
-      const byDate = {};
-      (r.dailyLabor || []).forEach(d=>{
-        if(!byDate[d.date]) byDate[d.date] = {labor:null, expense:null};
-        byDate[d.date].labor = d;
-      });
-      (r.dailyExpenses || []).forEach(d=>{
-        if(!byDate[d.date]) byDate[d.date] = {labor:null, expense:null};
-        byDate[d.date].expense = d;
-      });
+      const d = item.expense;
+      detailRows.push(`
+        <tr>
+          <td class="date">${displayDate}</td>
+          <td class="desc">${escapeHtml(d.memo || "経費")}</td>
+          <td class="qty">1</td>
+          <td class="unit">式</td>
+          <td class="price">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
+          <td class="amount">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
+          <td class="note">${d.hasTaxIncluded ? "税抜表示" : ""}</td>
+        </tr>
+      `);
+    });
 
-      Object.keys(byDate).sort().forEach(date=>{
-        const item = byDate[date];
-        const md = date.slice(5).split("-");
-        const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
+    // 請負は従来どおり現場単位で表示する。
+    contractRows.forEach(({r})=>{
+      const contractDate = period.end;
+      const md = contractDate.slice(5).split("-");
+      const contractDateLabel = `${Number(md[0])}月${Number(md[1])}日`;
+      const displayDate = contractDate === lastDetailDate ? "" : contractDateLabel;
+      lastDetailDate = contractDate;
 
-        if(item.labor){
-          const d = item.labor;
-          const dailyAmount = Number(d.jinko||0) * Number(r.rate||0);
-          detailRows.push(`
-            <tr>
-              <td class="date">${dateLabel}</td>
-              <td class="desc">${escapeHtml(r.site.name)}</td>
-              <td class="qty">${Number(d.jinko).toFixed(Number(d.jinko)%1 ? 2 : 0)}</td>
-              <td class="unit">人工</td>
-              <td class="price">${Math.round(r.rate).toLocaleString("ja-JP")}</td>
-              <td class="amount">${Math.round(dailyAmount).toLocaleString("ja-JP")}</td>
-              <td class="note"></td>
-            </tr>
-          `);
-        }
+      detailRows.push(`
+        <tr class="site-row">
+          <td class="date">${displayDate}</td>
+          <td class="desc">${escapeHtml(r.site.name)}</td>
+          <td class="qty"></td>
+          <td class="unit"></td>
+          <td class="price"></td>
+          <td class="amount"></td>
+          <td class="note"></td>
+        </tr>
+      `);
 
-        if(item.expense){
-          const d = item.expense;
-          detailRows.push(`
-            <tr>
-              <td class="date">${item.labor ? "" : dateLabel}</td>
-              <td class="desc">${escapeHtml(d.memo || "経費")}</td>
-              <td class="qty">1</td>
-              <td class="unit">式</td>
-              <td class="price">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
-              <td class="amount">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
-              <td class="note">${d.hasTaxIncluded ? "税抜表示" : ""}</td>
-            </tr>
-          `);
-        }
-      });
+      const pct = Number(r.percent || 0);
+      const pctText = pct.toFixed(pct%1 ? 1 : 0);
+      detailRows.push(`
+        <tr>
+          <td class="date"></td>
+          <td class="desc">${escapeHtml(r.site?.contractWorkContent || "請負工事")}（出来高 ${pctText}%）</td>
+          <td class="qty">1</td>
+          <td class="unit">式</td>
+          <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
+          <td class="amount">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
+          <td class="note"></td>
+        </tr>
+      `);
     });
 
     const bankText = String(state.companyInfo?.bankAccount || "")
