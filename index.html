@@ -5636,30 +5636,24 @@ function getContractBillingIncluded(siteId, month){
     if($("authOverlay")) $("authOverlay").style.display = "none";
 
     const cloud = await fetchCompanyState(company.id);
-    const localSnapshot = state;
 
+    // クラウドを正として扱う。
+    // 端末内に旧データが残っていても、ログイン時に自動送信・自動移行しない。
     cloudReady = true;
 
-    if(!cloud.initialized && appHasMeaningfulData(localSnapshot)){
-      state = localSnapshot;
-      saveLocalOnly();
-      cloudBaselineRows = Object.fromEntries(
-        CLOUD_TABLES_PARENT_FIRST.map(t=>[t, []])
-      );
-      await syncStateToCloud();
-      alert("この端末に入っていた人工帖のデータをクラウドへ移行しました");
-    }else if(cloud.initialized){
+    if(cloud.initialized){
       state = normalizeImportedState(cloud.state);
       saveLocalOnly();
       cloudBaselineRows = cloneCloudRows(toCloudRows());
       setCloudStatus("保存済み", "ok");
     }else{
-      state = normalizeImportedState(localSnapshot);
+      // クラウドが空なら、端末の旧データを使わず空の状態から開始する。
+      state = normalizeImportedState(defaultState);
       saveLocalOnly();
       cloudBaselineRows = Object.fromEntries(
         CLOUD_TABLES_PARENT_FIRST.map(t=>[t, []])
       );
-      await syncStateToCloud();
+      setCloudStatus("保存済み", "ok");
     }
 
     renderAll();
