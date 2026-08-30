@@ -2864,6 +2864,98 @@
     }
   }
 
+
+
+  .summary-mode-toggle{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin:8px 0 14px;
+    padding:4px;
+    background:#f1f5f9;
+    border-radius:12px;
+  }
+  .summary-mode-btn{
+    border:0;
+    border-radius:9px;
+    background:transparent;
+    color:#64748b;
+    font-weight:800;
+    padding:10px 8px;
+    cursor:pointer;
+  }
+  .summary-mode-btn.active{
+    background:#fff;
+    color:#ea580c;
+    box-shadow:0 1px 4px rgba(15,23,42,.12);
+  }
+  .site-lifetime-summary{
+    display:none;
+    margin-top:10px;
+  }
+  .site-lifetime-summary.active{ display:block; }
+  .site-profit-list{
+    display:grid;
+    gap:10px;
+  }
+  .site-profit-card{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    padding:12px;
+  }
+  .site-profit-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:9px;
+  }
+  .site-profit-name{
+    font-weight:900;
+    color:#0f172a;
+    font-size:15px;
+  }
+  .site-profit-meta{
+    margin-top:3px;
+    color:#64748b;
+    font-size:11px;
+    line-height:1.45;
+  }
+  .site-profit-badge{
+    flex:0 0 auto;
+    font-size:10px;
+    font-weight:800;
+    padding:4px 7px;
+    border-radius:999px;
+    background:#fff7ed;
+    color:#c2410c;
+  }
+  .site-profit-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px 10px;
+  }
+  .site-profit-cell{
+    min-width:0;
+  }
+  .site-profit-cell span{
+    display:block;
+    color:#64748b;
+    font-size:10px;
+  }
+  .site-profit-cell b{
+    display:block;
+    margin-top:1px;
+    color:#0f172a;
+    font-size:13px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .site-profit-cell.gross b.positive{ color:#15803d; }
+  .site-profit-cell.gross b.negative{ color:#b91c1c; }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3139,22 +3231,42 @@
     <section id="view-summary" class="view">
       <div class="card">
         <h2>集計</h2>
-        <label>月</label>
-        <div class="date-wrap"><input id="summaryMonth" type="month"></div>
+
+        <div class="summary-mode-toggle" aria-label="集計方法">
+          <button id="summaryModeMonthly" class="summary-mode-btn active" type="button">月別</button>
+          <button id="summaryModeSite" class="summary-mode-btn" type="button">現場別</button>
+        </div>
+
+        <div id="summaryMonthWrap">
+          <label>月</label>
+          <div class="date-wrap"><input id="summaryMonth" type="month"></div>
+        </div>
+
         <label>現場</label>
         <select id="summarySite"></select>
+        <div id="summaryModeHint" class="helper">選択した月の人工・経費・粗利を集計します。</div>
       </div>
+
       <div class="summary-grid" id="metrics"></div>
       <div class="helper">人件費には、人工代＋早出代＋残業代を含みます。</div>
 
-      <div class="card">
-        <h2>月間カレンダー</h2>
-        <div id="summaryCalendar"></div>
+      <div id="siteLifetimeSummary" class="site-lifetime-summary">
+        <div class="card">
+          <h2>現場別収支</h2>
+          <div id="siteLifetimeList" class="site-profit-list"></div>
+        </div>
       </div>
 
-      <div class="card" id="dayDetailCard">
-        <h2>日別詳細</h2>
-        <div id="dayDetail" class="empty">カレンダーの日付を押してください。</div>
+      <div id="monthlySummaryDetails">
+        <div class="card">
+          <h2>月間カレンダー</h2>
+          <div id="summaryCalendar"></div>
+        </div>
+
+        <div class="card" id="dayDetailCard">
+          <h2>日別詳細</h2>
+          <div id="dayDetail" class="empty">カレンダーの日付を押してください。</div>
+        </div>
       </div>
 
       <div class="card">
@@ -3194,7 +3306,7 @@
         <div id="progressBillingBox" style="display:none">
           <label>請負現場の出来高</label>
           <div id="progressBillingList" class="list"></div>
-          <div class="helper">その月に請求する出来高率を入力。例：30なら請負金額の30%を請求します。</div>
+          <div class="helper">その請求月に入力実績がある請負現場だけ表示します。出来高30なら請負金額の30%を請求します。</div>
         </div>
 
         <label>請求書フォント</label>
@@ -3627,6 +3739,7 @@
 
   $("entryDate").value = todayLocal();
   $("summaryMonth").value = monthLocal();
+  setTimeout(()=>setSummaryMode("monthly"), 0);
   $("invoiceMonth").value = monthLocal();
 
   const viewLabels = {
@@ -3897,6 +4010,34 @@
     finishRegistration(wasEdit ? "作業員を更新しました" : "作業員を追加しました");
   });
 
+  let summaryMode = "monthly";
+
+  function setSummaryMode(mode){
+    summaryMode = mode === "site" ? "site" : "monthly";
+
+    $("summaryModeMonthly")?.classList.toggle("active", summaryMode === "monthly");
+    $("summaryModeSite")?.classList.toggle("active", summaryMode === "site");
+
+    if($("summaryMonthWrap")){
+      $("summaryMonthWrap").style.display = summaryMode === "monthly" ? "" : "none";
+    }
+    if($("monthlySummaryDetails")){
+      $("monthlySummaryDetails").style.display = summaryMode === "monthly" ? "" : "none";
+    }
+    if($("siteLifetimeSummary")){
+      $("siteLifetimeSummary").classList.toggle("active", summaryMode === "site");
+    }
+    if($("summaryModeHint")){
+      $("summaryModeHint").textContent = summaryMode === "monthly"
+        ? "選択した月の人工・経費・粗利を集計します。"
+        : "月をまたいで、現場の開始から現在までの人工・経費・売上・粗利を集計します。";
+    }
+
+    renderSummary();
+  }
+
+  $("summaryModeMonthly")?.addEventListener("click", ()=>setSummaryMode("monthly"));
+  $("summaryModeSite")?.addEventListener("click", ()=>setSummaryMode("site"));
   $("summaryMonth").addEventListener("change", renderSummary);
   $("summarySite").addEventListener("change", renderSummary);
 
@@ -4735,41 +4876,174 @@ function showDayDetail(date){
   window.showDayDetail = showDayDetail;
   window.removeAllFromDay = removeAllFromDay;
 
-  function renderSummary(){
-    const month = $("summaryMonth").value || monthLocal();
-    const siteFilter = $("summarySite").value || "all";
-    let entries = state.entries.filter(e=>e.date.startsWith(month));
-    if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
-
-    renderCalendar(entries, month, siteFilter);
+  function siteLifetimeStats(site){
+    const entries = state.entries.filter(e=>e.siteId===site.id);
+    const siteExpenses = state.siteExpenses.filter(x=>x.siteId===site.id);
 
     const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
     const totalEarly = entries.reduce((a,e)=>a+Number(e.early||0),0);
     const totalOvertime = entries.reduce((a,e)=>a+Number(e.overtime||0),0);
-    const labor = entries.reduce((a,e)=>a + workerEntryCost(e),0);
-    let siteExpenses = state.siteExpenses.filter(x=>x.date.startsWith(month));
-    if(siteFilter!=="all") siteExpenses = siteExpenses.filter(x=>x.siteId===siteFilter);
+    const labor = entries.reduce((a,e)=>a+workerEntryCost(e),0);
+    const expenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
 
-    const sharedExpenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
-    const expenses = sharedExpenses;
+    const contractType = site.contractType || "常用";
+    const client = site.clientId ? clientById(site.clientId) : null;
+    const rate = Number(site.billRate || client?.billRate || 0);
+    const contractAmount = contractType === "請負" ? Number(site.revenue||0) : 0;
 
-    let revenue = 0;
-    if(siteFilter!=="all"){
-      revenue = Number(siteById(siteFilter)?.revenue||0);
-    }else{
-      const used = new Set(entries.map(e=>e.siteId));
-      revenue = state.sites.filter(s=>used.has(s.id)).reduce((a,s)=>a+Number(s.revenue||0),0);
-    }
+    // 常用は人工請求＋現場経費、請負は登録した請負金額を案件全体の売上として扱う。
+    const revenue = contractType === "請負"
+      ? contractAmount
+      : (totalJinko * rate) + expenses;
+
     const gross = revenue - labor - expenses;
+    const grossRate = revenue > 0 ? (gross / revenue * 100) : 0;
+
+    const dates = [
+      ...entries.map(e=>e.date),
+      ...siteExpenses.map(e=>e.date)
+    ].filter(Boolean).sort();
+
+    return {
+      site,
+      client,
+      contractType,
+      totalJinko,
+      totalEarly,
+      totalOvertime,
+      labor,
+      expenses,
+      rate,
+      contractAmount,
+      revenue,
+      gross,
+      grossRate,
+      firstDate:dates[0] || "",
+      lastDate:dates[dates.length-1] || ""
+    };
+  }
+
+  function renderSiteLifetimeSummary(){
+    const siteFilter = $("summarySite")?.value || "all";
+    const targetSites = siteFilter === "all"
+      ? state.sites
+      : state.sites.filter(s=>s.id===siteFilter);
+
+    const stats = targetSites
+      .map(siteLifetimeStats)
+      .filter(x=>
+        x.totalJinko > 0 ||
+        x.expenses > 0 ||
+        x.contractAmount > 0
+      );
+
+    const totalJinko = stats.reduce((a,x)=>a+x.totalJinko,0);
+    const totalEarly = stats.reduce((a,x)=>a+x.totalEarly,0);
+    const totalOvertime = stats.reduce((a,x)=>a+x.totalOvertime,0);
+    const labor = stats.reduce((a,x)=>a+x.labor,0);
+    const expenses = stats.reduce((a,x)=>a+x.expenses,0);
+    const revenue = stats.reduce((a,x)=>a+x.revenue,0);
+    const contractTotal = stats.reduce((a,x)=>a+x.contractAmount,0);
+    const gross = revenue - labor - expenses;
+    const grossRate = revenue > 0 ? gross / revenue * 100 : 0;
 
     $("metrics").innerHTML = `
       <div class="metric"><span>人工</span><b>${totalJinko.toFixed(2)}</b></div>
-      <div class="metric"><span>早出</span><b>${totalEarly.toFixed(1)}h</b></div>
-      <div class="metric"><span>残業</span><b>${totalOvertime.toFixed(1)}h</b></div>
       <div class="metric"><span>人件費</span><b>${yen(labor)}</b></div>
-      <div class="metric"><span>経費</span><b>${yen(expenses)}</b></div>
+      <div class="metric"><span>現場経費</span><b>${yen(expenses)}</b></div>
+      <div class="metric"><span>売上</span><b>${yen(revenue)}</b></div>
       <div class="metric"><span>粗利</span><b>${yen(gross)}</b></div>
+      <div class="metric"><span>粗利率</span><b>${grossRate.toFixed(1)}%</b></div>
+      ${contractTotal > 0 ? `<div class="metric"><span>請負金額${siteFilter==="all" ? "合計" : ""}</span><b>${yen(contractTotal)}</b></div>` : ""}
+      <div class="metric"><span>早出 / 残業</span><b>${totalEarly.toFixed(1)}h / ${totalOvertime.toFixed(1)}h</b></div>
     `;
+
+    const list = $("siteLifetimeList");
+    if(list){
+      list.innerHTML = stats.length ? stats.map(x=>{
+        const grossClass = x.gross >= 0 ? "positive" : "negative";
+        const periodText = x.firstDate
+          ? `${x.firstDate.replaceAll("-","/")}〜${x.lastDate.replaceAll("-","/")}`
+          : "入力実績なし";
+        const clientName = x.client?.name || (isSelfCompanyClientId(x.site.clientId) ? "自社" : "元請け未設定");
+
+        return `<div class="site-profit-card">
+          <div class="site-profit-head">
+            <div>
+              <div class="site-profit-name">${escapeHtml(x.site.name)}</div>
+              <div class="site-profit-meta">${escapeHtml(clientName)} / ${escapeHtml(x.contractType)}<br>${escapeHtml(periodText)}</div>
+            </div>
+            <span class="site-profit-badge">${escapeHtml(x.contractType)}</span>
+          </div>
+          <div class="site-profit-grid">
+            <div class="site-profit-cell"><span>人工</span><b>${x.totalJinko.toFixed(2)}</b></div>
+            <div class="site-profit-cell"><span>人件費</span><b>${yen(x.labor)}</b></div>
+            <div class="site-profit-cell"><span>現場経費</span><b>${yen(x.expenses)}</b></div>
+            <div class="site-profit-cell"><span>売上</span><b>${yen(x.revenue)}</b></div>
+            ${x.contractType==="請負"
+              ? `<div class="site-profit-cell"><span>請負金額</span><b>${yen(x.contractAmount)}</b></div>`
+              : `<div class="site-profit-cell"><span>請求人工単価</span><b>${yen(x.rate)}</b></div>`}
+            <div class="site-profit-cell gross"><span>粗利</span><b class="${grossClass}">${yen(x.gross)}</b></div>
+            <div class="site-profit-cell"><span>粗利率</span><b>${x.grossRate.toFixed(1)}%</b></div>
+            <div class="site-profit-cell"><span>早出 / 残業</span><b>${x.totalEarly.toFixed(1)}h / ${x.totalOvertime.toFixed(1)}h</b></div>
+          </div>
+        </div>`;
+      }).join("") : `<div class="empty">この条件の入力実績はありません。</div>`;
+    }
+
+    return {
+      entries: state.entries.filter(e=>siteFilter==="all" || e.siteId===siteFilter)
+    };
+  }
+
+  function renderSummary(){
+    const siteFilter = $("summarySite").value || "all";
+
+    let entries = [];
+
+    if(summaryMode === "site"){
+      const result = renderSiteLifetimeSummary();
+      entries = result.entries;
+      if($("monthlySummaryDetails")) $("monthlySummaryDetails").style.display = "none";
+      if($("siteLifetimeSummary")) $("siteLifetimeSummary").classList.add("active");
+    }else{
+      const month = $("summaryMonth").value || monthLocal();
+      entries = state.entries.filter(e=>e.date.startsWith(month));
+      if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
+
+      renderCalendar(entries, month, siteFilter);
+
+      const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
+      const totalEarly = entries.reduce((a,e)=>a+Number(e.early||0),0);
+      const totalOvertime = entries.reduce((a,e)=>a+Number(e.overtime||0),0);
+      const labor = entries.reduce((a,e)=>a + workerEntryCost(e),0);
+      let siteExpenses = state.siteExpenses.filter(x=>x.date.startsWith(month));
+      if(siteFilter!=="all") siteExpenses = siteExpenses.filter(x=>x.siteId===siteFilter);
+
+      const sharedExpenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
+      const expenses = sharedExpenses;
+
+      let revenue = 0;
+      if(siteFilter!=="all"){
+        revenue = Number(siteById(siteFilter)?.revenue||0);
+      }else{
+        const used = new Set(entries.map(e=>e.siteId));
+        revenue = state.sites.filter(s=>used.has(s.id)).reduce((a,s)=>a+Number(s.revenue||0),0);
+      }
+      const gross = revenue - labor - expenses;
+
+      $("metrics").innerHTML = `
+        <div class="metric"><span>人工</span><b>${totalJinko.toFixed(2)}</b></div>
+        <div class="metric"><span>早出</span><b>${totalEarly.toFixed(1)}h</b></div>
+        <div class="metric"><span>残業</span><b>${totalOvertime.toFixed(1)}h</b></div>
+        <div class="metric"><span>人件費</span><b>${yen(labor)}</b></div>
+        <div class="metric"><span>経費</span><b>${yen(expenses)}</b></div>
+        <div class="metric"><span>粗利</span><b>${yen(gross)}</b></div>
+      `;
+
+      if($("monthlySummaryDetails")) $("monthlySummaryDetails").style.display = "";
+      if($("siteLifetimeSummary")) $("siteLifetimeSummary").classList.remove("active");
+    }
 
     const byWorker = {};
     entries.forEach(e=>{
@@ -5384,7 +5658,31 @@ function getContractBillingIncluded(siteId, month){
 
     const clientId = $("invoiceClient")?.value || "";
     const month = $("invoiceMonth")?.value || monthLocal();
-    const contractSites = state.sites.filter(s=>s.clientId===clientId && (s.contractType||"常用")==="請負");
+    const client = clientById(clientId);
+    const period = billingPeriodFor(client, month);
+
+    // 選択した請求月の請求期間内に、人工入力または現場経費の実績がある
+    // 請負現場だけを「請求に入れる / 出来高入力」の対象として表示する。
+    const activeSiteIds = new Set();
+
+    state.entries.forEach(e=>{
+      if(dateInRange(e.date, period.start, period.end)){
+        activeSiteIds.add(e.siteId);
+      }
+    });
+
+    state.siteExpenses.forEach(x=>{
+      if(dateInRange(x.date, period.start, period.end)){
+        activeSiteIds.add(x.siteId);
+      }
+    });
+
+    const contractSites = state.sites.filter(s=>
+      !isSelfCompanyClientId(s.clientId) &&
+      s.clientId===clientId &&
+      (s.contractType||"常用")==="請負" &&
+      activeSiteIds.has(s.id)
+    );
 
     if(!contractSites.length){
       box.style.display = "none";
