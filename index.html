@@ -2208,10 +2208,10 @@
       </div>
 
       <label>メールアドレス</label>
-      <input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com">
+      <input id="authEmail" type="email" placeholder="name@example.com" name="username" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false">
 
       <label>パスワード</label>
-      <input id="authPassword" type="password" autocomplete="current-password" placeholder="6文字以上">
+      <input id="authPassword" type="password" placeholder="6文字以上" name="password" autocomplete="current-password">
 
       <button id="authSubmitBtn" class="btn auth-submit" type="button">ログイン</button>
       <button id="authForgotBtn" class="auth-forgot-btn" type="button">パスワードを忘れた方</button>
@@ -2233,9 +2233,9 @@
         <div class="auth-reset-title">新しいパスワード</div>
         <div class="auth-reset-copy">新しく使うパスワードを6文字以上で入力してください。</div>
         <label>新しいパスワード</label>
-        <input id="newPassword" type="password" autocomplete="new-password" placeholder="6文字以上">
+        <input id="newPassword" type="password" placeholder="6文字以上" autocomplete="new-password">
         <label>新しいパスワード（確認）</label>
-        <input id="newPasswordConfirm" type="password" autocomplete="new-password" placeholder="もう一度入力">
+        <input id="newPasswordConfirm" type="password" placeholder="もう一度入力" autocomplete="new-password">
         <button id="updatePasswordBtn" class="btn auth-submit" type="button">パスワードを変更</button>
         <button id="resetBackBtn" class="auth-reset-back" type="button">ログイン画面に戻る</button>
         <div id="newPasswordMessage" class="auth-message"></div>
