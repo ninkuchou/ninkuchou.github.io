@@ -5916,7 +5916,18 @@ function getContractBillingIncluded(siteId, month){
       const target = document.querySelector(step.target);
       if(target){
         target.classList.add("tutorial-highlight");
-        target.scrollIntoView({behavior:"smooth", block:"center"});
+
+        if(tutorialIndex === 4){
+          // ⑤「毎日の人工を入力」は、説明カードの位置は固定したまま
+          // 登録ボタンがカードに隠れないよう、背景画面だけ少し下へ送る。
+          const rect = target.getBoundingClientRect();
+          const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+          const desiredTop = Math.max(150, Math.round(viewportH * 0.30));
+          const delta = rect.top - desiredTop;
+          window.scrollBy({top:delta, behavior:"smooth"});
+        }else{
+          target.scrollIntoView({behavior:"smooth", block:"center"});
+        }
       }
       setTimeout(()=>positionTutorialCard(target), 180);
     }, 120);
