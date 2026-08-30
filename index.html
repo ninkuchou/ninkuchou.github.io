@@ -3,13 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="人工管理" />
   <meta name="theme-color" content="#ffffff" />
-  <title>人工管理</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <style>
+  <title>人工帖</title>
+<style>
     :root{
       --bg:#f3f6fb; --card:#fff; --text:#142033; --sub:#6b7280;
       --line:#dfe5ee; --accent:#2563eb; --danger:#b91c1c;
@@ -2044,6 +2040,15 @@
   }
 
 </style>
+
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <meta name="application-name" content="人工帖">
+  <meta name="apple-mobile-web-app-title" content="人工帖">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
 
@@ -5914,6 +5919,15 @@ function getContractBillingIncluded(siteId, month){
     setTimeout(()=>alert("この開き方ではSafariの保存機能を利用できないようです。URLとして公開して開く必要があります。"), 400);
   }
 })();
+
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(err => {
+        console.warn("Service Worker registration failed", err);
+      });
+    });
+  }
 </script>
 </body>
 </html>

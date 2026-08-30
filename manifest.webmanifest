@@ -1,9 +1,29 @@
 {
-  "name": "人工管理",
-  "short_name": "人工管理",
-  "start_url": "./",
+  "name": "人工帖",
+  "short_name": "人工帖",
+  "description": "人工・現場・請求をかんたん管理",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f5f6f8",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#f3f6fb",
   "theme_color": "#ffffff",
-  "icons": []
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
