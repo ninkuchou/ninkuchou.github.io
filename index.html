@@ -2045,6 +2045,12 @@
           <option value="請負">請負</option>
         </select>
 
+        <div id="siteContractWorkContentWrap" style="display:none">
+          <label>工事内容</label>
+          <input id="siteContractWorkContent" type="text" placeholder="例：軽量鉄骨建方工事">
+          <div class="helper">請負工事の請求書に表示する工事内容です。</div>
+        </div>
+
         <label>請負金額（任意）</label>
         <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
         <label>現場別の例外単価 / 1人工（任意）</label>
@@ -2731,6 +2737,17 @@
     finishRegistration(wasEdit ? "元請け会社を更新しました" : "元請け会社を追加しました");
   });
 
+
+  function updateSiteContractFields(){
+    const isContract = ($("siteContractType")?.value || "常用") === "請負";
+    if($("siteContractWorkContentWrap")){
+      $("siteContractWorkContentWrap").style.display = isContract ? "block" : "none";
+    }
+  }
+
+  $("siteContractType")?.addEventListener("change", updateSiteContractFields);
+  updateSiteContractFields();
+
   $("addSiteBtn").addEventListener("click", ()=>{
     const name = $("siteName").value.trim();
     if(!name){ alert("現場名を入力してください"); return; }
@@ -2738,6 +2755,7 @@
       name,
       clientId:$("siteClient").value || "",
       contractType:$("siteContractType") ? ($("siteContractType").value || "常用") : "常用",
+      contractWorkContent:$("siteContractWorkContent")?.value.trim() || "",
       revenue:Number($("siteRevenue").value||0),
       billRate:Number($("siteBillRate").value||0)
     };
@@ -2753,6 +2771,8 @@
     save();
     $("siteName").value="";
     if($("siteContractType")) $("siteContractType").value="常用";
+    if($("siteContractWorkContent")) $("siteContractWorkContent").value="";
+    updateSiteContractFields();
     $("siteRevenue").value="";
     $("siteBillRate").value="";
     renderAll();
@@ -2909,6 +2929,8 @@
     $("siteName").value = s.name || "";
     $("siteClient").value = s.clientId || "";
     if($("siteContractType")) $("siteContractType").value = s.contractType || "常用";
+    if($("siteContractWorkContent")) $("siteContractWorkContent").value = s.contractWorkContent || "";
+    updateSiteContractFields();
     $("siteRevenue").value = s.revenue || "";
     $("siteBillRate").value = s.billRate || "";
     $("addSiteBtn").textContent = "現場を更新";
@@ -3358,7 +3380,7 @@
         <div class="item-line">
           <div>
             <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
-            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
+            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
           </div>
           <div class="item-actions">
             <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
@@ -4534,7 +4556,7 @@ function getContractBillingIncluded(siteId, month){
         detailRows.push(`
           <tr>
             <td class="date"></td>
-            <td class="desc">建方請負工事（出来高 ${pctText}%）</td>
+            <td class="desc">${escapeHtml(r.site?.contractWorkContent || "請負工事")}（出来高 ${pctText}%）</td>
             <td class="qty">1</td>
             <td class="unit">式</td>
             <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
@@ -5056,7 +5078,8 @@ function getContractBillingIncluded(siteId, month){
       })),
       sites: state.sites.map(x=>({
         id:String(x.id), company_id:cid, client_id:x.clientId || null, name:x.name || "",
-        contract_type:x.contractType || "常用", revenue:Number(x.revenue||0), bill_rate:Number(x.billRate||0)
+        contract_type:x.contractType || "常用", contract_work_content:x.contractWorkContent || "",
+        revenue:Number(x.revenue||0), bill_rate:Number(x.billRate||0)
       })),
       workers: state.workers.map(x=>({
         id:String(x.id), company_id:cid, company_ref_id:x.companyId || null, name:x.name || "",
@@ -5271,6 +5294,7 @@ function getContractBillingIncluded(siteId, month){
         })),
         sites:map.sites.map(x=>({
           id:x.id, clientId:x.client_id || "", name:x.name, contractType:x.contract_type || "常用",
+          contractWorkContent:x.contract_work_content || "",
           revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0)
         })),
         workers:map.workers.map(x=>({
