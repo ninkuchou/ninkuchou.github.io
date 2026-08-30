@@ -2763,6 +2763,25 @@
     }
   }
 
+
+
+  /* ===== PDF時：合計欄と振込先の隙間を画面表示に近づける =====
+     全体の高さは増やさず、合計欄より上の余白を下へ移す。
+  */
+  @media print{
+    .invoice-page-first.invoice-page-last .invoice-totals-grid{
+      margin-top:1px !important;
+    }
+
+    .invoice-page-first.invoice-page-last .invoice-bottom-second-row{
+      margin-top:14px !important;
+    }
+
+    .invoice-page-first.invoice-page-last .invoice-bank{
+      margin-top:0 !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
