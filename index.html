@@ -3141,6 +3141,13 @@
     margin-top:8px;
   }
 
+
+
+  /* 請負工事と常用工事の区切り用空欄行 */
+  .excel-template .invoice-detail-table tr.invoice-section-spacer td{
+    color:transparent !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -6458,6 +6465,81 @@ function getContractBillingIncluded(siteId, month){
 
     let lastDetailDate = "";
 
+    // 請負工事を先に表示する。
+    // 請負現場が複数ある場合は、現場ごとのまとまりの間に空欄を1行入れる。
+    contractRows.forEach(({r}, contractIndex)=>{
+      const contractDate = period.end;
+      const md = contractDate.slice(5).split("-");
+      const contractDateLabel = `${Number(md[0])}月${Number(md[1])}日`;
+      const displayDate = contractDate === lastDetailDate ? "" : contractDateLabel;
+      lastDetailDate = contractDate;
+
+      detailRows.push(`
+        <tr class="site-row">
+          <td class="date">${displayDate}</td>
+          <td class="desc">${escapeHtml(r.site.name)}</td>
+          <td class="qty"></td>
+          <td class="unit"></td>
+          <td class="price"></td>
+          <td class="amount"></td>
+          <td class="note"></td>
+        </tr>
+      `);
+
+      const pct = Number(r.percent || 0);
+      const pctText = pct.toFixed(pct%1 ? 1 : 0);
+      detailRows.push(`
+        <tr>
+          <td class="date"></td>
+          <td class="desc">${escapeHtml(r.site?.contractWorkContent || "請負工事")}（出来高 ${pctText}%）</td>
+          <td class="qty">1</td>
+          <td class="unit">式</td>
+          <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
+          <td class="amount">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
+          <td class="note"></td>
+        </tr>
+      `);
+
+      // 次にも請負現場がある時だけ、現場間の空欄を1行入れる。
+      if(contractIndex < contractRows.length - 1){
+        detailRows.push(`
+          <tr class="invoice-section-spacer">
+            <td class="date">&nbsp;</td>
+            <td class="desc"></td>
+            <td class="qty"></td>
+            <td class="unit"></td>
+            <td class="price"></td>
+            <td class="amount"></td>
+            <td class="note"></td>
+          </tr>
+        `);
+
+        // 区切り後は次の請負現場の日付を再表示する。
+        lastDetailDate = "";
+      }
+    });
+
+    // 同じ請求書に請負と常用が両方ある場合だけ、
+    // 請負工事のまとまりの後に空欄を1行入れて区切る。
+    if(contractRows.length && dailyItems.length){
+      detailRows.push(`
+        <tr class="invoice-section-spacer">
+          <td class="date">&nbsp;</td>
+          <td class="desc"></td>
+          <td class="qty"></td>
+          <td class="unit"></td>
+          <td class="price"></td>
+          <td class="amount"></td>
+          <td class="note"></td>
+        </tr>
+      `);
+
+      // 空欄行のあとに常用明細が始まるので、日付省略状態をリセットする。
+      lastDetailDate = "";
+    }
+
+    // 常用明細は日付順で表示する。
+    // 同じ日付の別現場を連続表示し、2行目以降の日付は省略する。
     dailyItems.forEach(item=>{
       const md = item.date.slice(5).split("-");
       const dateLabel = `${Number(md[0])}月${Number(md[1])}日`;
@@ -6491,41 +6573,6 @@ function getContractBillingIncluded(siteId, month){
           <td class="price">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
           <td class="amount">${Math.round(d.amount).toLocaleString("ja-JP")}</td>
           <td class="note">${d.hasTaxIncluded ? "税抜表示" : ""}</td>
-        </tr>
-      `);
-    });
-
-    // 請負は従来どおり現場単位で表示する。
-    contractRows.forEach(({r})=>{
-      const contractDate = period.end;
-      const md = contractDate.slice(5).split("-");
-      const contractDateLabel = `${Number(md[0])}月${Number(md[1])}日`;
-      const displayDate = contractDate === lastDetailDate ? "" : contractDateLabel;
-      lastDetailDate = contractDate;
-
-      detailRows.push(`
-        <tr class="site-row">
-          <td class="date">${displayDate}</td>
-          <td class="desc">${escapeHtml(r.site.name)}</td>
-          <td class="qty"></td>
-          <td class="unit"></td>
-          <td class="price"></td>
-          <td class="amount"></td>
-          <td class="note"></td>
-        </tr>
-      `);
-
-      const pct = Number(r.percent || 0);
-      const pctText = pct.toFixed(pct%1 ? 1 : 0);
-      detailRows.push(`
-        <tr>
-          <td class="date"></td>
-          <td class="desc">${escapeHtml(r.site?.contractWorkContent || "請負工事")}（出来高 ${pctText}%）</td>
-          <td class="qty">1</td>
-          <td class="unit">式</td>
-          <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
-          <td class="amount">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
-          <td class="note"></td>
         </tr>
       `);
     });
