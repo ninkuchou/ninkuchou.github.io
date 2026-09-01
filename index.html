@@ -3735,6 +3735,17 @@
   </div>
 </div>
 
+  <div id="passkeyOfferOverlay" class="passkey-offer-overlay" aria-hidden="true">
+    <div class="passkey-offer-card" role="dialog" aria-modal="true" aria-labelledby="passkeyOfferTitle">
+      <div class="passkey-offer-icon" aria-hidden="true">🔑</div>
+      <h2 id="passkeyOfferTitle">パスキーを登録しますか？</h2>
+      <p>次回からFace ID・Touch ID・Windows Helloなどで、パスワードを入力せずにログインできます。</p>
+      <button id="passkeyOfferRegisterBtn" class="btn" type="button">パスキーを登録</button>
+      <button id="passkeyOfferLaterBtn" class="btn secondary" type="button">あとで</button>
+      <div id="passkeyOfferMessage" class="auth-message"></div>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -7959,8 +7970,19 @@ function getContractBillingIncluded(siteId, month){
     $("authSubmitBtn").addEventListener("click", submitAuth);
     $("passkeyLoginBtn")?.addEventListener("click", signInWithPasskey);
     $("registerPasskeyBtn")?.addEventListener("click", registerPasskey);
-    $("passkeyOfferRegisterBtn")?.addEventListener("click", registerPasskeyFromOffer);
-    $("passkeyOfferLaterBtn")?.addEventListener("click", ()=>closePasskeyOffer(true));
+
+    const passkeyOfferRegisterBtn = $("passkeyOfferRegisterBtn");
+    const passkeyOfferLaterBtn = $("passkeyOfferLaterBtn");
+
+    if(passkeyOfferRegisterBtn && !passkeyOfferRegisterBtn.dataset.bound){
+      passkeyOfferRegisterBtn.dataset.bound = "1";
+      passkeyOfferRegisterBtn.addEventListener("click", registerPasskeyFromOffer);
+    }
+
+    if(passkeyOfferLaterBtn && !passkeyOfferLaterBtn.dataset.bound){
+      passkeyOfferLaterBtn.dataset.bound = "1";
+      passkeyOfferLaterBtn.addEventListener("click", ()=>closePasskeyOffer(true));
+    }
 
     $("authForgotBtn")?.addEventListener("click", ()=>{
       $("forgotEmail").value = $("authEmail")?.value.trim() || "";
@@ -8446,17 +8468,6 @@ function getContractBillingIncluded(siteId, month){
     }
   }
 </script>
-
-  <div id="passkeyOfferOverlay" class="passkey-offer-overlay" aria-hidden="true">
-    <div class="passkey-offer-card" role="dialog" aria-modal="true" aria-labelledby="passkeyOfferTitle">
-      <div class="passkey-offer-icon" aria-hidden="true">🔑</div>
-      <h2 id="passkeyOfferTitle">パスキーを登録しますか？</h2>
-      <p>次回からFace ID・Touch ID・Windows Helloなどで、パスワードを入力せずにログインできます。</p>
-      <button id="passkeyOfferRegisterBtn" class="btn" type="button">パスキーを登録</button>
-      <button id="passkeyOfferLaterBtn" class="btn secondary" type="button">あとで</button>
-      <div id="passkeyOfferMessage" class="auth-message"></div>
-    </div>
-  </div>
 
 </body>
 </html>
