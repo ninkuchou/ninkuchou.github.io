@@ -3381,7 +3381,16 @@
       </div>
       <div class="card">
         <h2>現場一覧</h2>
+        <div class="helper" style="margin-bottom:10px">よく使う現場は、最後に使用した順で選択ボックスの上に表示されます。</div>
         <div id="siteList" class="list"></div>
+
+        <button id="toggleHiddenSitesBtn" class="btn secondary" type="button" style="display:none;margin-top:12px">
+          非表示の現場を表示
+        </button>
+        <div id="hiddenSiteListWrap" style="display:none;margin-top:10px">
+          <div class="helper" style="margin-bottom:8px">非表示にしても過去の人工・経費・請求データは削除されません。</div>
+          <div id="hiddenSiteList" class="list"></div>
+        </div>
       </div>
     </section>
 
@@ -3968,6 +3977,93 @@
     });
   }
 
+  function hiddenSiteIds(){
+    const list = state.recentSelects?.hiddenSiteIds;
+    return Array.isArray(list) ? list : [];
+  }
+
+  function isSiteHidden(siteId){
+    return hiddenSiteIds().includes(siteId);
+  }
+
+  function selectableSites(){
+    return state.sites.filter(s=>!isSiteHidden(s.id));
+  }
+
+  function siteCreatedRank(site){
+    // uid() は Date.now().toString(36) から始まるため、
+    // 使用履歴がない現場同士はID降順で新規登録順に近い並びになる。
+    return String(site?.id || "");
+  }
+
+  function sortSitesForSelect(items){
+    const recent = Array.isArray(state.recentSelects?.siteUsage)
+      ? state.recentSelects.siteUsage
+      : [];
+    const rank = new Map(recent.map((id,i)=>[String(id), i]));
+
+    return [...items].sort((a,b)=>{
+      const aid = String(a.id);
+      const bid = String(b.id);
+      const ar = rank.has(aid) ? rank.get(aid) : Number.MAX_SAFE_INTEGER;
+      const br = rank.has(bid) ? rank.get(bid) : Number.MAX_SAFE_INTEGER;
+
+      if(ar !== br) return ar - br;
+
+      // まだ一度も使っていない現場は、新しく登録したものを上へ。
+      return siteCreatedRank(b).localeCompare(siteCreatedRank(a));
+    });
+  }
+
+  function rememberSiteUsage(siteId){
+    if(!siteId || siteId==="all") return;
+    const list = Array.isArray(state.recentSelects?.siteUsage)
+      ? state.recentSelects.siteUsage
+      : [];
+    state.recentSelects.siteUsage = [
+      siteId,
+      ...list.filter(id=>id!==siteId)
+    ].slice(0,1000);
+    save();
+  }
+
+  function hideSiteFromSelectors(siteId){
+    if(!siteId || isSiteHidden(siteId)) return;
+
+    const site = siteById(siteId);
+    if(!site) return;
+
+    if(!confirm(`「${site.name}」を現場の選択ボックスから非表示にしますか？\n過去のデータは削除されません。`)){
+      return;
+    }
+
+    state.recentSelects.hiddenSiteIds = [
+      ...hiddenSiteIds().filter(id=>id!==siteId),
+      siteId
+    ];
+
+    save();
+    renderAll();
+  }
+
+  function restoreSiteToSelectors(siteId){
+    if(!siteId) return;
+
+    state.recentSelects.hiddenSiteIds = hiddenSiteIds().filter(id=>id!==siteId);
+
+    // 戻した現場をすぐ見つけられるよう、選択肢の先頭へ。
+    const recent = Array.isArray(state.recentSelects?.siteUsage)
+      ? state.recentSelects.siteUsage
+      : [];
+    state.recentSelects.siteUsage = [
+      siteId,
+      ...recent.filter(id=>id!==siteId)
+    ].slice(0,1000);
+
+    save();
+    renderAll();
+  }
+
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 
@@ -4169,11 +4265,22 @@
       revenue:isSelf ? 0 : Number($("siteRevenue").value||0),
       billRate:isSelf ? 0 : Number($("siteBillRate").value||0)
     };
+    let savedSiteId = editingSiteId || "";
     if(editingSiteId){
       const s = siteById(editingSiteId);
       if(s) Object.assign(s, data);
     }else{
-      state.sites.push({id:uid(), ...data});
+      savedSiteId = uid();
+      state.sites.push({id:savedSiteId, ...data});
+
+      // 新しく登録した現場は、選択ボックスの最上段に表示。
+      const recent = Array.isArray(state.recentSelects?.siteUsage)
+        ? state.recentSelects.siteUsage
+        : [];
+      state.recentSelects.siteUsage = [
+        savedSiteId,
+        ...recent.filter(id=>id!==savedSiteId)
+      ].slice(0,1000);
     }
     const wasEdit = !!editingSiteId;
     editingSiteId = "";
@@ -4274,7 +4381,7 @@
     const select = $("summarySite");
     if(!select) return;
 
-    const sites = sortByRecent(state.sites, "summarySite", x=>x.id);
+    const sites = sortSitesForSelect(selectableSites());
     const signature = summarySiteSignature(sites);
     const current = select.value || "";
 
@@ -4385,6 +4492,10 @@
   $("summarySite").addEventListener("change", ()=>{
     if(summaryMode === "site" && $("summarySite").value === "all"){
       syncSummarySiteOptions();
+    }
+    const selected = $("summarySite").value || "";
+    if(selected && selected !== "all"){
+      rememberSiteUsage(selected);
     }
     renderSummary();
   });
@@ -4538,6 +4649,10 @@
     state.sites = state.sites.filter(x=>x.id!==id);
     state.entries = state.entries.filter(x=>x.siteId!==id);
     state.siteExpenses = state.siteExpenses.filter(x=>x.siteId!==id);
+    state.recentSelects.hiddenSiteIds = hiddenSiteIds().filter(siteId=>siteId!==id);
+    if(Array.isArray(state.recentSelects.siteUsage)){
+      state.recentSelects.siteUsage = state.recentSelects.siteUsage.filter(siteId=>siteId!==id);
+    }
     save(); renderAll();
   }
 
@@ -4784,6 +4899,7 @@
     const date = $("entryDate").value;
     const siteId = $("entrySite").value;
     rememberRecent("entrySite", siteId);
+    rememberSiteUsage(siteId);
     const checked = [...document.querySelectorAll(".bulk-check:checked")];
 
     if(!date){ alert("日付を選択してください"); return; }
@@ -4928,7 +5044,7 @@
       if(current && clients.some(c=>c.id===current)) invoiceClient.value = current;
     }
 
-    const entrySites = sortByRecent(state.sites, "entrySite", x=>x.id);
+    const entrySites = sortSitesForSelect(selectableSites());
     const entrySiteOptions = entrySites.map(s=>{
       const c = s.clientId ? clientById(s.clientId) : null;
       const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
@@ -4946,24 +5062,71 @@
   }
 
   function renderSites(){
-    if(!state.sites.length){
-      $("siteList").innerHTML = `<div class="empty">まだ現場がありません。</div>`;
-      return;
-    }
-    $("siteList").innerHTML = state.sites.map(s=>`
-      <div class="item">
-        <div class="item-line">
-          <div>
-            <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
-            <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
-          </div>
-          <div class="item-actions">
-            <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
-            <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+    const visibleSites = sortSitesForSelect(selectableSites());
+    const hiddenSites = sortSitesForSelect(state.sites.filter(s=>isSiteHidden(s.id)));
+
+    const visibleList = $("siteList");
+    const hiddenList = $("hiddenSiteList");
+    const hiddenWrap = $("hiddenSiteListWrap");
+    const toggleBtn = $("toggleHiddenSitesBtn");
+
+    if(visibleList){
+      visibleList.innerHTML = visibleSites.length ? visibleSites.map(s=>`
+        <div class="item">
+          <div class="item-line">
+            <div>
+              <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
+              <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
+            </div>
+            <div class="item-actions">
+              <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
+              <button class="edit-link" onclick="hideSiteFromSelectors('${s.id}')">非表示</button>
+              <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+            </div>
           </div>
         </div>
-      </div>`).join("");
+      `).join("") : `<div class="empty">${state.sites.length ? "表示中の現場はありません。" : "まだ現場がありません。"}</div>`;
+    }
+
+    if(toggleBtn){
+      toggleBtn.style.display = hiddenSites.length ? "" : "none";
+      toggleBtn.textContent = hiddenWrap?.style.display === "block"
+        ? `非表示の現場を閉じる（${hiddenSites.length}）`
+        : `非表示の現場を表示（${hiddenSites.length}）`;
+    }
+
+    if(hiddenList){
+      hiddenList.innerHTML = hiddenSites.map(s=>`
+        <div class="item">
+          <div class="item-line">
+            <div>
+              <strong>${escapeHtml(s.name)}</strong>
+              <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")} / 選択ボックスでは非表示</small>
+            </div>
+            <div class="item-actions">
+              <button class="edit-link" onclick="restoreSiteToSelectors('${s.id}')">戻す</button>
+              <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
+              <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
   }
+
+  $("toggleHiddenSitesBtn")?.addEventListener("click", ()=>{
+    const wrap = $("hiddenSiteListWrap");
+    const btn = $("toggleHiddenSitesBtn");
+    if(!wrap || !btn) return;
+
+    const open = wrap.style.display !== "block";
+    wrap.style.display = open ? "block" : "none";
+
+    const count = hiddenSiteIds().length;
+    btn.textContent = open
+      ? `非表示の現場を閉じる（${count}）`
+      : `非表示の現場を表示（${count}）`;
+  });
 
 
   function renderWorkerCompanies(){
