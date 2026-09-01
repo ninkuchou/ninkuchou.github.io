@@ -3095,6 +3095,52 @@
     cursor:pointer;
   }
 
+
+
+  .passkey-offer-overlay{
+    position:fixed;
+    inset:0;
+    z-index:12000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(15,23,42,.46);
+    backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+  }
+  .passkey-offer-overlay.active{
+    display:flex;
+  }
+  .passkey-offer-card{
+    width:min(100%,420px);
+    background:#fff;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 18px 45px rgba(15,23,42,.22);
+    text-align:center;
+  }
+  .passkey-offer-icon{
+    font-size:34px;
+    line-height:1;
+    margin-bottom:8px;
+  }
+  .passkey-offer-card h2{
+    margin:0 0 8px;
+    color:#0f172a;
+    font-size:20px;
+  }
+  .passkey-offer-card p{
+    margin:0 0 16px;
+    color:#64748b;
+    font-size:13px;
+    line-height:1.65;
+  }
+  .passkey-offer-card .btn{
+    width:100%;
+    margin-top:8px;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -7398,7 +7444,7 @@ function getContractBillingIncluded(siteId, month){
     return company;
   }
 
-  async function bootstrapCloudForSession(session){
+  async function bootstrapCloudForSession(session, options={}){
     if(!session?.user) return;
 
     setCloudStatus("クラウド読込中…", "syncing");
@@ -7433,7 +7479,9 @@ function getContractBillingIncluded(siteId, month){
 
     renderAll();
     refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
-    setTimeout(()=>startTutorial(false), 450);
+    if(!options.suppressTutorial){
+      setTimeout(()=>startTutorial(false), 450);
+    }
   }
 
   function setAuthMode(mode){
@@ -7589,6 +7637,96 @@ function getContractBillingIncluded(siteId, month){
     if(code === "webauthn_verification_failed") return "パスキーを確認できませんでした。もう一度お試しください。";
     if(message.toLowerCase().includes("cancel")) return "パスキー認証をキャンセルしました。";
     return message || "パスキーを利用できませんでした。";
+  }
+
+
+  function closePasskeyOffer(startTutorialAfter=true){
+    const overlay = $("passkeyOfferOverlay");
+    if(overlay){
+      overlay.classList.remove("active");
+      overlay.setAttribute("aria-hidden","true");
+    }
+    if(startTutorialAfter){
+      setTimeout(()=>startTutorial(false), 250);
+    }
+  }
+
+  async function hasRegisteredPasskey(){
+    if(
+      !passkeyApiAvailable() ||
+      !supabaseClient.auth.passkey ||
+      typeof supabaseClient.auth.passkey.list !== "function"
+    ){
+      return true; // API unavailableなら案内を出さず、従来ログインを優先
+    }
+
+    try{
+      const {data, error} = await supabaseClient.auth.passkey.list();
+      if(error) throw error;
+      const passkeys = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.passkeys) ? data.passkeys : []);
+      return passkeys.length > 0;
+    }catch(err){
+      console.warn("passkey existence check failed", err);
+      return true;
+    }
+  }
+
+  async function offerPasskeyAfterPasswordLogin(){
+    if(!passkeyApiAvailable()){
+      setTimeout(()=>startTutorial(false), 250);
+      return;
+    }
+
+    const alreadyRegistered = await hasRegisteredPasskey();
+    if(alreadyRegistered){
+      setTimeout(()=>startTutorial(false), 250);
+      return;
+    }
+
+    const overlay = $("passkeyOfferOverlay");
+    const message = $("passkeyOfferMessage");
+    if(message){
+      message.textContent = "";
+      message.className = "auth-message";
+    }
+    overlay?.classList.add("active");
+    overlay?.setAttribute("aria-hidden","false");
+  }
+
+  async function registerPasskeyFromOffer(){
+    const btn = $("passkeyOfferRegisterBtn");
+    const laterBtn = $("passkeyOfferLaterBtn");
+    const message = $("passkeyOfferMessage");
+
+    if(!passkeyApiAvailable()){
+      message.textContent = "この端末または現在のブラウザではパスキーを利用できません。";
+      message.className = "auth-message error";
+      return;
+    }
+
+    btn.disabled = true;
+    laterBtn.disabled = true;
+    message.textContent = "パスキーを登録しています…";
+    message.className = "auth-message";
+
+    try{
+      const {error} = await supabaseClient.auth.registerPasskey();
+      if(error) throw error;
+
+      message.textContent = "パスキーを登録しました。次回からパスキーでログインできます。";
+      message.className = "auth-message success";
+
+      refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
+      setTimeout(()=>closePasskeyOffer(true), 700);
+    }catch(err){
+      console.error("passkey offer register error", err);
+      message.textContent = passkeyFriendlyError(err);
+      message.className = "auth-message error";
+      btn.disabled = false;
+      laterBtn.disabled = false;
+    }
   }
 
   async function signInWithPasskey(){
@@ -7792,7 +7930,11 @@ function getContractBillingIncluded(siteId, month){
       }else{
         const result = await supabaseClient.auth.signInWithPassword({email,password});
         if(result.error) throw result.error;
-        await bootstrapCloudForSession(result.data.session);
+
+        // メール＋パスワードでのログイン成功直後に、
+        // パスキー未登録なら登録を案内する。
+        await bootstrapCloudForSession(result.data.session, {suppressTutorial:true});
+        await offerPasskeyAfterPasswordLogin();
       }
     }catch(err){
       console.error(err);
@@ -7817,6 +7959,8 @@ function getContractBillingIncluded(siteId, month){
     $("authSubmitBtn").addEventListener("click", submitAuth);
     $("passkeyLoginBtn")?.addEventListener("click", signInWithPasskey);
     $("registerPasskeyBtn")?.addEventListener("click", registerPasskey);
+    $("passkeyOfferRegisterBtn")?.addEventListener("click", registerPasskeyFromOffer);
+    $("passkeyOfferLaterBtn")?.addEventListener("click", ()=>closePasskeyOffer(true));
 
     $("authForgotBtn")?.addEventListener("click", ()=>{
       $("forgotEmail").value = $("authEmail")?.value.trim() || "";
@@ -8302,5 +8446,17 @@ function getContractBillingIncluded(siteId, month){
     }
   }
 </script>
+
+  <div id="passkeyOfferOverlay" class="passkey-offer-overlay" aria-hidden="true">
+    <div class="passkey-offer-card" role="dialog" aria-modal="true" aria-labelledby="passkeyOfferTitle">
+      <div class="passkey-offer-icon" aria-hidden="true">🔑</div>
+      <h2 id="passkeyOfferTitle">パスキーを登録しますか？</h2>
+      <p>次回からFace ID・Touch ID・Windows Helloなどで、パスワードを入力せずにログインできます。</p>
+      <button id="passkeyOfferRegisterBtn" class="btn" type="button">パスキーを登録</button>
+      <button id="passkeyOfferLaterBtn" class="btn secondary" type="button">あとで</button>
+      <div id="passkeyOfferMessage" class="auth-message"></div>
+    </div>
+  </div>
+
 </body>
 </html>
