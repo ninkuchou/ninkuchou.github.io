@@ -3001,6 +3001,100 @@
     z-index:10003 !important;
   }
 
+
+
+  .passkey-login-btn{
+    width:100%;
+    min-height:48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    margin:2px 0 6px;
+  }
+  .passkey-login-note{
+    color:#64748b;
+    font-size:11px;
+    text-align:center;
+    line-height:1.45;
+    margin:0 4px 10px;
+  }
+  .auth-or{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#94a3b8;
+    font-size:11px;
+    margin:9px 0 12px;
+  }
+  .auth-or::before,
+  .auth-or::after{
+    content:"";
+    height:1px;
+    flex:1;
+    background:#e2e8f0;
+  }
+  .auth-or span{ white-space:nowrap; }
+  .passkey-settings-card{
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    background:#fff;
+    padding:12px;
+    margin-bottom:12px;
+  }
+  .passkey-settings-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .passkey-settings-head strong{
+    display:block;
+    font-size:15px;
+    color:#0f172a;
+    margin-bottom:3px;
+  }
+  .passkey-list{
+    display:grid;
+    gap:7px;
+    margin-top:10px;
+  }
+  .passkey-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:9px 10px;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    background:#f8fafc;
+  }
+  .passkey-item-main{ min-width:0; }
+  .passkey-item-name{
+    font-size:13px;
+    font-weight:800;
+    color:#0f172a;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .passkey-item-meta{
+    margin-top:2px;
+    font-size:10px;
+    color:#64748b;
+  }
+  .passkey-delete-btn{
+    flex:0 0 auto;
+    border:0;
+    background:transparent;
+    color:#b91c1c;
+    font-weight:700;
+    min-height:36px;
+    padding:6px 8px;
+    cursor:pointer;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3028,6 +3122,15 @@
       <div id="authSignupCompanyWrap" style="display:none">
         <label>会社名</label>
         <input id="authCompanyName" type="text" autocomplete="organization" placeholder="例：株式会社人工帖">
+      </div>
+
+      <div id="passkeyLoginWrap">
+        <button class="btn passkey-login-btn" id="passkeyLoginBtn" type="button">
+          <span aria-hidden="true">🔑</span>
+          <span>パスキーでログイン</span>
+        </button>
+        <div class="passkey-login-note">Face ID・Touch ID・Windows Helloなどでログインできます。</div>
+        <div class="auth-or"><span>または</span></div>
       </div>
 
       <label>メールアドレス</label>
@@ -3448,6 +3551,20 @@
       <details>
         <summary style="cursor:pointer;font-weight:700;font-size:16px">設定・バックアップ</summary>
         <div style="margin-top:14px">
+          <div class="passkey-settings-card">
+            <div class="passkey-settings-head">
+              <div>
+                <strong>パスキー</strong>
+                <div class="helper">Face ID・Touch ID・Windows Helloなどで、パスワードを入力せずにログインできます。</div>
+              </div>
+            </div>
+            <button class="btn secondary" id="registerPasskeyBtn" type="button">この端末にパスキーを登録</button>
+            <div id="passkeySettingsMessage" class="auth-message" style="margin-top:8px"></div>
+            <div id="passkeyList" class="passkey-list">
+              <div class="helper">登録済みパスキーを確認しています…</div>
+            </div>
+          </div>
+
           <div class="notice" style="margin-bottom:10px">
             データはクラウドに自動保存されます。必要に応じて、非常用のバックアップをJSONファイルとして保存・復元できます。
           </div>
@@ -3581,7 +3698,15 @@
   const KEY = "jinkou_app_v3";
   const SUPABASE_URL = "https://mwciytoyxgznczcqjgxs.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_pDUx_9hTHGM6hGyAWq9k2w_TljCPogw";
-  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY,
+    {
+      auth:{
+        experimental:{ passkey:true }
+      }
+    }
+  );
   let cloudCompanyId = "";
   let cloudReady = false;
   let cloudSyncTimer = null;
@@ -7307,6 +7432,7 @@ function getContractBillingIncluded(siteId, month){
     }
 
     renderAll();
+    refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
     setTimeout(()=>startTutorial(false), 450);
   }
 
@@ -7317,6 +7443,7 @@ function getContractBillingIncluded(siteId, month){
     $("authSignupCompanyWrap").style.display = signup ? "block" : "none";
     $("authSubmitBtn").textContent = signup ? "無料で新規登録" : "ログイン";
     $("authPassword").setAttribute("autocomplete", signup ? "new-password" : "current-password");
+    if($("passkeyLoginWrap")) $("passkeyLoginWrap").style.display = signup ? "none" : "block";
     $("authOverlay").dataset.mode = mode;
     $("authMessage").textContent = "";
     $("authMessage").className = "auth-message";
@@ -7442,6 +7569,177 @@ function getContractBillingIncluded(siteId, month){
     }
   }
 
+  function passkeyApiAvailable(){
+    return !!(
+      window.PublicKeyCredential &&
+      supabaseClient?.auth &&
+      typeof supabaseClient.auth.registerPasskey === "function" &&
+      typeof supabaseClient.auth.signInWithPasskey === "function"
+    );
+  }
+
+  function passkeyFriendlyError(err){
+    const code = String(err?.code || "");
+    const message = String(err?.message || "");
+
+    if(code === "passkey_disabled") return "Supabase側でパスキーが有効になっていません。";
+    if(code === "webauthn_credential_exists") return "このパスキーはすでに登録されています。";
+    if(code === "too_many_passkeys") return "登録できるパスキーの上限に達しています。";
+    if(code === "webauthn_challenge_expired") return "認証の有効時間が切れました。もう一度お試しください。";
+    if(code === "webauthn_verification_failed") return "パスキーを確認できませんでした。もう一度お試しください。";
+    if(message.toLowerCase().includes("cancel")) return "パスキー認証をキャンセルしました。";
+    return message || "パスキーを利用できませんでした。";
+  }
+
+  async function signInWithPasskey(){
+    const btn = $("passkeyLoginBtn");
+    const message = $("authMessage");
+
+    if(!passkeyApiAvailable()){
+      message.textContent = "この端末または現在のブラウザではパスキーを利用できません。メールとパスワードでログインしてください。";
+      message.className = "auth-message error";
+      return;
+    }
+
+    btn.disabled = true;
+    message.textContent = "パスキーを確認しています…";
+    message.className = "auth-message";
+
+    try{
+      const {data, error} = await supabaseClient.auth.signInWithPasskey();
+      if(error) throw error;
+
+      let session = data?.session || null;
+      if(!session){
+        const result = await supabaseClient.auth.getSession();
+        if(result.error) throw result.error;
+        session = result.data.session;
+      }
+      if(!session) throw new Error("ログインセッションを取得できませんでした。");
+
+      await bootstrapCloudForSession(session);
+    }catch(err){
+      console.error("passkey sign-in error", err);
+      message.textContent = passkeyFriendlyError(err);
+      message.className = "auth-message error";
+    }finally{
+      btn.disabled = false;
+    }
+  }
+
+  function formatPasskeyDate(value){
+    if(!value) return "";
+    const d = new Date(value);
+    if(Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  async function refreshPasskeyList(){
+    const list = $("passkeyList");
+    const registerBtn = $("registerPasskeyBtn");
+    if(!list || !registerBtn) return;
+
+    if(!passkeyApiAvailable() || !supabaseClient.auth.passkey || typeof supabaseClient.auth.passkey.list !== "function"){
+      registerBtn.disabled = true;
+      list.innerHTML = `<div class="helper">この端末または現在のブラウザではパスキーを利用できません。</div>`;
+      return;
+    }
+
+    registerBtn.disabled = false;
+    list.innerHTML = `<div class="helper">登録済みパスキーを確認しています…</div>`;
+
+    try{
+      const {data, error} = await supabaseClient.auth.passkey.list();
+      if(error) throw error;
+
+      const passkeys = Array.isArray(data) ? data : (Array.isArray(data?.passkeys) ? data.passkeys : []);
+      if(!passkeys.length){
+        list.innerHTML = `<div class="helper">登録済みのパスキーはありません。</div>`;
+        return;
+      }
+
+      list.innerHTML = passkeys.map((p, index)=>{
+        const name = p.friendly_name || `パスキー ${index + 1}`;
+        const created = formatPasskeyDate(p.created_at);
+        const lastUsed = formatPasskeyDate(p.last_used_at);
+        const meta = [
+          created ? `登録 ${created}` : "",
+          lastUsed ? `最終使用 ${lastUsed}` : ""
+        ].filter(Boolean).join(" / ");
+
+        return `<div class="passkey-item">
+          <div class="passkey-item-main">
+            <div class="passkey-item-name">${escapeHtml(name)}</div>
+            <div class="passkey-item-meta">${escapeHtml(meta || "登録済み")}</div>
+          </div>
+          <button class="passkey-delete-btn" type="button" data-passkey-delete="${escapeHtml(p.id || "")}">削除</button>
+        </div>`;
+      }).join("");
+
+      list.querySelectorAll("[data-passkey-delete]").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          const id = btn.getAttribute("data-passkey-delete") || "";
+          if(!id || !confirm("このパスキーを削除しますか？")) return;
+          await deletePasskey(id);
+        });
+      });
+    }catch(err){
+      console.error("passkey list error", err);
+      list.innerHTML = `<div class="helper" style="color:#b91c1c">${escapeHtml(passkeyFriendlyError(err))}</div>`;
+    }
+  }
+
+  async function registerPasskey(){
+    const btn = $("registerPasskeyBtn");
+    const message = $("passkeySettingsMessage");
+
+    if(!passkeyApiAvailable()){
+      message.textContent = "この端末または現在のブラウザではパスキーを利用できません。";
+      message.className = "auth-message error";
+      return;
+    }
+
+    btn.disabled = true;
+    message.textContent = "パスキーを登録しています…";
+    message.className = "auth-message";
+
+    try{
+      const {error} = await supabaseClient.auth.registerPasskey();
+      if(error) throw error;
+
+      message.textContent = "パスキーを登録しました。次回からパスキーでログインできます。";
+      message.className = "auth-message success";
+      await refreshPasskeyList();
+    }catch(err){
+      console.error("passkey register error", err);
+      message.textContent = passkeyFriendlyError(err);
+      message.className = "auth-message error";
+    }finally{
+      btn.disabled = false;
+    }
+  }
+
+  async function deletePasskey(passkeyId){
+    const message = $("passkeySettingsMessage");
+
+    try{
+      if(!supabaseClient.auth.passkey || typeof supabaseClient.auth.passkey.delete !== "function"){
+        throw new Error("パスキー削除APIを利用できません。");
+      }
+
+      const {error} = await supabaseClient.auth.passkey.delete({passkeyId});
+      if(error) throw error;
+
+      message.textContent = "パスキーを削除しました。";
+      message.className = "auth-message success";
+      await refreshPasskeyList();
+    }catch(err){
+      console.error("passkey delete error", err);
+      message.textContent = passkeyFriendlyError(err);
+      message.className = "auth-message error";
+    }
+  }
+
   async function submitAuth(){
     const mode = $("authOverlay").dataset.mode || "login";
     const email = $("authEmail").value.trim();
@@ -7509,9 +7807,16 @@ function getContractBillingIncluded(siteId, month){
     setAuthMode("login");
     showAuthPanel("normal");
 
+    if($("passkeyLoginBtn") && !window.PublicKeyCredential){
+      $("passkeyLoginBtn").disabled = true;
+      $("passkeyLoginBtn").title = "このブラウザはパスキーに対応していません";
+    }
+
     $("authLoginTab").addEventListener("click", ()=>setAuthMode("login"));
     $("authSignupTab").addEventListener("click", ()=>setAuthMode("signup"));
     $("authSubmitBtn").addEventListener("click", submitAuth);
+    $("passkeyLoginBtn")?.addEventListener("click", signInWithPasskey);
+    $("registerPasskeyBtn")?.addEventListener("click", registerPasskey);
 
     $("authForgotBtn")?.addEventListener("click", ()=>{
       $("forgotEmail").value = $("authEmail")?.value.trim() || "";
