@@ -3148,6 +3148,17 @@
     color:transparent !important;
   }
 
+
+
+  [data-site-action="hide"],
+  [data-site-action="restore"]{
+    pointer-events:auto !important;
+    touch-action:manipulation;
+    cursor:pointer;
+    position:relative;
+    z-index:2;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -4030,24 +4041,45 @@
   function hideSiteFromSelectors(siteId){
     if(!siteId || isSiteHidden(siteId)) return;
 
+    if(!state.recentSelects || typeof state.recentSelects !== "object"){
+      state.recentSelects = {};
+    }
+
     const site = siteById(siteId);
     if(!site) return;
-
-    if(!confirm(`「${site.name}」を現場の選択ボックスから非表示にしますか？\n過去のデータは削除されません。`)){
-      return;
-    }
 
     state.recentSelects.hiddenSiteIds = [
       ...hiddenSiteIds().filter(id=>id!==siteId),
       siteId
     ];
 
-    save();
-    renderAll();
+    // まず画面を即更新。クラウド保存は通常のsave()で後から同期する。
+    saveLocalOnly();
+    renderSelects();
+    renderSites();
+    renderSummary();
+
+    // 現場選択が非表示にした現場のまま残っていれば、表示中の先頭へ切り替える。
+    const entrySite = $("entrySite");
+    if(entrySite && entrySite.value === siteId){
+      entrySite.value = entrySite.options[0]?.value || "";
+    }
+
+    const summarySite = $("summarySite");
+    if(summarySite && summarySite.value === siteId){
+      syncSummarySiteOptions();
+      renderSummary();
+    }
+
+    scheduleCloudSync();
   }
+
 
   function restoreSiteToSelectors(siteId){
     if(!siteId) return;
+    if(!state.recentSelects || typeof state.recentSelects !== "object"){
+      state.recentSelects = {};
+    }
 
     state.recentSelects.hiddenSiteIds = hiddenSiteIds().filter(id=>id!==siteId);
 
@@ -5079,9 +5111,9 @@
               <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
             </div>
             <div class="item-actions">
-              <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
-              <button class="edit-link" onclick="hideSiteFromSelectors('${s.id}')">非表示</button>
-              <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+              <button class="edit-link" type="button" data-site-action="edit" data-site-id="${s.id}">編集</button>
+              <button class="edit-link" type="button" data-site-action="hide" data-site-id="${s.id}">非表示</button>
+              <button class="danger-link" type="button" data-site-action="delete" data-site-id="${s.id}">削除</button>
             </div>
           </div>
         </div>
@@ -5104,9 +5136,9 @@
               <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")} / 選択ボックスでは非表示</small>
             </div>
             <div class="item-actions">
-              <button class="edit-link" onclick="restoreSiteToSelectors('${s.id}')">戻す</button>
-              <button class="edit-link" onclick="editSite('${s.id}')">編集</button>
-              <button class="danger-link" onclick="removeSite('${s.id}')">削除</button>
+              <button class="edit-link" type="button" data-site-action="restore" data-site-id="${s.id}">戻す</button>
+              <button class="edit-link" type="button" data-site-action="edit" data-site-id="${s.id}">編集</button>
+              <button class="danger-link" type="button" data-site-action="delete" data-site-id="${s.id}">削除</button>
             </div>
           </div>
         </div>
@@ -5127,6 +5159,59 @@
       ? `非表示の現場を閉じる（${count}）`
       : `非表示の現場を表示（${count}）`;
   });
+
+  function handleSiteListAction(event){
+    const button = event.target.closest("[data-site-action]");
+    if(!button) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const action = button.getAttribute("data-site-action") || "";
+    const siteId = button.getAttribute("data-site-id") || "";
+    if(!siteId) return;
+
+    if(action === "hide"){
+      hideSiteFromSelectors(siteId);
+      return;
+    }
+    if(action === "restore"){
+      restoreSiteToSelectors(siteId);
+      return;
+    }
+    if(action === "edit"){
+      editSite(siteId);
+      return;
+    }
+    if(action === "delete"){
+      removeSite(siteId);
+    }
+  }
+
+  $("siteList")?.addEventListener("click", handleSiteListAction);
+  $("hiddenSiteList")?.addEventListener("click", handleSiteListAction);
+
+  if(!window.__siteVisibilityCaptureBound){
+    window.__siteVisibilityCaptureBound = true;
+
+    document.addEventListener("click", (event)=>{
+      const button = event.target?.closest?.("[data-site-action='hide'],[data-site-action='restore']");
+      if(!button) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const siteId = button.getAttribute("data-site-id") || "";
+      const action = button.getAttribute("data-site-action") || "";
+      if(!siteId) return;
+
+      if(action === "hide"){
+        hideSiteFromSelectors(siteId);
+      }else if(action === "restore"){
+        restoreSiteToSelectors(siteId);
+      }
+    }, true);
+  }
 
 
   function renderWorkerCompanies(){
