@@ -7233,6 +7233,12 @@ function getContractBillingIncluded(siteId, month){
       target:"#invoiceAlertBtn",
       title:"⑧ 請求書の作り忘れを防止",
       html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
+    },
+    {
+      title:"⑨ ホーム画面に追加",
+      view:"input",
+      target:null,
+      text:"人工帖はブラウザでも使えますが、ホーム画面に追加すると、ホーム画面の人工帖アイコンをタップするだけでアプリのようにすぐ開けます。iPhoneはSafariの共有ボタンから「ホーム画面に追加」、Androidはブラウザのメニューから「ホーム画面に追加」を選んでください。"
     }
   ];
 
@@ -7312,7 +7318,7 @@ function getContractBillingIncluded(siteId, month){
     if(!step) return;
 
     clearTutorialHighlight();
-    setTutorialInvoiceAlert(tutorialIndex === 7);
+    setTutorialInvoiceAlert(tutorialIndex === 8);
     activateViewForTutorial(step.view);
 
     // 集計ステップは月別 / 現場別の切替そのものを説明するため、
@@ -7329,7 +7335,7 @@ function getContractBillingIncluded(siteId, month){
 
     const tutorialCard = $("tutorialCard");
     if(tutorialCard){
-      tutorialCard.classList.toggle("step7-full", tutorialIndex === 7);
+      tutorialCard.classList.toggle("step7-full", tutorialIndex === 8);
     }
 
     $("tutorialStep").textContent = `${tutorialIndex + 1} / ${tutorialSteps.length}`;
