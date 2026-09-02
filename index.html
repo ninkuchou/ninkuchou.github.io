@@ -3177,6 +3177,66 @@
     -webkit-user-select:all;
   }
 
+
+
+  .home-screen-tutorial{
+    display:grid;
+    gap:14px;
+    max-height:54vh;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:1px 2px 3px;
+  }
+  .home-screen-intro{
+    margin:0;
+    color:#475569;
+    font-size:12px;
+    line-height:1.6;
+  }
+  .home-screen-step{
+    display:grid;
+    gap:7px;
+  }
+  .home-screen-step-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#0f172a;
+    font-size:13px;
+    font-weight:800;
+    line-height:1.45;
+  }
+  .home-screen-step-title span{
+    width:24px;
+    height:24px;
+    flex:0 0 24px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#2563eb;
+    color:#fff;
+    font-size:12px;
+    font-weight:900;
+  }
+  .home-screen-step img{
+    display:block;
+    width:100%;
+    height:auto;
+    border:1px solid #dbe3ef;
+    border-radius:12px;
+    background:#fff;
+  }
+  .home-screen-finish{
+    padding:11px 12px;
+    border-radius:12px;
+    background:#eff6ff;
+    color:#1e3a8a;
+    font-size:13px;
+    font-weight:800;
+    line-height:1.6;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -7238,7 +7298,26 @@ function getContractBillingIncluded(siteId, month){
       title:"⑨ ホーム画面に追加",
       view:"input",
       target:null,
-      text:"人工帖はブラウザでも使えますが、ホーム画面に追加すると、ホーム画面の人工帖アイコンをタップするだけでアプリのようにすぐ開けます。iPhoneはSafariの共有ボタンから「ホーム画面に追加」、Androidはブラウザのメニューから「ホーム画面に追加」を選んでください。"
+      html:`<div class="home-screen-tutorial">
+        <p class="home-screen-intro">iPhoneでは、次の3ステップで人工帖をホーム画面に追加できます。</p>
+
+        <div class="home-screen-step">
+          <div class="home-screen-step-title"><span>1</span> Safari右上の共有ボタンをタップ</div>
+          <img src="tutorial-home-1.png" alt="Safariで人工帖を開き、共有ボタンを表示している画面">
+        </div>
+
+        <div class="home-screen-step">
+          <div class="home-screen-step-title"><span>2</span> 「ホーム画面に追加」をタップ</div>
+          <img src="tutorial-home-2.png" alt="Safariの共有メニューでホーム画面に追加を選ぶ画面">
+        </div>
+
+        <div class="home-screen-step">
+          <div class="home-screen-step-title"><span>3</span> 右上の「追加」をタップ</div>
+          <img src="tutorial-home-3.png" alt="ホーム画面に追加の確認画面">
+        </div>
+
+        <div class="home-screen-finish">ホーム画面の人工帖アイコンをタップするだけで、アプリのようにすぐ開けます。</div>
+      </div>`
     }
   ];
 
