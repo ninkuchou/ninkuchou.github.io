@@ -3159,6 +3159,24 @@
     z-index:2;
   }
 
+
+
+  .help-contact-mail-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    min-height:48px;
+    margin-top:14px;
+    text-decoration:none;
+  }
+  .help-contact-address{
+    margin-top:8px;
+    text-align:center;
+    user-select:all;
+    -webkit-user-select:all;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3744,7 +3762,15 @@
 
     <section class="help-section">
       <h3>困ったとき</h3>
-      <p>操作で迷った場合は、まず上の「使い方チュートリアル」を確認してください。お問い合わせ窓口は今後ここに追加できます。</p>
+      <p>操作で迷った場合は、まず上の「使い方チュートリアル」を確認してください。解決しない場合は、メールでお問い合わせください。</p>
+      <a
+        id="helpContactMailBtn"
+        class="btn help-contact-mail-btn"
+        href="mailto:ninkuchou@refise.jp?subject=%E4%BA%BA%E5%B7%A5%E5%B8%96%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B&body=%E4%BC%9A%E7%A4%BE%E5%90%8D%EF%BC%9A%0D%0A%E3%81%8A%E5%90%8D%E5%89%8D%EF%BC%9A%0D%0A%0D%0A%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E5%86%85%E5%AE%B9%EF%BC%9A%0D%0A"
+      >
+        ✉️ メールで問い合わせ
+      </a>
+      <div class="helper help-contact-address">ninkuchou@refise.jp</div>
     </section>
   </div>
 </div>
