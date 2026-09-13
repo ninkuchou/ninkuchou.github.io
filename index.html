@@ -3763,7 +3763,7 @@
           </div>
 
           <div class="notice" style="margin-bottom:10px">
-            データはクラウドに自動保存されます。必要に応じて、非常用のバックアップをJSONファイルとして保存・復元できます。
+            データはクラウドに自動保存されます。必要に応じて、非常用のバックアップをJSONファイルとして保存・復元できます。バックアップは作成した会社専用です。
           </div>
           <div class="data-actions">
             <button class="btn secondary" id="exportDataBtn" type="button">バックアップを書き出す</button>
@@ -3847,7 +3847,7 @@
 
       <details>
         <summary>バックアップから復元するとどうなりますか？</summary>
-        <p>現在の会社データが、バックアップファイルの内容に置き換わります。復元内容はクラウドにも反映されるため、実行前に内容を確認してください。</p>
+        <p>現在の会社データが、バックアップファイルの内容に置き換わります。復元できるのは現在ログイン中の会社で作成したバックアップだけです。復元内容はクラウドにも反映されるため、実行前に内容を確認してください。</p>
       </details>
 
       <details>
@@ -8622,11 +8622,53 @@ function getContractBillingIncluded(siteId, month){
     };
   }
 
+
+  function validateBackupEnvelope(parsed){
+    if(!cloudReady || !cloudCompanyId){
+      throw new Error("LOGIN_REQUIRED");
+    }
+
+    if(!parsed || typeof parsed !== "object" || Array.isArray(parsed)){
+      throw new Error("INVALID_BACKUP");
+    }
+
+    if(parsed.app !== "人工帖" || !parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)){
+      throw new Error("INVALID_BACKUP");
+    }
+
+    const backupVersion = Number(parsed.version || 0);
+    if(!Number.isFinite(backupVersion) || backupVersion < 2){
+      throw new Error("LEGACY_BACKUP");
+    }
+
+    const ownerCompanyId = String(
+      parsed.ownerCompanyId ||
+      parsed.meta?.companyId ||
+      ""
+    ).trim();
+
+    if(!ownerCompanyId){
+      throw new Error("OWNER_MISSING");
+    }
+
+    if(ownerCompanyId !== String(cloudCompanyId)){
+      throw new Error("OWNER_MISMATCH");
+    }
+
+    return parsed.data;
+  }
+
   $("exportDataBtn").addEventListener("click", ()=>{
+    if(!cloudReady || !cloudCompanyId){
+      alert("クラウドへのログイン完了後にバックアップを書き出してください。");
+      return;
+    }
+
     const payload = {
       app:"人工帖",
-      version:1,
+      version:2,
       exportedAt:new Date().toISOString(),
+      ownerCompanyId:cloudCompanyId,
       data:state
     };
 
@@ -8657,7 +8699,7 @@ function getContractBillingIncluded(siteId, month){
     try{
       const text = await file.text();
       const parsed = JSON.parse(text);
-      const incoming = parsed && parsed.data ? parsed.data : parsed;
+      const incoming = validateBackupEnvelope(parsed);
       const normalized = normalizeImportedState(incoming);
 
       const counts = [
@@ -8686,7 +8728,16 @@ function getContractBillingIncluded(siteId, month){
       dismissKeyboard();
       alert("バックアップから復元しました");
     }catch(e){
-      alert("バックアップを読み込めませんでした。人工帖から書き出したJSONファイルを選択してください");
+      const code = String(e?.message || "");
+      if(code === "LOGIN_REQUIRED"){
+        alert("クラウドへのログイン完了後にバックアップを復元してください。");
+      }else if(code === "LEGACY_BACKUP" || code === "OWNER_MISSING"){
+        alert("このバックアップは所有会社を確認できない旧形式のため復元できません。最新の人工帖から書き出したバックアップを使用してください。");
+      }else if(code === "OWNER_MISMATCH"){
+        alert("このバックアップは別の会社で作成されたため、現在の会社には復元できません。");
+      }else{
+        alert("バックアップを読み込めませんでした。人工帖から書き出したJSONファイルを選択してください。");
+      }
     }
   });
 
