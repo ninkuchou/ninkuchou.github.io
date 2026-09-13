@@ -3340,7 +3340,7 @@
       <input id="authEmail" type="email" placeholder="name@example.com" name="username" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false">
 
       <label>パスワード</label>
-      <input id="authPassword" type="password" placeholder="6文字以上" name="password" autocomplete="current-password">
+      <input id="authPassword" type="password" placeholder="8文字以上" name="password" autocomplete="current-password" minlength="8">
 
       <div class="auth-turnstile-wrap">
         <div id="authTurnstile" aria-label="セキュリティ確認"></div>
@@ -3363,9 +3363,9 @@
 
       <div id="newPasswordBox" class="auth-reset-box">
         <div class="auth-reset-title">新しいパスワード</div>
-        <div class="auth-reset-copy">新しく使うパスワードを6文字以上で入力してください。</div>
+        <div class="auth-reset-copy">新しく使うパスワードを8文字以上で入力してください。</div>
         <label>新しいパスワード</label>
-        <input id="newPassword" type="password" placeholder="6文字以上" autocomplete="new-password">
+        <input id="newPassword" type="password" placeholder="8文字以上" autocomplete="new-password" minlength="8">
         <label>新しいパスワード（確認）</label>
         <input id="newPasswordConfirm" type="password" placeholder="もう一度入力" autocomplete="new-password">
         <button id="updatePasswordBtn" class="btn auth-submit" type="button">パスワードを変更</button>
@@ -8145,8 +8145,8 @@ function getContractBillingIncluded(siteId, month){
     const confirmPassword = $("newPasswordConfirm")?.value || "";
     const message = $("newPasswordMessage");
 
-    if(password.length < 6){
-      message.textContent = "パスワードは6文字以上にしてください";
+    if(password.length < 8){
+      message.textContent = "パスワードは8文字以上にしてください";
       message.className = "auth-message error";
       return;
     }
@@ -8467,8 +8467,8 @@ function getContractBillingIncluded(siteId, month){
       message.className = "auth-message error";
       return;
     }
-    if(password.length < 6){
-      message.textContent = "パスワードは6文字以上にしてください";
+    if(password.length < 8){
+      message.textContent = "パスワードは8文字以上にしてください";
       message.className = "auth-message error";
       return;
     }
