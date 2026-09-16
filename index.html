@@ -1762,6 +1762,66 @@
     color:#94a3b8;
     text-align:center;
   }
+  .billing-access-overlay{
+    position:fixed;
+    inset:0;
+    z-index:99998;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    box-sizing:border-box;
+    background:linear-gradient(145deg,#eef5ff 0%,#ffffff 52%,#f2f7ff 100%);
+  }
+  .billing-access-overlay.open{display:flex}
+  .billing-access-card{
+    width:min(440px,100%);
+    padding:26px 22px;
+    border:1px solid #dbe4ef;
+    border-radius:20px;
+    background:#fff;
+    box-shadow:0 18px 50px rgba(15,23,42,.14);
+    text-align:center;
+  }
+  .billing-access-icon{font-size:38px;line-height:1;margin-bottom:12px}
+  .billing-access-card h2{margin:0 0 10px;font-size:22px}
+  .billing-access-card p{margin:0;color:#475569;line-height:1.7}
+  .billing-access-detail{
+    margin:16px 0!important;
+    padding:12px;
+    border-radius:12px;
+    background:#f8fafc;
+    font-size:13px;
+  }
+  .billing-access-card .btn{width:100%;margin-top:6px}
+  .billing-access-logout{
+    margin-top:14px;
+    border:0;
+    background:transparent;
+    color:#64748b;
+    text-decoration:underline;
+    cursor:pointer;
+  }
+  .billing-status-banner{
+    display:none;
+    max-width:692px;
+    margin:8px auto 0;
+    padding:10px 14px;
+    box-sizing:border-box;
+    border:1px solid #bfdbfe;
+    border-radius:12px;
+    background:#eff6ff;
+    color:#1e3a8a;
+    font-size:12px;
+    font-weight:700;
+    line-height:1.5;
+  }
+  .billing-status-banner.open{display:block}
+  .billing-status-banner.warning{
+    border-color:#fde68a;
+    background:#fffbeb;
+    color:#92400e;
+  }
   .cloud-account-bar{
     width:100%;
     max-width:720px;
@@ -3375,6 +3435,17 @@
     </div>
   </div>
 
+  <div id="billingAccessOverlay" class="billing-access-overlay" aria-hidden="true">
+    <div class="billing-access-card">
+      <div class="billing-access-icon">📒</div>
+      <h2 id="billingAccessTitle">無料期間が終了しました</h2>
+      <p id="billingAccessMessage">人工帖を引き続き利用するには、お申し込みが必要です。</p>
+      <p id="billingAccessDetail" class="billing-access-detail"></p>
+      <button id="billingCheckoutBtn" class="btn" type="button">月額980円で申し込む</button>
+      <button id="billingLogoutBtn" class="billing-access-logout" type="button">ログアウト</button>
+    </div>
+  </div>
+
   <header>
     <h1>人工帖</h1>
     <div class="app-brand-subtitle">人工・現場・請求をかんたん管理</div>
@@ -3392,6 +3463,8 @@
     </button>
     <button id="logoutBtn" type="button">ログアウト</button>
   </div>
+
+  <div id="billingStatusBanner" class="billing-status-banner" role="status"></div>
 
   <main>
     <section id="view-input" class="view active">
@@ -4000,6 +4073,9 @@
   let cloudSyncInFlight = false;
   let cloudSyncPending = false;
   let cloudBaselineRows = null;
+  // 本番の利用制限は最終確認後にtrueへ変更する。
+  const BILLING_ENFORCEMENT_ENABLED = false;
+  const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
   const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"} };
   let state = load();
@@ -8014,6 +8090,174 @@ function getContractBillingIncluded(siteId, month){
     return company;
   }
 
+  function billingGateTestMode(){
+    if(BILLING_ENFORCEMENT_ENABLED) return "";
+    if(window.location.origin !== "https://app.refise.jp") return "";
+    const mode = new URLSearchParams(window.location.search).get("billing_gate_test") || "";
+    return ["1", "trial", "expired", "past_due"].includes(mode) ? mode : "";
+  }
+
+  function hideBillingAccessUi(){
+    const overlay = $("billingAccessOverlay");
+    const banner = $("billingStatusBanner");
+    if(overlay){
+      overlay.classList.remove("open");
+      overlay.setAttribute("aria-hidden", "true");
+    }
+    if(banner){
+      banner.classList.remove("open", "warning");
+      banner.textContent = "";
+    }
+  }
+
+  function formatBillingDate(value){
+    const date = new Date(value);
+    if(!Number.isFinite(date.getTime())) return "";
+    return new Intl.DateTimeFormat("ja-JP", {
+      year:"numeric", month:"long", day:"numeric"
+    }).format(date);
+  }
+
+  function evaluateBillingAccess(row, forcedMode=""){
+    const now = Date.now();
+    const data = row ? {...row} : null;
+
+    if(forcedMode === "trial"){
+      return {
+        allowed:true,
+        reason:"trial",
+        daysRemaining:5,
+        trialEndsAt:new Date(now + 5 * 86400000).toISOString(),
+        simulated:true
+      };
+    }
+    if(forcedMode === "expired"){
+      return {allowed:false, reason:"expired", simulated:true};
+    }
+    if(forcedMode === "past_due"){
+      return {
+        allowed:true,
+        reason:"past_due_grace",
+        daysRemaining:BILLING_PAST_DUE_GRACE_DAYS,
+        simulated:true
+      };
+    }
+    if(!data) return {allowed:false, reason:"missing"};
+
+    const status = String(data.subscription_status || "none").toLowerCase();
+    if(status === "active" || status === "trialing"){
+      return {allowed:true, reason:"subscribed", status};
+    }
+
+    if(status === "past_due"){
+      const updatedAt = new Date(data.stripe_updated_at || data.updated_at || 0).getTime();
+      const graceEndsAt = updatedAt + BILLING_PAST_DUE_GRACE_DAYS * 86400000;
+      if(Number.isFinite(graceEndsAt) && graceEndsAt > now){
+        return {
+          allowed:true,
+          reason:"past_due_grace",
+          daysRemaining:Math.max(1, Math.ceil((graceEndsAt - now) / 86400000)),
+          graceEndsAt:new Date(graceEndsAt).toISOString()
+        };
+      }
+    }
+
+    const trialEndsAt = new Date(data.trial_ends_at || 0).getTime();
+    if(Number.isFinite(trialEndsAt) && trialEndsAt > now){
+      return {
+        allowed:true,
+        reason:"trial",
+        daysRemaining:Math.max(1, Math.ceil((trialEndsAt - now) / 86400000)),
+        trialEndsAt:new Date(trialEndsAt).toISOString()
+      };
+    }
+
+    return {allowed:false, reason:status === "past_due" ? "past_due_expired" : "expired", status};
+  }
+
+  function renderBillingAccess(result, testMode=""){
+    hideBillingAccessUi();
+    const overlay = $("billingAccessOverlay");
+    const banner = $("billingStatusBanner");
+    const testPrefix = testMode ? "【テスト表示】" : "";
+
+    if(result.allowed){
+      if(result.reason === "trial" && banner){
+        const endText = formatBillingDate(result.trialEndsAt);
+        banner.textContent = `${testPrefix}無料期間は残り${result.daysRemaining}日です${endText ? `（${endText}まで）` : ""}。`;
+        banner.classList.add("open");
+      }
+      if(result.reason === "past_due_grace" && banner){
+        banner.textContent = `${testPrefix}お支払いを確認できていません。あと${result.daysRemaining}日以内に決済情報をご確認ください。`;
+        banner.classList.add("open", "warning");
+      }
+      return;
+    }
+
+    if(!overlay) return;
+    const title = $("billingAccessTitle");
+    const message = $("billingAccessMessage");
+    const detail = $("billingAccessDetail");
+    if(result.reason === "missing"){
+      if(title) title.textContent = `${testPrefix}利用状況を確認できません`;
+      if(message) message.textContent = "課金設定の準備が完了していません。管理者へお問い合わせください。";
+      if(detail) detail.textContent = "02_billing_access.sql の実行状況を確認してください。";
+    }else if(result.reason === "past_due_expired"){
+      if(title) title.textContent = `${testPrefix}お支払いを確認できません`;
+      if(message) message.textContent = "決済情報を更新すると、引き続き人工帖を利用できます。";
+      if(detail) detail.textContent = "支払い確認の猶予期間が終了しています。";
+    }else{
+      if(title) title.textContent = `${testPrefix}30日間の無料期間が終了しました`;
+      if(message) message.textContent = "人工帖を引き続き利用するには、お申し込みが必要です。";
+      if(detail) detail.textContent = "初回から12か月は月額980円、その後は月額1,480円です。";
+    }
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+
+  async function refreshBillingAccess(companyId){
+    const testMode = billingGateTestMode();
+    if(!BILLING_ENFORCEMENT_ENABLED && !testMode){
+      hideBillingAccessUi();
+      return true;
+    }
+
+    const {data, error} = await supabaseClient
+      .from("company_billing")
+      .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at")
+      .eq("company_id", companyId)
+      .maybeSingle();
+
+    if(error){
+      console.warn("billing access check failed", error);
+      if(!BILLING_ENFORCEMENT_ENABLED){
+        const banner = $("billingStatusBanner");
+        if(banner){
+          banner.textContent = "【テスト表示】利用状況を取得できません。02_billing_access.sqlを確認してください。";
+          banner.classList.add("open", "warning");
+        }
+        return true;
+      }
+      renderBillingAccess({allowed:false, reason:"missing"});
+      return false;
+    }
+
+    const result = evaluateBillingAccess(data, testMode);
+    renderBillingAccess(result, testMode);
+    return result.allowed;
+  }
+
+  $("billingCheckoutBtn")?.addEventListener("click", ()=>{
+    const url = new URL(window.location.href);
+    url.searchParams.delete("billing_gate_test");
+    url.searchParams.set("stripe_test", "1");
+    window.location.assign(url.toString());
+  });
+
+  $("billingLogoutBtn")?.addEventListener("click", ()=>{
+    $("logoutBtn")?.click();
+  });
+
   async function bootstrapCloudForSession(session, options={}){
     if(!session?.user) return;
 
@@ -8025,6 +8269,13 @@ function getContractBillingIncluded(siteId, month){
     if(bar) bar.style.display = "grid";
     if($("cloudCompanyName")) $("cloudCompanyName").textContent = company.name || "";
     if($("authOverlay")) $("authOverlay").style.display = "none";
+
+    const billingAllowed = await refreshBillingAccess(company.id);
+    if(!billingAllowed){
+      cloudReady = false;
+      setCloudStatus("利用期間終了", "error");
+      return;
+    }
 
     const cloud = await fetchCompanyState(company.id);
 
@@ -8629,6 +8880,7 @@ function getContractBillingIncluded(siteId, month){
       if(!confirm("ログアウトする？")) return;
       cloudReady = false;
       cloudCompanyId = "";
+      hideBillingAccessUi();
       clearPasswordResetFlow();
       await supabaseClient.auth.signOut();
       $("cloudAccountBar").style.display = "none";
