@@ -9409,7 +9409,81 @@ function getContractBillingIncluded(siteId, month){
     });
   }
 
+  // Stripe Customer Portal sandbox test. Hidden on ordinary app URLs.
+  function setupStripePortalTestPanel(){
+    const mode = new URLSearchParams(window.location.search).get("billing_portal_test");
+    if(!["1", "return"].includes(mode)) return;
+    const main = document.querySelector("main");
+    if(!main) return;
+    const panel = document.createElement("section");
+    panel.className = "card";
+    panel.id = "stripePortalTestPanel";
+    panel.innerHTML = `<h2>契約内容の確認・変更テスト</h2>
+      <p class="notice">Stripeのテスト環境で、カード情報の変更・請求履歴・解約手続きを確認できます。実際のお支払いには影響しません。</p>
+      <button type="button" class="btn" id="stripePortalOpenBtn">契約内容を確認・変更する</button>
+      <p id="stripePortalMessage" class="notice" role="status" aria-live="polite" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>`;
+    main.prepend(panel);
+
+    const button = $("stripePortalOpenBtn");
+    const message = $("stripePortalMessage");
+    if(mode === "return") message.textContent = "契約管理画面から人工帖へ戻りました。変更内容はStripeから順次同期されます。";
+
+    let busy = false;
+    button.addEventListener("click", async ()=>{
+      if(busy) return;
+      if(!cloudReady || !cloudCompanyId){
+        message.textContent = "ログインして、クラウドの読み込みが完了してから押してください。";
+        return;
+      }
+      if(window.location.origin !== "https://app.refise.jp"){
+        message.textContent = "https://app.refise.jp のテスト用URLから開いてください。";
+        return;
+      }
+
+      const companyId = cloudCompanyId;
+      busy = true;
+      button.disabled = true;
+      button.textContent = "契約管理画面を準備しています…";
+      message.textContent = "";
+      const controller = new AbortController();
+      const timeout = setTimeout(()=>controller.abort(), 60000);
+      try{
+        const {data:sessionData, error:sessionError} = await supabaseClient.auth.getSession();
+        if(sessionError || !sessionData?.session?.access_token) throw new Error("ログインの有効期限が切れています。再ログインしてください。");
+        const userId = sessionData.session.user.id;
+        const response = await fetch(SUPABASE_URL + "/functions/v1/create-customer-portal-session-test", {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "apikey":SUPABASE_PUBLISHABLE_KEY,
+            "Authorization":"Bearer " + sessionData.session.access_token
+          },
+          body:JSON.stringify({company_id:companyId}),
+          signal:controller.signal
+        });
+        const result = await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error("HTTP " + response.status + ": " + (result.error || result.message || "契約管理画面に接続できませんでした。"));
+        if(result.test_only !== true || typeof result.url !== "string") throw new Error("テスト用の契約管理URLを確認できませんでした。");
+        const url = new URL(result.url);
+        if(url.protocol !== "https:" || url.hostname !== "billing.stripe.com" || url.username || url.password) throw new Error("契約管理URLが正しくありません。");
+        const {data:latest} = await supabaseClient.auth.getSession();
+        if(!cloudReady || cloudCompanyId !== companyId || latest?.session?.user?.id !== userId) throw new Error("ログイン状態が変わりました。もう一度操作してください。");
+        window.location.assign(url.href);
+      }catch(error){
+        message.textContent = error?.name === "AbortError"
+          ? "接続がタイムアウトしました。通信状態を確認して、もう一度お試しください。"
+          : String(error?.message || "接続できませんでした。通信状態を確認してください。");
+      }finally{
+        clearTimeout(timeout);
+        busy = false;
+        button.disabled = false;
+        button.textContent = "契約内容を確認・変更する";
+      }
+    });
+  }
+
   setupStripeTestPanel();
+  setupStripePortalTestPanel();
   renderAll();
   initSupabaseAuth();
 
