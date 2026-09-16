@@ -9061,6 +9061,78 @@ function getContractBillingIncluded(siteId, month){
       window.__invoiceFitTimer = setTimeout(fitInvoicePreviewToWidth, 150);
     });
   }
+  // Stripe sandbox connection test. Hidden on ordinary app URLs.
+  function setupStripeTestPanel(){
+    const mode = new URLSearchParams(window.location.search).get("stripe_test");
+    if(!["1", "success", "cancel"].includes(mode)) return;
+    const main = document.querySelector("main");
+    if(!main) return;
+    const panel = document.createElement("section");
+    panel.className = "card";
+    panel.id = "stripeTestPanel";
+    panel.innerHTML = `<h2>Stripe 決済テスト</h2>
+      <p class="notice">テスト環境です。実際のお支払いは発生しません。<br>初回から12か月は月額980円、その後は月額1,480円の決済画面を確認します。30日無料と利用期限の更新は、まだこのテストには含まれません。</p>
+      <button type="button" class="btn" id="stripeTestOpenBtn">テスト決済画面を開く</button>
+      <p id="stripeTestMessage" class="notice" role="status" aria-live="polite" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>`;
+    main.prepend(panel);
+    const button = $("stripeTestOpenBtn");
+    const message = $("stripeTestMessage");
+    if(mode === "success") message.textContent = "Stripeから戻りました。支払い結果はStripe側で確認してください。人工帖の利用権限は変更していません。";
+    if(mode === "cancel") message.textContent = "テスト決済画面を閉じました。";
+    let busy = false;
+    button.addEventListener("click", async ()=>{
+      if(busy) return;
+      if(!cloudReady || !cloudCompanyId){
+        message.textContent = "ログインして、クラウドの読み込みが完了してから押してください。";
+        return;
+      }
+      if(window.location.origin !== "https://app.refise.jp"){
+        message.textContent = "https://app.refise.jp のテスト用URLから開いてください。";
+        return;
+      }
+      const companyId = cloudCompanyId;
+      busy = true;
+      button.disabled = true;
+      button.textContent = "決済画面を準備しています…";
+      message.textContent = "";
+      const controller = new AbortController();
+      const timeout = setTimeout(()=>controller.abort(), 60000);
+      try{
+        const {data:sessionData, error:sessionError} = await supabaseClient.auth.getSession();
+        if(sessionError || !sessionData?.session?.access_token) throw new Error("ログインの有効期限が切れています。再ログインしてください。");
+        const userId = sessionData.session.user.id;
+        const response = await fetch(SUPABASE_URL + "/functions/v1/create-checkout-session-test", {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "apikey":SUPABASE_PUBLISHABLE_KEY,
+            "Authorization":"Bearer " + sessionData.session.access_token
+          },
+          body:JSON.stringify({company_id:companyId}),
+          signal:controller.signal
+        });
+        const result = await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error("HTTP " + response.status + ": " + (result.error || result.message || "決済テストに接続できませんでした。"));
+        if(result.test_only !== true || typeof result.url !== "string") throw new Error("テスト用の決済URLを確認できませんでした。");
+        const url = new URL(result.url);
+        if(url.protocol !== "https:" || url.hostname !== "checkout.stripe.com" || url.username || url.password) throw new Error("決済URLが正しくありません。");
+        const {data:latest} = await supabaseClient.auth.getSession();
+        if(!cloudReady || cloudCompanyId !== companyId || latest?.session?.user?.id !== userId) throw new Error("ログイン状態が変わりました。もう一度操作してください。");
+        window.location.assign(url.href);
+      }catch(error){
+        message.textContent = error?.name === "AbortError"
+          ? "接続がタイムアウトしました。通信状態を確認して、もう一度お試しください。"
+          : String(error?.message || "接続できませんでした。通信状態を確認してください。");
+      }finally{
+        clearTimeout(timeout);
+        busy = false;
+        button.disabled = false;
+        button.textContent = "テスト決済画面を開く";
+      }
+    });
+  }
+
+  setupStripeTestPanel();
   renderAll();
   initSupabaseAuth();
 
