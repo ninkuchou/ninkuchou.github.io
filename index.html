@@ -9077,8 +9077,33 @@ function getContractBillingIncluded(siteId, month){
     main.prepend(panel);
     const button = $("stripeTestOpenBtn");
     const message = $("stripeTestMessage");
-    if(mode === "success") message.textContent = "Stripeから戻りました。支払い結果はStripe側で確認してください。人工帖の利用権限は変更していません。";
+    if(mode === "success") message.textContent = "支払い情報の同期を確認しています…";
     if(mode === "cancel") message.textContent = "テスト決済画面を閉じました。";
+
+    async function confirmBillingSync(){
+      for(let attempt = 0; attempt < 10; attempt++){
+        if(!cloudReady || !cloudCompanyId){
+          await new Promise(resolve=>setTimeout(resolve, 1000));
+          continue;
+        }
+
+        const {data, error} = await supabaseClient
+          .from("company_billing")
+          .select("subscription_status,stripe_price_id,current_period_end,cancel_at_period_end,stripe_updated_at")
+          .eq("company_id", cloudCompanyId)
+          .maybeSingle();
+
+        if(!error && data){
+          const status = String(data.subscription_status || "unknown");
+          message.textContent = `StripeからSupabaseへの同期を確認できました（状態: ${status}）。\n人工帖の利用権限はまだ変更していません。`;
+          return;
+        }
+        await new Promise(resolve=>setTimeout(resolve, 1500));
+      }
+      message.textContent = "支払い画面から戻りましたが、Supabaseへの同期をまだ確認できません。Webhookの配信結果を確認してください。人工帖の利用権限は変更していません。";
+    }
+
+    if(mode === "success") confirmBillingSync();
     let busy = false;
     button.addEventListener("click", async ()=>{
       if(busy) return;
