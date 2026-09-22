@@ -1794,6 +1794,15 @@
     font-size:13px;
   }
   .billing-access-card .btn{width:100%;margin-top:6px}
+  .billing-payment-message{
+    min-height:18px;
+    margin-top:10px!important;
+    color:#334155!important;
+    font-size:12px;
+    font-weight:700;
+    white-space:pre-line;
+  }
+  .billing-payment-message.error{color:#b91c1c!important}
   .billing-access-logout{
     margin-top:14px;
     border:0;
@@ -3441,7 +3450,9 @@
       <h2 id="billingAccessTitle">無料期間が終了しました</h2>
       <p id="billingAccessMessage">人工帖を引き続き利用するには、お申し込みが必要です。</p>
       <p id="billingAccessDetail" class="billing-access-detail"></p>
-      <button id="billingCheckoutBtn" class="btn" type="button">月額980円で申し込む</button>
+      <button id="billingCheckoutBtn" class="btn" type="button">カード払い（月額980円）</button>
+      <button id="billingBankTransferBtn" class="btn secondary" type="button">銀行振込（6か月払い）</button>
+      <p id="billingPaymentMessage" class="billing-payment-message" role="status" aria-live="polite"></p>
       <button id="billingLogoutBtn" class="billing-access-logout" type="button">ログアウト</button>
     </div>
   </div>
@@ -8108,6 +8119,8 @@ function getContractBillingIncluded(siteId, month){
       banner.classList.remove("open", "warning");
       banner.textContent = "";
     }
+    const paymentMessage = $("billingPaymentMessage");
+    if(paymentMessage) paymentMessage.textContent = "";
   }
 
   function formatBillingDate(value){
@@ -8145,8 +8158,55 @@ function getContractBillingIncluded(siteId, month){
     if(!data) return {allowed:false, reason:"missing"};
 
     const status = String(data.subscription_status || "none").toLowerCase();
-    if(status === "active" || status === "trialing"){
+    if(status === "trialing"){
+      const stripeTrialEndsAt = new Date(data.trial_ends_at || 0).getTime();
+      if(Number.isFinite(stripeTrialEndsAt) && stripeTrialEndsAt > now){
+        return {
+          allowed:true,
+          reason:"trial",
+          status,
+          daysRemaining:Math.max(1, Math.ceil((stripeTrialEndsAt - now) / 86400000)),
+          trialEndsAt:new Date(stripeTrialEndsAt).toISOString()
+        };
+      }
       return {allowed:true, reason:"subscribed", status};
+    }
+    if(status === "active"){
+      return {allowed:true, reason:"subscribed", status};
+    }
+
+    // カード未登録・銀行振込申請済みでも、30日間の無料期間を優先する。
+    const trialEndsAt = new Date(data.trial_ends_at || 0).getTime();
+    if(Number.isFinite(trialEndsAt) && trialEndsAt > now){
+      return {
+        allowed:true,
+        reason:"trial",
+        daysRemaining:Math.max(1, Math.ceil((trialEndsAt - now) / 86400000)),
+        trialEndsAt:new Date(trialEndsAt).toISOString()
+      };
+    }
+
+    const bankStatus = String(data.bank_transfer_status || "none").toLowerCase();
+    const bankPaidUntil = new Date(data.bank_transfer_paid_until || 0).getTime();
+    if(bankStatus === "paid" && Number.isFinite(bankPaidUntil) && bankPaidUntil > now){
+      return {
+        allowed:true,
+        reason:"bank_transfer",
+        status,
+        paidUntil:new Date(bankPaidUntil).toISOString()
+      };
+    }
+
+    const bankDueAt = new Date(data.bank_transfer_due_at || 0).getTime();
+    if(bankStatus === "pending" && Number.isFinite(bankDueAt) && bankDueAt > now){
+      return {
+        allowed:true,
+        reason:"bank_transfer_pending",
+        status,
+        amountYen:Number(data.bank_transfer_amount_yen || 0),
+        daysRemaining:Math.max(1, Math.ceil((bankDueAt - now) / 86400000)),
+        dueAt:new Date(bankDueAt).toISOString()
+      };
     }
 
     if(status === "past_due"){
@@ -8162,16 +8222,9 @@ function getContractBillingIncluded(siteId, month){
       }
     }
 
-    const trialEndsAt = new Date(data.trial_ends_at || 0).getTime();
-    if(Number.isFinite(trialEndsAt) && trialEndsAt > now){
-      return {
-        allowed:true,
-        reason:"trial",
-        daysRemaining:Math.max(1, Math.ceil((trialEndsAt - now) / 86400000)),
-        trialEndsAt:new Date(trialEndsAt).toISOString()
-      };
+    if(bankStatus === "paid" || bankStatus === "pending"){
+      return {allowed:false, reason:"bank_transfer_expired", status};
     }
-
     return {allowed:false, reason:status === "past_due" ? "past_due_expired" : "expired", status};
   }
 
@@ -8191,6 +8244,17 @@ function getContractBillingIncluded(siteId, month){
         banner.textContent = `${testPrefix}お支払いを確認できていません。あと${result.daysRemaining}日以内に決済情報をご確認ください。`;
         banner.classList.add("open", "warning");
       }
+      if(result.reason === "bank_transfer" && banner){
+        const endText = formatBillingDate(result.paidUntil);
+        banner.textContent = `銀行振込でご利用中です${endText ? `（${endText}まで）` : ""}。`;
+        banner.classList.add("open");
+      }
+      if(result.reason === "bank_transfer_pending" && banner){
+        const dueText = formatBillingDate(result.dueAt);
+        const amountText = Number(result.amountYen || 0).toLocaleString("ja-JP");
+        banner.textContent = `銀行振込を確認中です。${amountText ? `${amountText}円を` : ""}${dueText ? `${dueText}までに` : ""}お振り込みください。`;
+        banner.classList.add("open", "warning");
+      }
       return;
     }
 
@@ -8206,10 +8270,14 @@ function getContractBillingIncluded(siteId, month){
       if(title) title.textContent = `${testPrefix}お支払いを確認できません`;
       if(message) message.textContent = "決済情報を更新すると、引き続き人工帖を利用できます。";
       if(detail) detail.textContent = "支払い確認の猶予期間が終了しています。";
+    }else if(result.reason === "bank_transfer_expired"){
+      if(title) title.textContent = `${testPrefix}銀行振込の利用期間が終了しました`;
+      if(message) message.textContent = "人工帖を引き続き利用するには、次の6か月分のお申し込みが必要です。";
+      if(detail) detail.textContent = "銀行振込は6か月ごとの前払いです。";
     }else{
       if(title) title.textContent = `${testPrefix}30日間の無料期間が終了しました`;
       if(message) message.textContent = "人工帖を引き続き利用するには、お申し込みが必要です。";
-      if(detail) detail.textContent = "初回から12か月は月額980円、その後は月額1,480円です。";
+      if(detail) detail.textContent = "カードは月額980円、銀行振込は6か月分5,880円です。13か月目以降は月額換算1,480円です。";
     }
     overlay.classList.add("open");
     overlay.setAttribute("aria-hidden", "false");
@@ -8224,7 +8292,7 @@ function getContractBillingIncluded(siteId, month){
 
     const {data, error} = await supabaseClient
       .from("company_billing")
-      .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at")
+      .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at,payment_method,bank_transfer_status,bank_transfer_amount_yen,bank_transfer_paid_until,bank_transfer_due_at")
       .eq("company_id", companyId)
       .maybeSingle();
 
@@ -8252,6 +8320,47 @@ function getContractBillingIncluded(siteId, month){
     url.searchParams.delete("billing_gate_test");
     url.searchParams.set("stripe_test", "1");
     window.location.assign(url.toString());
+  });
+
+  let bankTransferRequestBusy = false;
+  $("billingBankTransferBtn")?.addEventListener("click", async ()=>{
+    if(bankTransferRequestBusy) return;
+    const button = $("billingBankTransferBtn");
+    const message = $("billingPaymentMessage");
+    if(!button || !message) return;
+    message.classList.remove("error");
+    if(!cloudCompanyId){
+      message.textContent = "会社情報の読み込み後に、もう一度お試しください。";
+      message.classList.add("error");
+      return;
+    }
+
+    bankTransferRequestBusy = true;
+    button.disabled = true;
+    button.textContent = "銀行振込を申請しています…";
+    message.textContent = "";
+    try{
+      const {data, error} = await supabaseClient.rpc("request_bank_transfer", {
+        p_company_id:cloudCompanyId
+      });
+      if(error) throw error;
+      const request = Array.isArray(data) ? data[0] : data;
+      const amount = Number(request?.amount_yen || 5880).toLocaleString("ja-JP");
+      const dueText = formatBillingDate(request?.payment_due_at);
+      const reference = String(request?.reference_code || "");
+      button.textContent = "銀行振込を申請済み";
+      message.textContent = `申請を受け付けました。\n金額：${amount}円${dueText ? `　期限：${dueText}` : ""}${reference ? `\n受付番号：${reference}` : ""}\n振込先は確認後、登録メールへご案内します。`;
+      if(!billingGateTestMode()){
+        setTimeout(()=>window.location.reload(), 1800);
+      }
+    }catch(error){
+      console.warn("bank transfer request failed", error);
+      message.textContent = "銀行振込を申請できませんでした。03_bank_transfer_billing.sqlの実行状況を確認してください。";
+      message.classList.add("error");
+      button.disabled = false;
+      button.textContent = "銀行振込（6か月払い）";
+      bankTransferRequestBusy = false;
+    }
   });
 
   $("billingLogoutBtn")?.addEventListener("click", ()=>{
@@ -9323,8 +9432,8 @@ function getContractBillingIncluded(siteId, month){
     panel.className = "card";
     panel.id = "stripeTestPanel";
     panel.innerHTML = `<h2>Stripe 決済テスト</h2>
-      <p class="notice">テスト環境です。実際のお支払いは発生しません。<br>初回から12か月は月額980円、その後は月額1,480円の決済画面を確認します。30日無料と利用期限の更新は、まだこのテストには含まれません。</p>
-      <button type="button" class="btn" id="stripeTestOpenBtn">テスト決済画面を開く</button>
+      <p class="notice">テスト環境です。実際のお支払いは発生しません。<br>最初にカードを登録し、30日間は無料、31日目から月額980円で自動課金される流れを確認します。その後は月額1,480円です。</p>
+      <button type="button" class="btn" id="stripeTestOpenBtn">30日無料のテスト決済を開く</button>
       <p id="stripeTestMessage" class="notice" role="status" aria-live="polite" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>`;
     main.prepend(panel);
     const button = $("stripeTestOpenBtn");
@@ -9347,12 +9456,12 @@ function getContractBillingIncluded(siteId, month){
 
         if(!error && data){
           const status = String(data.subscription_status || "unknown");
-          message.textContent = `StripeからSupabaseへの同期を確認できました（状態: ${status}）。\n人工帖の利用権限はまだ変更していません。`;
+          message.textContent = `StripeからSupabaseへの同期を確認できました（状態: ${status}）。\n利用制限はテスト中のため、通常URLではまだ有効にしていません。`;
           return;
         }
         await new Promise(resolve=>setTimeout(resolve, 1500));
       }
-      message.textContent = "支払い画面から戻りましたが、Supabaseへの同期をまだ確認できません。Webhookの配信結果を確認してください。人工帖の利用権限は変更していません。";
+      message.textContent = "支払い画面から戻りましたが、Supabaseへの同期をまだ確認できません。Webhookの配信結果を確認してください。利用制限は通常URLではまだ有効にしていません。";
     }
 
     if(mode === "success") confirmBillingSync();
