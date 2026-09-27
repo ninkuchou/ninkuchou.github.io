@@ -8339,27 +8339,47 @@ function getContractBillingIncluded(siteId, month){
     button.disabled = true;
     button.textContent = "銀行振込を申請しています…";
     message.textContent = "";
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 60000);
     try{
-      const {data, error} = await supabaseClient.rpc("request_bank_transfer", {
-        p_company_id:cloudCompanyId
+      const {data:sessionData, error:sessionError} = await supabaseClient.auth.getSession();
+      if(sessionError || !sessionData?.session?.access_token){
+        throw new Error("ログインの有効期限が切れています。再ログインしてください。");
+      }
+      const response = await fetch(SUPABASE_URL + "/functions/v1/request-bank-transfer", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "apikey":SUPABASE_PUBLISHABLE_KEY,
+          "Authorization":"Bearer " + sessionData.session.access_token
+        },
+        body:JSON.stringify({company_id:cloudCompanyId}),
+        signal:controller.signal
       });
-      if(error) throw error;
-      const request = Array.isArray(data) ? data[0] : data;
+      const result = await response.json().catch(()=>({}));
+      if(!response.ok){
+        throw new Error(result.error || result.message || "銀行振込を申請できませんでした。");
+      }
+      const request = result?.request;
       const amount = Number(request?.amount_yen || 5880).toLocaleString("ja-JP");
       const dueText = formatBillingDate(request?.payment_due_at);
       const reference = String(request?.reference_code || "");
       button.textContent = "銀行振込を申請済み";
-      message.textContent = `申請を受け付けました。\n金額：${amount}円${dueText ? `　期限：${dueText}` : ""}${reference ? `\n受付番号：${reference}` : ""}\n振込先は確認後、登録メールへご案内します。`;
+      message.textContent = `申請を受け付けました。\n金額：${amount}円${dueText ? `　期限：${dueText}` : ""}${reference ? `\n受付番号：${reference}` : ""}\n振込先を登録メールへ送信しました。`;
       if(!billingGateTestMode()){
         setTimeout(()=>window.location.reload(), 1800);
       }
     }catch(error){
       console.warn("bank transfer request failed", error);
-      message.textContent = "銀行振込を申請できませんでした。03_bank_transfer_billing.sqlの実行状況を確認してください。";
+      message.textContent = error?.name === "AbortError"
+        ? "接続がタイムアウトしました。通信状態を確認して、もう一度お試しください。"
+        : String(error?.message || "銀行振込を申請できませんでした。");
       message.classList.add("error");
       button.disabled = false;
       button.textContent = "銀行振込（6か月払い）";
       bankTransferRequestBusy = false;
+    }finally{
+      clearTimeout(timeout);
     }
   });
 
