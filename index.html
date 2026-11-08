@@ -8328,6 +8328,7 @@ function getContractBillingIncluded(siteId, month){
     const button = $("billingBankTransferBtn");
     const message = $("billingPaymentMessage");
     if(!button || !message) return;
+    const isResend = button.dataset.bankTransferRequested === "true";
     message.classList.remove("error");
     if(!cloudCompanyId){
       message.textContent = "会社情報の読み込み後に、もう一度お試しください。";
@@ -8337,7 +8338,7 @@ function getContractBillingIncluded(siteId, month){
 
     bankTransferRequestBusy = true;
     button.disabled = true;
-    button.textContent = "銀行振込を申請しています…";
+    button.textContent = isResend ? "振込案内メールを再送しています…" : "銀行振込を申請しています…";
     message.textContent = "";
     const controller = new AbortController();
     const timeout = setTimeout(()=>controller.abort(), 60000);
@@ -8364,8 +8365,10 @@ function getContractBillingIncluded(siteId, month){
       const amount = Number(request?.amount_yen || 5880).toLocaleString("ja-JP");
       const dueText = formatBillingDate(request?.payment_due_at);
       const reference = String(request?.reference_code || "");
-      button.textContent = "銀行振込を申請済み";
-      message.textContent = `申請を受け付けました。\n金額：${amount}円${dueText ? `　期限：${dueText}` : ""}${reference ? `\n受付番号：${reference}` : ""}\n振込先を登録メールへ送信しました。`;
+      button.dataset.bankTransferRequested = "true";
+      button.disabled = false;
+      button.textContent = "振込案内メールを再送";
+      message.textContent = `${isResend ? "振込案内メールを再送しました。" : "申請を受け付けました。"}\n金額：${amount}円${dueText ? `　期限：${dueText}` : ""}${reference ? `\n受付番号：${reference}` : ""}\n振込先を登録メールへ送信しました。`;
       if(!billingGateTestMode()){
         setTimeout(()=>window.location.reload(), 1800);
       }
@@ -8376,10 +8379,10 @@ function getContractBillingIncluded(siteId, month){
         : String(error?.message || "銀行振込を申請できませんでした。");
       message.classList.add("error");
       button.disabled = false;
-      button.textContent = "銀行振込（6か月払い）";
-      bankTransferRequestBusy = false;
+      button.textContent = isResend ? "振込案内メールを再送" : "銀行振込（6か月払い）";
     }finally{
       clearTimeout(timeout);
+      bankTransferRequestBusy = false;
     }
   });
 
