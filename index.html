@@ -1876,6 +1876,11 @@
     text-decoration:underline;
     padding:4px 2px;
   }
+  #billingPortalBtn{
+    display:none;
+    white-space:nowrap;
+    cursor:pointer;
+  }
 
 
     /* iPhone / iPad Safari のA4印刷で1ページ請求書が勝手に2ページ化するのを防ぐ */
@@ -3450,7 +3455,7 @@
       <h2 id="billingAccessTitle">無料期間が終了しました</h2>
       <p id="billingAccessMessage">人工帖を引き続き利用するには、お申し込みが必要です。</p>
       <p id="billingAccessDetail" class="billing-access-detail"></p>
-      <button id="billingCheckoutBtn" class="btn" type="button">カード払い（月額980円）</button>
+      <button id="billingCheckoutBtn" class="btn" type="button">カード払い（初年度 月額980円）</button>
       <button id="billingBankTransferBtn" class="btn secondary" type="button">銀行振込（6か月払い）</button>
       <p id="billingPaymentMessage" class="billing-payment-message" role="status" aria-live="polite"></p>
       <button id="billingLogoutBtn" class="billing-access-logout" type="button">ログアウト</button>
@@ -3472,6 +3477,7 @@
     <button id="invoiceAlertBtn" class="invoice-alert-btn" type="button" aria-label="請求待ちを確認" title="請求待ちがあります" style="display:none">
       🧾<span id="invoiceAlertCount">0</span>
     </button>
+    <button id="billingPortalBtn" type="button">契約管理</button>
     <button id="logoutBtn" type="button">ログアウト</button>
   </div>
 
@@ -8292,12 +8298,15 @@ function getContractBillingIncluded(siteId, month){
 
     const {data, error} = await supabaseClient
       .from("company_billing")
-      .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at,payment_method,bank_transfer_status,bank_transfer_amount_yen,bank_transfer_paid_until,bank_transfer_due_at")
+      .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at,payment_method,stripe_customer_id,stripe_subscription_id,bank_transfer_status,bank_transfer_amount_yen,bank_transfer_paid_until,bank_transfer_due_at")
       .eq("company_id", companyId)
       .maybeSingle();
 
+    const portalButton = $("billingPortalBtn");
+
     if(error){
       console.warn("billing access check failed", error);
+      if(portalButton) portalButton.style.display = "none";
       if(!BILLING_ENFORCEMENT_ENABLED){
         const banner = $("billingStatusBanner");
         if(banner){
@@ -8310,17 +8319,126 @@ function getContractBillingIncluded(siteId, month){
       return false;
     }
 
+    if(portalButton){
+      const hasLiveCardCustomer = String(data?.payment_method || "") === "card"
+        && /^cus_[A-Za-z0-9]+$/.test(String(data?.stripe_customer_id || ""));
+      portalButton.style.display = hasLiveCardCustomer ? "inline-block" : "none";
+    }
+
     const result = evaluateBillingAccess(data, testMode);
     renderBillingAccess(result, testMode);
     return result.allowed;
   }
 
-  $("billingCheckoutBtn")?.addEventListener("click", ()=>{
-    const url = new URL(window.location.href);
-    url.searchParams.delete("billing_gate_test");
-    url.searchParams.set("stripe_test", "1");
-    window.location.assign(url.toString());
+  async function openLiveStripePage(functionName, expectedHostname){
+    if(!cloudCompanyId) throw new Error("会社情報の読み込み後に、もう一度お試しください。");
+    const {data:sessionData, error:sessionError} = await supabaseClient.auth.getSession();
+    if(sessionError || !sessionData?.session?.access_token){
+      throw new Error("ログインの有効期限が切れています。再ログインしてください。");
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 60000);
+    try{
+      const response = await fetch(SUPABASE_URL + "/functions/v1/" + functionName, {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "apikey":SUPABASE_PUBLISHABLE_KEY,
+          "Authorization":"Bearer " + sessionData.session.access_token
+        },
+        body:JSON.stringify({company_id:cloudCompanyId}),
+        signal:controller.signal
+      });
+      const result = await response.json().catch(()=>({}));
+      if(!response.ok) throw new Error(result.error || result.message || "決済ページを開けませんでした。");
+      const destination = new URL(String(result?.url || ""));
+      if(destination.protocol !== "https:" || destination.hostname !== expectedHostname){
+        throw new Error("安全な決済ページを確認できませんでした。");
+      }
+      window.location.assign(destination.toString());
+    }finally{
+      clearTimeout(timeout);
+    }
+  }
+
+  let cardCheckoutBusy = false;
+  $("billingCheckoutBtn")?.addEventListener("click", async ()=>{
+    if(cardCheckoutBusy) return;
+    const button = $("billingCheckoutBtn");
+    const message = $("billingPaymentMessage");
+    if(!button || !message) return;
+    cardCheckoutBusy = true;
+    button.disabled = true;
+    button.textContent = "安全な決済ページを開いています…";
+    message.textContent = "";
+    message.classList.remove("error");
+    try{
+      await openLiveStripePage("create-checkout-session", "checkout.stripe.com");
+    }catch(error){
+      console.warn("card checkout failed", error);
+      message.textContent = error?.name === "AbortError"
+        ? "接続がタイムアウトしました。通信状態を確認して、もう一度お試しください。"
+        : String(error?.message || "決済ページを開けませんでした。");
+      message.classList.add("error");
+      button.disabled = false;
+      button.textContent = "カード払い（初年度 月額980円）";
+      cardCheckoutBusy = false;
+    }
   });
+
+  let billingPortalBusy = false;
+  $("billingPortalBtn")?.addEventListener("click", async ()=>{
+    if(billingPortalBusy) return;
+    const button = $("billingPortalBtn");
+    if(!button) return;
+    billingPortalBusy = true;
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = "契約情報を開いています…";
+    try{
+      await openLiveStripePage("create-customer-portal-session", "billing.stripe.com");
+    }catch(error){
+      console.warn("billing portal failed", error);
+      alert(error?.name === "AbortError"
+        ? "接続がタイムアウトしました。通信状態を確認して、もう一度お試しください。"
+        : String(error?.message || "契約管理ページを開けませんでした。"));
+      button.disabled = false;
+      button.textContent = originalText || "契約管理";
+      billingPortalBusy = false;
+    }
+  });
+
+  async function settleLiveCheckoutReturn(companyId, initiallyAllowed){
+    const url = new URL(window.location.href);
+    const payment = url.searchParams.get("payment");
+    if(payment !== "success" && payment !== "cancel") return initiallyAllowed;
+
+    url.searchParams.delete("payment");
+    history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    const message = $("billingPaymentMessage");
+    if(payment === "cancel"){
+      if(message){
+        message.textContent = "カードのお申し込みをキャンセルしました。";
+        message.classList.remove("error");
+      }
+      return initiallyAllowed;
+    }
+
+    let allowed = initiallyAllowed;
+    for(let attempt = 0; attempt < 8 && !allowed; attempt += 1){
+      if(message){
+        message.textContent = "カードのお申し込み内容を確認しています…";
+        message.classList.remove("error");
+      }
+      await new Promise(resolve=>setTimeout(resolve, 1500));
+      allowed = await refreshBillingAccess(companyId);
+    }
+    if(!allowed && message){
+      message.textContent = "お申し込みは完了しています。反映に時間がかかっているため、少し待ってから再読み込みしてください。";
+    }
+    return allowed;
+  }
 
   let bankTransferRequestBusy = false;
   $("billingBankTransferBtn")?.addEventListener("click", async ()=>{
@@ -8402,7 +8520,8 @@ function getContractBillingIncluded(siteId, month){
     if($("cloudCompanyName")) $("cloudCompanyName").textContent = company.name || "";
     if($("authOverlay")) $("authOverlay").style.display = "none";
 
-    const billingAllowed = await refreshBillingAccess(company.id);
+    let billingAllowed = await refreshBillingAccess(company.id);
+    billingAllowed = await settleLiveCheckoutReturn(company.id, billingAllowed);
     if(!billingAllowed){
       cloudReady = false;
       setCloudStatus("利用期間終了", "error");
