@@ -8133,12 +8133,15 @@ function getContractBillingIncluded(siteId, month){
     const date = new Date(value);
     if(!Number.isFinite(date.getTime())) return "";
     return new Intl.DateTimeFormat("ja-JP", {
-      year:"numeric", month:"long", day:"numeric"
+      year:"numeric", month:"long", day:"numeric", timeZone:"Asia/Tokyo"
     }).format(date);
   }
 
-  function evaluateBillingAccess(row, forcedMode=""){
-    const now = Date.now();
+  function evaluateBillingAccess(row, forcedMode="", serverNowMs=NaN){
+    const now = Number(serverNowMs);
+    if(!Number.isFinite(now)){
+      return {allowed:false, reason:"server_time_unavailable"};
+    }
     const data = row ? {...row} : null;
 
     if(forcedMode === "trial"){
@@ -8268,7 +8271,11 @@ function getContractBillingIncluded(siteId, month){
     const title = $("billingAccessTitle");
     const message = $("billingAccessMessage");
     const detail = $("billingAccessDetail");
-    if(result.reason === "missing"){
+    if(result.reason === "server_time_unavailable"){
+      if(title) title.textContent = `${testPrefix}利用期間を確認できません`;
+      if(message) message.textContent = "サーバー時刻を取得できませんでした。通信状態を確認して、再読み込みしてください。";
+      if(detail) detail.textContent = "端末の日時では判定しない安全設定になっています。";
+    }else if(result.reason === "missing"){
       if(title) title.textContent = `${testPrefix}利用状況を確認できません`;
       if(message) message.textContent = "課金設定の準備が完了していません。管理者へお問い合わせください。";
       if(detail) detail.textContent = "02_billing_access.sql の実行状況を確認してください。";
@@ -8296,13 +8303,26 @@ function getContractBillingIncluded(siteId, month){
       return true;
     }
 
-    const {data, error} = await supabaseClient
-      .from("company_billing")
-      .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at,payment_method,stripe_customer_id,stripe_subscription_id,bank_transfer_status,bank_transfer_amount_yen,bank_transfer_paid_until,bank_transfer_due_at")
-      .eq("company_id", companyId)
-      .maybeSingle();
+    const [billingResponse, serverTimeResponse] = await Promise.all([
+      supabaseClient
+        .from("company_billing")
+        .select("subscription_status,current_period_end,stripe_updated_at,updated_at,trial_started_at,trial_ends_at,payment_method,stripe_customer_id,stripe_subscription_id,bank_transfer_status,bank_transfer_amount_yen,bank_transfer_paid_until,bank_transfer_due_at")
+        .eq("company_id", companyId)
+        .maybeSingle(),
+      supabaseClient.rpc("billing_server_now")
+    ]);
+
+    const {data, error} = billingResponse;
+    const serverNowMs = new Date(serverTimeResponse?.data || 0).getTime();
 
     const portalButton = $("billingPortalBtn");
+
+    if(serverTimeResponse?.error || !Number.isFinite(serverNowMs)){
+      console.warn("billing server time check failed", serverTimeResponse?.error || "invalid server time");
+      if(portalButton) portalButton.style.display = "none";
+      renderBillingAccess({allowed:false, reason:"server_time_unavailable"});
+      return false;
+    }
 
     if(error){
       console.warn("billing access check failed", error);
@@ -8325,7 +8345,7 @@ function getContractBillingIncluded(siteId, month){
       portalButton.style.display = hasLiveCardCustomer ? "inline-block" : "none";
     }
 
-    const result = evaluateBillingAccess(data, testMode);
+    const result = evaluateBillingAccess(data, testMode, serverNowMs);
     renderBillingAccess(result, testMode);
     return result.allowed;
   }
