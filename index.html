@@ -4085,7 +4085,7 @@
   let cloudSyncPending = false;
   let cloudBaselineRows = null;
   // 本番の利用制限は最終確認後にtrueへ変更する。
-  const BILLING_ENFORCEMENT_ENABLED = false;
+  const BILLING_ENFORCEMENT_ENABLED = true;
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
   const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"} };
