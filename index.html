@@ -7977,6 +7977,21 @@ function getContractBillingIncluded(siteId, month){
     try{
       const rows = toCloudRows();
 
+      // 「自社」を元請けにした現場は、sites の外部キーが参照できるように
+      // 専用の clients 行を差分判定より先に必ず作成する。
+      // 読込後のローカル状態には常に「自社」を補うため、差分判定だけでは
+      // DB上に存在しない初回でも「既存」と誤認する可能性がある。
+      const selfClientId = cloudSelfCompanyClientId(cloudCompanyId);
+      const selfClient = rows.clients.find(row=>String(row.id)===selfClientId);
+      if(selfClient){
+        const selfClientResult = await supabaseClient
+          .from("clients")
+          .upsert(selfClient, {onConflict:"id"});
+        if(selfClientResult.error){
+          throw new Error(`clients: ${selfClientResult.error.message || selfClientResult.error.details || selfClientResult.error.hint || "自社データの保存に失敗しました"}`);
+        }
+      }
+
       // 初回クラウド移行時だけ空の基準から全件追加。
       // 以降は、その端末で前回クラウド読込/保存した状態との差分だけ反映する。
       if(!cloudBaselineRows){
