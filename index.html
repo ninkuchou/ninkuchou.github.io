@@ -695,6 +695,7 @@
       font-size:18px;
       font-weight:800;
       margin-top:4px;
+      min-height:1.55em;
     }
 
     .excel-template .invoice-greeting{
@@ -3619,6 +3620,7 @@
     font-size:18px;
     font-weight:700;
     margin-bottom:5px;
+    min-height:1.55em;
   }
   .invoice-format-design .design-issuer .invoice-company-stamp{
     position:absolute !important;
@@ -3873,6 +3875,60 @@
     html.ios-print-device .invoice-format-design .design-continuation-head{min-height:18mm !important}
     html.ios-print-device .invoice-format-design .invoice-detail-table td{height:4.2mm !important}
     html.ios-print-device .invoice-format-design .design-bottom-area{padding-top:2mm !important}
+  }
+
+  /* iPhone / iPad：用紙そのものをA4実寸で組み、Safariの二重縮小を防ぐ */
+  @media print{
+    html.ios-print-device,
+    html.ios-print-device body{
+      width:210mm !important;
+      min-width:210mm !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+
+    html.ios-print-device #invoicePreview{
+      position:static !important;
+      left:auto !important;
+      top:auto !important;
+      width:210mm !important;
+      min-width:210mm !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+
+    html.ios-print-device #invoicePreview .invoice-page{
+      width:210mm !important;
+      min-width:210mm !important;
+      max-width:210mm !important;
+      height:296.5mm !important;
+      min-height:296.5mm !important;
+      max-height:296.5mm !important;
+      margin:0 !important;
+      padding:0 !important;
+      box-sizing:border-box !important;
+      overflow:hidden !important;
+      transform:none !important;
+      zoom:1 !important;
+    }
+
+    html.ios-print-device #invoicePreview .invoice-paper-inner{
+      width:100% !important;
+      min-width:0 !important;
+      max-width:100% !important;
+      height:100% !important;
+      min-height:100% !important;
+      max-height:100% !important;
+      margin:0 !important;
+      box-sizing:border-box !important;
+      transform:none !important;
+      zoom:1 !important;
+      overflow:hidden !important;
+    }
+
+    html.ios-print-device #invoicePreview .invoice-format-design .invoice-paper-inner{
+      padding:10mm 11mm 6mm !important;
+    }
   }
 
 </style>
@@ -8050,7 +8106,7 @@ function getContractBillingIncluded(siteId, month){
         </div>
 
         <div class="design-issuer">
-          <div class="design-issuer-name">${escapeHtml(invoiceCompanyInfo.name || "")}</div>
+          <div class="design-issuer-name">${escapeHtml(invoiceCompanyInfo.name || "") || "&nbsp;"}</div>
           ${invoiceCompanyInfo.invoiceNumber ? `<div>登録番号：${escapeHtml(invoiceCompanyInfo.invoiceNumber)}</div>` : ""}
           ${invoiceCompanyInfo.postalCode ? `<div>〒${escapeHtml(invoiceCompanyInfo.postalCode)}</div>` : ""}
           ${invoiceCompanyInfo.address ? `<div>${escapeHtml(invoiceCompanyInfo.address)}</div>` : ""}
@@ -8175,7 +8231,7 @@ function getContractBillingIncluded(siteId, month){
           <div class="invoice-issuer-date">${formatJapaneseDate(period.end)}</div>
           ${invoiceCompanyInfo.postalCode ? `<div>〒${escapeHtml(invoiceCompanyInfo.postalCode)}</div>` : ""}
           ${invoiceCompanyInfo.address ? `<div>${escapeHtml(invoiceCompanyInfo.address)}</div>` : ""}
-          <div class="invoice-issuer-name">${escapeHtml(invoiceCompanyInfo.name || "")}</div>
+          <div class="invoice-issuer-name">${escapeHtml(invoiceCompanyInfo.name || "") || "&nbsp;"}</div>
           ${invoiceCompanyInfo.stampDataUrl ? `<img class="invoice-company-stamp" src="${invoiceCompanyInfo.stampDataUrl}" alt="社印">` : ""}
           ${(invoiceCompanyInfo.title || invoiceCompanyInfo.personName)
             ? `<div style="margin-top:9px">${escapeHtml([invoiceCompanyInfo.title, invoiceCompanyInfo.personName].filter(Boolean).join("　"))}</div>`
@@ -8217,6 +8273,14 @@ function getContractBillingIncluded(siteId, month){
     const isIOSPrintDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     document.documentElement.classList.toggle("ios-print-device", isIOSPrintDevice);
+    // @page は要素セレクタで端末別に分けられないため、iOSだけ動的に追加する。
+    // 用紙をA4実寸に固定し、Safariとプリンターの二重縮小を防ぐ。
+    if(isIOSPrintDevice && !document.getElementById("iosA4PrintPageStyle")){
+      const iosPageStyle = document.createElement("style");
+      iosPageStyle.id = "iosA4PrintPageStyle";
+      iosPageStyle.textContent = "@media print{@page{size:A4 portrait;margin:0}}";
+      document.head.appendChild(iosPageStyle);
+    }
     // デザイン形式は1行目を白、最下段を色付きにする偶数行で固定し、
     // 明細欄を合計欄直前の黒ラインまで伸ばす。
     const firstCapacity = isDesignFormat ? 26 : (isIOSPrintDevice ? 29 : 35);
