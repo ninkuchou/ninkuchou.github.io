@@ -1762,6 +1762,20 @@
     color:#94a3b8;
     text-align:center;
   }
+  .legal-links{
+    margin-top:12px;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:6px 12px;
+    font-size:11px;
+    line-height:1.5;
+  }
+  .legal-links a{
+    color:#64748b;
+    text-decoration:underline;
+    text-underline-offset:2px;
+  }
   .billing-access-overlay{
     position:fixed;
     inset:0;
@@ -3423,6 +3437,12 @@
       <button id="authForgotBtn" class="auth-forgot-btn" type="button">パスワードを忘れた方</button>
       <div id="authMessage" class="auth-message"></div>
       <div class="auth-note">データはログインした会社ごとに分けて保存されます。</div>
+      <div class="auth-note">新規登録により、利用規約とプライバシーポリシーに同意したものとします。</div>
+      <nav class="legal-links" aria-label="法的情報">
+        <a href="./terms.html" target="_blank" rel="noopener">利用規約</a>
+        <a href="./privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+        <a href="./tokushoho.html" target="_blank" rel="noopener">特定商取引法に基づく表記</a>
+      </nav>
       </div>
 
       <div id="forgotPasswordBox" class="auth-reset-box">
@@ -3459,6 +3479,11 @@
       <button id="billingBankTransferBtn" class="btn secondary" type="button">銀行振込（6か月払い）</button>
       <p id="billingPaymentMessage" class="billing-payment-message" role="status" aria-live="polite"></p>
       <button id="billingLogoutBtn" class="billing-access-logout" type="button">ログアウト</button>
+      <nav class="legal-links" aria-label="支払いに関する法的情報">
+        <a href="./terms.html" target="_blank" rel="noopener">利用規約</a>
+        <a href="./privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+        <a href="./tokushoho.html" target="_blank" rel="noopener">特定商取引法に基づく表記</a>
+      </nav>
     </div>
   </div>
 
