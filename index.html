@@ -3932,7 +3932,7 @@
   }
 
   /* iPhone / iPad用PDF生成時は、画面の縮小表示を解除してA4比率で撮影する */
-  html.invoice-pdf-export #invoicePreview{
+  .invoice-pdf-export #invoicePreview{
     position:fixed !important;
     left:-10000px !important;
     top:0 !important;
@@ -3943,7 +3943,7 @@
     padding:0 !important;
     overflow:visible !important;
   }
-  html.invoice-pdf-export #invoicePreview .invoice-page{
+  .invoice-pdf-export #invoicePreview .invoice-page{
     width:794px !important;
     min-width:794px !important;
     max-width:794px !important;
@@ -3958,7 +3958,7 @@
     zoom:1 !important;
     background:#fff !important;
   }
-  html.invoice-pdf-export #invoicePreview .invoice-paper-inner{
+  .invoice-pdf-export #invoicePreview .invoice-paper-inner{
     width:100% !important;
     min-width:0 !important;
     max-width:100% !important;
@@ -7730,39 +7730,132 @@ function getContractBillingIncluded(siteId, month){
       && (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
   }
 
-  function loadInvoicePdfScript(src, ready){
-    if(ready()) return Promise.resolve();
-    return new Promise((resolve, reject)=>{
-      const existing = document.querySelector(`script[data-invoice-pdf-src="${src}"]`);
-      if(existing){
-        existing.addEventListener("load", ()=>ready() ? resolve() : reject(new Error("PDFライブラリを読み込めませんでした。")), {once:true});
-        existing.addEventListener("error", ()=>reject(new Error("PDFライブラリを読み込めませんでした。")), {once:true});
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = src;
-      script.async = true;
-      script.dataset.invoicePdfSrc = src;
-      script.onload = ()=>ready() ? resolve() : reject(new Error("PDFライブラリを読み込めませんでした。"));
-      script.onerror = ()=>reject(new Error("PDFライブラリを読み込めませんでした。"));
-      document.head.appendChild(script);
-    });
-  }
-
-  async function ensureInvoicePdfLibraries(){
-    await loadInvoicePdfScript(
-      "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
-      ()=>typeof window.html2canvas === "function"
-    );
-    await loadInvoicePdfScript(
-      "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
-      ()=>Boolean(window.jspdf?.jsPDF)
-    );
-  }
-
   function safeInvoicePdfName(){
     const number = String($("invoiceNumber")?.value || "").trim();
     return `請求書${number ? `_${number}` : ""}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+  }
+
+  function invoicePdfAscii(text){
+    return new TextEncoder().encode(String(text));
+  }
+
+  function invoicePdfJoin(chunks){
+    const length = chunks.reduce((sum, chunk)=>sum + chunk.length, 0);
+    const joined = new Uint8Array(length);
+    let offset = 0;
+    chunks.forEach(chunk=>{
+      joined.set(chunk, offset);
+      offset += chunk.length;
+    });
+    return joined;
+  }
+
+  function buildInvoicePdf(jpegPages){
+    const objectCount = 2 + jpegPages.length * 3;
+    const objects = new Map();
+    const pageObjectNumbers = jpegPages.map((_, index)=>3 + index * 3);
+    objects.set(1, [invoicePdfAscii("<< /Type /Catalog /Pages 2 0 R >>")]);
+    objects.set(2, [invoicePdfAscii(`<< /Type /Pages /Count ${jpegPages.length} /Kids [${pageObjectNumbers.map(number=>`${number} 0 R`).join(" ")}] >>`)]);
+
+    jpegPages.forEach((jpeg, index)=>{
+      const pageNumber = 3 + index * 3;
+      const imageNumber = pageNumber + 1;
+      const contentNumber = pageNumber + 2;
+      const imageName = `Im${index + 1}`;
+      const content = invoicePdfAscii(`q\n595.28 0 0 841.89 0 0 cm\n/${imageName} Do\nQ\n`);
+
+      objects.set(pageNumber, [invoicePdfAscii(
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /${imageName} ${imageNumber} 0 R >> >> /Contents ${contentNumber} 0 R >>`
+      )]);
+      objects.set(imageNumber, [
+        invoicePdfAscii(`<< /Type /XObject /Subtype /Image /Width ${jpeg.width} /Height ${jpeg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.bytes.length} >>\nstream\n`),
+        jpeg.bytes,
+        invoicePdfAscii("\nendstream")
+      ]);
+      objects.set(contentNumber, [
+        invoicePdfAscii(`<< /Length ${content.length} >>\nstream\n`),
+        content,
+        invoicePdfAscii("endstream")
+      ]);
+    });
+
+    const output = [invoicePdfAscii("%PDF-1.4\n%PDFDATA\n")];
+    const offsets = new Array(objectCount + 1).fill(0);
+    let byteLength = output[0].length;
+
+    for(let number=1; number<=objectCount; number++){
+      offsets[number] = byteLength;
+      const objectChunks = [
+        invoicePdfAscii(`${number} 0 obj\n`),
+        ...objects.get(number),
+        invoicePdfAscii("\nendobj\n")
+      ];
+      output.push(...objectChunks);
+      byteLength += objectChunks.reduce((sum, chunk)=>sum + chunk.length, 0);
+    }
+
+    const xrefOffset = byteLength;
+    const xrefLines = ["xref", `0 ${objectCount + 1}`, "0000000000 65535 f "];
+    for(let number=1; number<=objectCount; number++){
+      xrefLines.push(`${String(offsets[number]).padStart(10, "0")} 00000 n `);
+    }
+    output.push(invoicePdfAscii(
+      `${xrefLines.join("\n")}\ntrailer\n<< /Size ${objectCount + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`
+    ));
+    return new Blob([invoicePdfJoin(output)], {type:"application/pdf"});
+  }
+
+  function invoicePdfStyleText(){
+    return [...document.querySelectorAll("style")]
+      .map(style=>style.textContent || "")
+      .join("\n")
+      .replace(/]]>/g, "]]\\u003e");
+  }
+
+  async function renderInvoicePageToJpeg(page){
+    const pageHtml = new XMLSerializer().serializeToString(page);
+    const cssText = invoicePdfStyleText();
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+      <svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123" viewBox="0 0 794 1123">
+        <foreignObject x="0" y="0" width="794" height="1123">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="invoice-pdf-export">
+            <style><![CDATA[${cssText}]]></style>
+            <div id="invoicePreview">${pageHtml}</div>
+          </div>
+        </foreignObject>
+      </svg>`;
+    const svgUrl = URL.createObjectURL(new Blob([svg], {type:"image/svg+xml;charset=utf-8"}));
+
+    try{
+      const image = new Image();
+      image.decoding = "async";
+      image.src = svgUrl;
+      await new Promise((resolve, reject)=>{
+        const timer = setTimeout(()=>reject(new Error("請求書画像の作成がタイムアウトしました。")), 15000);
+        image.onload = ()=>{ clearTimeout(timer); resolve(); };
+        image.onerror = ()=>{ clearTimeout(timer); reject(new Error("請求書画像を作成できませんでした。")); };
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1588;
+      canvas.height = 2246;
+      const context = canvas.getContext("2d", {alpha:false});
+      if(!context) throw new Error("PDF用の画像領域を作成できませんでした。");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const jpegBlob = await new Promise((resolve, reject)=>{
+        canvas.toBlob(blob=>blob ? resolve(blob) : reject(new Error("PDF画像を保存できませんでした。")), "image/jpeg", 0.96);
+      });
+      return {
+        bytes:new Uint8Array(await jpegBlob.arrayBuffer()),
+        width:canvas.width,
+        height:canvas.height
+      };
+    }finally{
+      URL.revokeObjectURL(svgUrl);
+    }
   }
 
   async function createAndOpenInvoicePdf(){
@@ -7781,7 +7874,6 @@ function getContractBillingIncluded(siteId, month){
         button.textContent = "PDF作成中…";
       }
 
-      await ensureInvoicePdfLibraries();
       if(document.fonts?.ready) await document.fonts.ready;
 
       const pages = [...document.querySelectorAll("#invoicePreview .invoice-page")];
@@ -7790,29 +7882,16 @@ function getContractBillingIncluded(siteId, month){
       document.documentElement.classList.add("invoice-pdf-export");
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 
-      const {jsPDF} = window.jspdf;
-      const pdf = new jsPDF({orientation:"portrait", unit:"mm", format:"a4", compress:true});
-      pdf.setProperties({title:safeInvoicePdfName().replace(/\.pdf$/i, "")});
-
+      const jpegPages = [];
       for(let index=0; index<pages.length; index++){
-        const canvas = await window.html2canvas(pages[index], {
-          backgroundColor:"#ffffff",
-          scale:2,
-          useCORS:true,
-          allowTaint:false,
-          logging:false,
-          width:794,
-          height:1123,
-          windowWidth:794,
-          windowHeight:1123,
-          scrollX:0,
-          scrollY:0
-        });
-        if(index > 0) pdf.addPage("a4", "portrait");
-        pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+        if(pdfTab){
+          try{ pdfTab.document.body.textContent = `請求書PDFを作成しています…（${index + 1}/${pages.length}ページ）`; }catch(e){}
+        }
+        const page = pages[index];
+        jpegPages.push(await renderInvoicePageToJpeg(page));
       }
 
-      const pdfBlob = pdf.output("blob");
+      const pdfBlob = buildInvoicePdf(jpegPages);
       const pdfUrl = URL.createObjectURL(pdfBlob);
       if(pdfTab){
         pdfTab.location.replace(pdfUrl);
@@ -7821,7 +7900,11 @@ function getContractBillingIncluded(siteId, month){
       }
       setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
     }catch(error){
-      try{ pdfTab?.close(); }catch(e){}
+      if(pdfTab){
+        try{
+          pdfTab.document.body.innerHTML = `<div style="font-family:sans-serif;padding:24px;line-height:1.7"><b>PDFを作成できませんでした。</b><br>${String(error?.message || error).replace(/[&<>]/g, value=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[value]))}<br><br>この画面を閉じて、もう一度お試しください。</div>`;
+        }catch(e){}
+      }
       alert(`PDF作成エラー\n${error?.message || error}`);
     }finally{
       document.documentElement.classList.remove("invoice-pdf-export");
