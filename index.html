@@ -3385,6 +3385,103 @@
     max-width:100%;
   }
 
+  /* 白黒・帯なしのシンプル請求書 */
+  .invoice-sheet.excel-template.invoice-format-simple{
+    --inv-wine:#111111 !important;
+    --inv-gray:#ffffff !important;
+    background:#ffffff !important;
+    color:#111111 !important;
+    border-color:#d1d5db !important;
+    box-shadow:none !important;
+  }
+  .invoice-format-simple .invoice-paper-inner{
+    padding-top:12px !important;
+    background:#ffffff !important;
+    box-shadow:none !important;
+  }
+  .invoice-format-simple .top-wine-bar{
+    display:none !important;
+  }
+  .invoice-format-simple .invoice-doc-title,
+  .invoice-format-simple .invoice-client-name,
+  .invoice-format-simple .invoice-number,
+  .invoice-format-simple .invoice-issuer-block,
+  .invoice-format-simple .invoice-greeting{
+    color:#111111 !important;
+  }
+  .invoice-format-simple .invoice-upper{
+    border-bottom:1px solid #111111 !important;
+    padding-bottom:10px !important;
+  }
+  .invoice-format-simple .invoice-company-stamp{
+    filter:grayscale(1) contrast(1.15) !important;
+  }
+  .invoice-format-simple .invoice-detail-table{
+    border-collapse:collapse !important;
+    border-top:1px solid #111111 !important;
+    border-bottom:1px solid #111111 !important;
+  }
+  .invoice-format-simple .invoice-detail-table th{
+    background:#ffffff !important;
+    color:#111111 !important;
+    border-top:0 !important;
+    border-right:0 !important;
+    border-bottom:1px solid #111111 !important;
+    border-left:0 !important;
+    font-weight:700 !important;
+  }
+  .invoice-format-simple .invoice-detail-table td,
+  .invoice-format-simple .invoice-detail-table tbody tr:nth-child(odd) td,
+  .invoice-format-simple .invoice-detail-table tbody tr:nth-child(even) td,
+  .invoice-format-simple .invoice-detail-table .site-row td{
+    background:#ffffff !important;
+    color:#111111 !important;
+    border-top:0 !important;
+    border-right:0 !important;
+    border-bottom:0.5px solid #9ca3af !important;
+    border-left:0 !important;
+  }
+  .invoice-format-simple .invoice-totals-grid{
+    border-top:1px solid #111111 !important;
+    gap:12px !important;
+    padding-top:6px !important;
+  }
+  .invoice-format-simple .total-box-title,
+  .invoice-format-simple .rate-title,
+  .invoice-format-simple .payment-title,
+  .invoice-format-simple .bank-title{
+    background:#ffffff !important;
+    color:#111111 !important;
+    border:0 !important;
+    border-bottom:1px solid #111111 !important;
+    letter-spacing:0 !important;
+  }
+  .invoice-format-simple .total-box-value,
+  .invoice-format-simple .payment-value,
+  .invoice-format-simple .bank-body{
+    background:#ffffff !important;
+    color:#111111 !important;
+    border:0 !important;
+    box-shadow:none !important;
+  }
+  .invoice-format-simple .total-box-value{
+    min-height:40px !important;
+    border-bottom:1px solid #111111 !important;
+  }
+  .invoice-format-simple .invoice-bank,
+  .invoice-format-simple .invoice-payment-box{
+    background:#ffffff !important;
+    border:0 !important;
+    box-shadow:none !important;
+  }
+  @media print{
+    .invoice-sheet.excel-template.invoice-format-simple,
+    .invoice-format-simple .invoice-paper-inner{
+      background:#ffffff !important;
+      box-shadow:none !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3787,6 +3884,12 @@
           <div class="helper">その請求月に入力実績がある請負現場だけ表示します。出来高30なら請負金額の30%を請求します。</div>
         </div>
 
+        <label>請求書フォーマット</label>
+        <select id="invoiceFormat">
+          <option value="color">カラー</option>
+          <option value="simple">シンプル（白黒）</option>
+        </select>
+
         <label>請求書フォント</label>
         <select id="invoiceFont">
           <option value="hiragino">ヒラギノ角ゴ</option>
@@ -3797,19 +3900,21 @@
           <option value="sans">標準ゴシック</option>
         </select>
 
-        <label>請求書カラー</label>
-        <select id="invoiceColor">
-          <option value="navy">ネイビー</option>
-          <option value="blue">ブルー</option>
-          <option value="green">グリーン</option>
-          <option value="brown">ブラウン</option>
-          <option value="red">レッド</option>
-          <option value="pink">ピンク</option>
-          <option value="orange">オレンジ</option>
-          <option value="yellow">イエロー</option>
-          <option value="black">ブラック</option>
-          <option value="wine">えんじ</option>
-        </select>
+        <div id="invoiceColorSettings">
+          <label>請求書カラー</label>
+          <select id="invoiceColor">
+            <option value="navy">ネイビー</option>
+            <option value="blue">ブルー</option>
+            <option value="green">グリーン</option>
+            <option value="brown">ブラウン</option>
+            <option value="red">レッド</option>
+            <option value="pink">ピンク</option>
+            <option value="orange">オレンジ</option>
+            <option value="yellow">イエロー</option>
+            <option value="black">ブラック</option>
+            <option value="wine">えんじ</option>
+          </select>
+        </div>
 
         <label>請求書番号</label>
         <input id="invoiceNumber" placeholder="例：2026-08-001">
@@ -4117,7 +4222,7 @@
   const BILLING_ENFORCEMENT_ENABLED = true;
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -4141,6 +4246,7 @@
   state.companyInfo.phone = state.companyInfo.phone || "";
   state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
+  state.companyInfo.invoiceFormat = state.companyInfo.invoiceFormat || "color";
   state.companyInfo.invoiceFont = state.companyInfo.invoiceFont || "hiragino";
   state.companyInfo.invoiceColor = state.companyInfo.invoiceColor || "navy";
   state.companyInfo.invoiceTax = state.companyInfo.invoiceTax || "10";
@@ -6230,6 +6336,10 @@ function renderCompanyInfoForm(){
     $("companyInfoPhone").value = state.companyInfo?.phone || "";
     $("companyInfoInvoiceNumber").value = state.companyInfo?.invoiceNumber || "";
     $("companyInfoBankAccount").value = state.companyInfo?.bankAccount || "";
+    if($("invoiceFormat")) $("invoiceFormat").value = state.companyInfo?.invoiceFormat || "color";
+    if($("invoiceFont")) $("invoiceFont").value = state.companyInfo?.invoiceFont || "hiragino";
+    if($("invoiceColor")) $("invoiceColor").value = state.companyInfo?.invoiceColor || "navy";
+    updateInvoiceColorVisibility();
     if($("invoiceTax")) $("invoiceTax").value = state.companyInfo?.invoiceTax || "10";
     if($("invoiceTaxCustom")){
       $("invoiceTaxCustom").value = state.companyInfo?.invoiceTaxCustom || "";
@@ -6248,6 +6358,7 @@ function renderCompanyInfoForm(){
       phone:$("companyInfoPhone")?.value.trim() || "",
       invoiceNumber:$("companyInfoInvoiceNumber")?.value.trim() || "",
       bankAccount:$("companyInfoBankAccount")?.value.trim() || "",
+      invoiceFormat:state.companyInfo?.invoiceFormat || "color",
       invoiceFont:state.companyInfo?.invoiceFont || "hiragino",
       invoiceColor:state.companyInfo?.invoiceColor || "navy",
       invoiceTax:$("invoiceTax")?.value || "10",
@@ -6622,6 +6733,13 @@ function invoiceColorValue(key){
       black:"#2f2f2f"
     };
     return map[key] || map.wine;
+  }
+
+  function updateInvoiceColorVisibility(){
+    const format = $("invoiceFormat")?.value || state.companyInfo?.invoiceFormat || "color";
+    if($("invoiceColorSettings")){
+      $("invoiceColorSettings").style.display = format === "color" ? "block" : "none";
+    }
   }
 
   function invoiceFontFamily(key){
@@ -7388,16 +7506,19 @@ function getContractBillingIncluded(siteId, month){
     // フォント・テーマ色はHTML文字列に埋め込まず、DOMへ直接適用する
     const invoiceSheets = document.querySelectorAll("#invoicePreview .invoice-sheet.excel-template");
     if(invoiceSheets.length){
+      const formatKey = $("invoiceFormat")?.value || state.companyInfo?.invoiceFormat || "color";
       const fontKey = $("invoiceFont")?.value || state.companyInfo?.invoiceFont || "hiragino";
       const colorKey = $("invoiceColor")?.value || state.companyInfo?.invoiceColor || "navy";
       const themeColor = invoiceColorValue(colorKey);
 
       invoiceSheets.forEach(invoiceSheet=>{
+        invoiceSheet.classList.toggle("invoice-format-simple", formatKey === "simple");
+        invoiceSheet.classList.toggle("invoice-format-color", formatKey !== "simple");
         invoiceSheet.style.setProperty("font-family", invoiceFontFamily(fontKey), "important");
         invoiceSheet.style.setProperty("--inv-wine", themeColor);
 
         const topBar = invoiceSheet.querySelector(".top-wine-bar");
-        if(topBar){
+        if(topBar && formatKey !== "simple"){
           topBar.style.background = `linear-gradient(90deg, ${themeColor} 0%, ${themeColor} 62%, #ffffff 100%)`;
         }
       });
@@ -7494,6 +7615,12 @@ function getContractBillingIncluded(siteId, month){
   });
   $("invoiceFont").addEventListener("change", ()=>{
     state.companyInfo.invoiceFont = $("invoiceFont").value || "hiragino";
+    save();
+    renderInvoice();
+  });
+  $("invoiceFormat")?.addEventListener("change", ()=>{
+    state.companyInfo.invoiceFormat = $("invoiceFormat").value || "color";
+    updateInvoiceColorVisibility();
     save();
     renderInvoice();
   });
@@ -8066,6 +8193,7 @@ function getContractBillingIncluded(siteId, month){
         phone:ci.phone || "",
         invoice_registration_number:ci.invoiceNumber || "",
         bank_account:ci.bankAccount || "",
+        invoice_format:ci.invoiceFormat || "color",
         invoice_font:ci.invoiceFont || "hiragino",
         invoice_color:ci.invoiceColor || "navy",
         invoice_tax:ci.invoiceTax || "10",
@@ -8182,6 +8310,7 @@ function getContractBillingIncluded(siteId, month){
           phone:(s && s.phone) || "",
           invoiceNumber:(s && s.invoice_registration_number) || "",
           bankAccount:(s && s.bank_account) || "",
+          invoiceFormat:(s && s.invoice_format) || "color",
           invoiceFont:(s && s.invoice_font) || "hiragino",
           invoiceColor:(s && s.invoice_color) || "navy",
           invoiceTax:(s && s.invoice_tax) || "10",
@@ -9370,6 +9499,7 @@ function getContractBillingIncluded(siteId, month){
             phone: clean.companyInfo.phone || "",
             invoiceNumber: clean.companyInfo.invoiceNumber || "",
             bankAccount: clean.companyInfo.bankAccount || "",
+            invoiceFormat: clean.companyInfo.invoiceFormat || "color",
             invoiceFont: clean.companyInfo.invoiceFont || "hiragino",
             invoiceColor: clean.companyInfo.invoiceColor || "navy",
             invoiceTax: clean.companyInfo.invoiceTax || "10",
@@ -9377,7 +9507,7 @@ function getContractBillingIncluded(siteId, month){
             stampDataUrl: clean.companyInfo.stampDataUrl || "",
             stampFileName: clean.companyInfo.stampFileName || ""
           }
-        : {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"}
+        : {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"}
     };
   }
 
