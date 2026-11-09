@@ -3811,13 +3811,6 @@
           <option value="wine">えんじ</option>
         </select>
 
-        <label>請求書フォーマット</label>
-        <select id="invoiceFormat">
-          <option value="standard">標準</option>
-          <option value="simple">シンプル</option>
-          <option value="detail">明細重視</option>
-        </select>
-
         <label>請求書番号</label>
         <input id="invoiceNumber" placeholder="例：2026-08-001">
 
@@ -7475,12 +7468,6 @@ function getContractBillingIncluded(siteId, month){
     save();
     renderInvoice();
   });
-  $("invoiceFormat").addEventListener("change", renderInvoice);
-
-
-
-
-
   function openHelp(){
     const overlay = $("helpOverlay");
     if(!overlay) return;
