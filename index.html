@@ -3931,6 +3931,47 @@
     }
   }
 
+  /* iPhone / iPad用PDF生成時は、画面の縮小表示を解除してA4比率で撮影する */
+  html.invoice-pdf-export #invoicePreview{
+    position:fixed !important;
+    left:-10000px !important;
+    top:0 !important;
+    width:794px !important;
+    min-width:794px !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:visible !important;
+  }
+  html.invoice-pdf-export #invoicePreview .invoice-page{
+    width:794px !important;
+    min-width:794px !important;
+    max-width:794px !important;
+    height:1123px !important;
+    min-height:1123px !important;
+    max-height:1123px !important;
+    margin:0 !important;
+    padding:0 !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    transform:none !important;
+    zoom:1 !important;
+    background:#fff !important;
+  }
+  html.invoice-pdf-export #invoicePreview .invoice-paper-inner{
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    height:100% !important;
+    min-height:100% !important;
+    max-height:100% !important;
+    margin:0 !important;
+    box-sizing:border-box !important;
+    transform:none !important;
+    zoom:1 !important;
+    overflow:hidden !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -7326,6 +7367,14 @@ function invoiceColorValue(key){
     return map[key] || map.wine;
   }
 
+  function mixInvoiceColorWithWhite(hex, colorRatio){
+    const value = String(hex || "").replace("#", "");
+    if(!/^[0-9a-f]{6}$/i.test(value)) return hex;
+    const ratio = Math.max(0, Math.min(1, Number(colorRatio) || 0));
+    const channel = offset=>Math.round(255 + (parseInt(value.slice(offset, offset + 2), 16) - 255) * ratio);
+    return `rgb(${channel(0)}, ${channel(2)}, ${channel(4)})`;
+  }
+
   function updateInvoiceColorVisibility(){
     const format = $("invoiceFormat")?.value || state.companyInfo?.invoiceFormat || "color";
     if($("invoiceColorSettings")){
@@ -7671,9 +7720,117 @@ function getContractBillingIncluded(siteId, month){
   let invoicePinchStartDistance = 0;
   let invoicePinchStartScale = 1;
 
+  function isIOSDevice(){
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
   function isMobileLikeDevice(){
     return window.matchMedia("(max-width: 600px)").matches
       && (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
+  }
+
+  function loadInvoicePdfScript(src, ready){
+    if(ready()) return Promise.resolve();
+    return new Promise((resolve, reject)=>{
+      const existing = document.querySelector(`script[data-invoice-pdf-src="${src}"]`);
+      if(existing){
+        existing.addEventListener("load", ()=>ready() ? resolve() : reject(new Error("PDFライブラリを読み込めませんでした。")), {once:true});
+        existing.addEventListener("error", ()=>reject(new Error("PDFライブラリを読み込めませんでした。")), {once:true});
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = true;
+      script.dataset.invoicePdfSrc = src;
+      script.onload = ()=>ready() ? resolve() : reject(new Error("PDFライブラリを読み込めませんでした。"));
+      script.onerror = ()=>reject(new Error("PDFライブラリを読み込めませんでした。"));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function ensureInvoicePdfLibraries(){
+    await loadInvoicePdfScript(
+      "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
+      ()=>typeof window.html2canvas === "function"
+    );
+    await loadInvoicePdfScript(
+      "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+      ()=>Boolean(window.jspdf?.jsPDF)
+    );
+  }
+
+  function safeInvoicePdfName(){
+    const number = String($("invoiceNumber")?.value || "").trim();
+    return `請求書${number ? `_${number}` : ""}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+  }
+
+  async function createAndOpenInvoicePdf(){
+    const button = $("printInvoiceBtn");
+    const originalText = button?.textContent || "PDF保存・印刷";
+    const pdfTab = window.open("", "_blank");
+
+    if(pdfTab){
+      pdfTab.document.write("<!doctype html><meta name='viewport' content='width=device-width'><title>PDF作成中</title><body style='font-family:sans-serif;padding:24px'>請求書PDFを作成しています…</body>");
+      pdfTab.document.close();
+    }
+
+    try{
+      if(button){
+        button.disabled = true;
+        button.textContent = "PDF作成中…";
+      }
+
+      await ensureInvoicePdfLibraries();
+      if(document.fonts?.ready) await document.fonts.ready;
+
+      const pages = [...document.querySelectorAll("#invoicePreview .invoice-page")];
+      if(!pages.length) throw new Error("請求書を作成できませんでした。");
+
+      document.documentElement.classList.add("invoice-pdf-export");
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+      const {jsPDF} = window.jspdf;
+      const pdf = new jsPDF({orientation:"portrait", unit:"mm", format:"a4", compress:true});
+      pdf.setProperties({title:safeInvoicePdfName().replace(/\.pdf$/i, "")});
+
+      for(let index=0; index<pages.length; index++){
+        const canvas = await window.html2canvas(pages[index], {
+          backgroundColor:"#ffffff",
+          scale:2,
+          useCORS:true,
+          allowTaint:false,
+          logging:false,
+          width:794,
+          height:1123,
+          windowWidth:794,
+          windowHeight:1123,
+          scrollX:0,
+          scrollY:0
+        });
+        if(index > 0) pdf.addPage("a4", "portrait");
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+
+      const pdfBlob = pdf.output("blob");
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      if(pdfTab){
+        pdfTab.location.replace(pdfUrl);
+      }else{
+        window.location.assign(pdfUrl);
+      }
+      setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
+    }catch(error){
+      try{ pdfTab?.close(); }catch(e){}
+      alert(`PDF作成エラー\n${error?.message || error}`);
+    }finally{
+      document.documentElement.classList.remove("invoice-pdf-export");
+      if(button){
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+      if(isMobileLikeDevice()) setTimeout(fitInvoicePreviewToWidth, 60);
+    }
   }
 
   function touchDistance(t1, t2){
@@ -8270,8 +8427,7 @@ function getContractBillingIncluded(siteId, month){
       ? designBottomAreaHtml()
       : bottomAreaHtml();
 
-    const isIOSPrintDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isIOSPrintDevice = isIOSDevice();
     document.documentElement.classList.toggle("ios-print-device", isIOSPrintDevice);
     // @page は要素セレクタで端末別に分けられないため、iOSだけ動的に追加する。
     // 用紙をA4実寸に固定し、Safariとプリンターの二重縮小を防ぐ。
@@ -8366,6 +8522,11 @@ function getContractBillingIncluded(siteId, month){
         invoiceSheet.classList.toggle("invoice-format-design", formatKey === "design");
         invoiceSheet.style.setProperty("font-family", invoiceFontFamily(fontKey), "important");
         invoiceSheet.style.setProperty("--inv-wine", themeColor);
+        if(formatKey === "design"){
+          invoiceSheet.style.setProperty("--design-light", mixInvoiceColorWithWhite(themeColor, 0.14));
+          invoiceSheet.style.setProperty("--design-mid", mixInvoiceColorWithWhite(themeColor, 0.28));
+          invoiceSheet.style.setProperty("--design-border", mixInvoiceColorWithWhite(themeColor, 0.34));
+        }
 
         const topBar = invoiceSheet.querySelector(".top-wine-bar");
         if(topBar && formatKey === "color"){
@@ -8387,8 +8548,13 @@ function getContractBillingIncluded(siteId, month){
     $(id)?.addEventListener("change", renderInvoice);
   });
   $("makeInvoiceBtn").addEventListener("click", renderInvoice);
-  $("printInvoiceBtn").addEventListener("click", ()=>{
+  $("printInvoiceBtn").addEventListener("click", async ()=>{
     renderInvoice();
+    if(isIOSDevice()){
+      await new Promise(resolve=>setTimeout(resolve, 100));
+      await createAndOpenInvoicePdf();
+      return;
+    }
     setTimeout(()=>window.print(), 50);
   });
   $("invoiceMonth").addEventListener("change", ()=>{
