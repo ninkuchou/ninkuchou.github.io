@@ -27,6 +27,18 @@
     .view.active{display:block}
     .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 5px 18px rgba(30,64,175,.05)}
     .card h2{font-size:16px;margin:0 0 12px}
+    .company-info-details>summary{
+      cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;
+      gap:12px;color:var(--invoice);font-size:16px;font-weight:700;
+    }
+    .company-info-details>summary::-webkit-details-marker{display:none}
+    .company-info-details>summary::after{
+      content:"開く";flex:0 0 auto;color:var(--sub);font-size:12px;font-weight:700;
+      padding:6px 10px;border-radius:999px;background:#eef0f3;
+    }
+    .company-info-details[open]>summary::after{content:"閉じる"}
+    .company-info-details[open]>summary{margin-bottom:12px}
+    .company-info-details-body{border-top:1px solid var(--line);padding-top:2px}
     label{display:block;font-size:12px;color:var(--sub);margin:12px 0 6px}
     input,select,button{
       font:inherit;
@@ -3482,6 +3494,294 @@
     }
   }
 
+  /* 淡い枠・交互色・街並みを使ったデザイン請求書 */
+  .invoice-sheet.excel-template.invoice-format-design{
+    --design-light:color-mix(in srgb, var(--inv-wine) 14%, white);
+    --design-mid:color-mix(in srgb, var(--inv-wine) 28%, white);
+    --design-border:color-mix(in srgb, var(--inv-wine) 34%, white);
+    --design-grid:#d7dce2;
+    background:#ffffff !important;
+    color:#222 !important;
+    overflow:visible !important;
+  }
+  .invoice-format-design .invoice-paper-inner{
+    min-height:1045px;
+    padding:34px 38px 22px !important;
+    border:2px solid var(--design-border);
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+  }
+  .invoice-format-design .top-wine-bar{display:none !important}
+  .invoice-format-design .design-upper{
+    position:relative;
+    min-height:315px;
+    flex:0 0 auto;
+  }
+  .invoice-format-design .design-client{
+    position:absolute;
+    left:8px;
+    top:8px;
+    width:52%;
+    font-size:12px;
+    line-height:1.75;
+  }
+  .invoice-format-design .design-client-name{
+    display:inline-block;
+    font-size:19px;
+    border-bottom:1px solid #333;
+    padding:0 5px 2px 0;
+    margin-bottom:4px;
+  }
+  .invoice-format-design .design-client-honorific{
+    display:inline-block;
+    margin-left:10px;
+    font-size:13px;
+  }
+  .invoice-format-design .design-meta{
+    position:absolute;
+    right:5px;
+    top:5px;
+    text-align:right;
+    font-size:11px;
+    line-height:1.6;
+  }
+  .invoice-format-design .design-issuer{
+    position:absolute;
+    right:8px;
+    top:76px;
+    width:42%;
+    font-size:11px;
+    line-height:1.55;
+  }
+  .invoice-format-design .design-issuer-name{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:5px;
+  }
+  .invoice-format-design .design-issuer .invoice-company-stamp{
+    position:absolute !important;
+    right:2px !important;
+    top:54px !important;
+    width:76px !important;
+    height:76px !important;
+    object-fit:contain;
+    opacity:.88;
+  }
+  .invoice-format-design .design-greeting{
+    position:absolute;
+    left:8px;
+    top:142px;
+    width:53%;
+    font-size:11px;
+    line-height:1.8;
+  }
+  .invoice-format-design .design-amount-row{
+    position:absolute;
+    left:8px;
+    right:8px;
+    bottom:16px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+    align-items:end;
+  }
+  .invoice-format-design .design-amount-label{
+    font-size:15px;
+    margin-bottom:1px;
+  }
+  .invoice-format-design .design-amount-value{
+    font-size:29px;
+    line-height:1.05;
+    text-align:center;
+    letter-spacing:.02em;
+  }
+  .invoice-format-design .design-payment-date{
+    text-align:right;
+    font-size:14px;
+    padding-bottom:4px;
+  }
+  .invoice-format-design .design-continuation-head{
+    position:relative;
+    min-height:74px;
+    flex:0 0 auto;
+    padding-top:6px;
+  }
+  .invoice-format-design .design-continuation-title{
+    font-size:20px;
+    font-weight:700;
+  }
+  .invoice-format-design .design-continuation-meta{
+    position:absolute;
+    top:7px;
+    right:0;
+    font-size:11px;
+    text-align:right;
+    line-height:1.7;
+  }
+  .invoice-format-design .invoice-detail-table{
+    width:100%;
+    border-collapse:collapse !important;
+    border:0 !important;
+    table-layout:fixed;
+    margin:0 !important;
+    font-size:10px;
+    flex:0 0 auto;
+  }
+  .invoice-format-design .invoice-detail-table th{
+    background:var(--design-mid) !important;
+    color:#222 !important;
+    border:0 !important;
+    border-right:1px solid var(--design-grid) !important;
+    padding:4px 3px !important;
+    font-size:10.5px !important;
+    font-weight:500 !important;
+  }
+  .invoice-format-design .invoice-detail-table th:last-child,
+  .invoice-format-design .invoice-detail-table td:last-child{
+    border-right:0 !important;
+  }
+  .invoice-format-design .invoice-detail-table td,
+  .invoice-format-design .invoice-detail-table tbody tr:nth-child(odd) td,
+  .invoice-format-design .invoice-detail-table tbody tr:nth-child(even) td,
+  .invoice-format-design .invoice-detail-table .site-row td{
+    color:#222 !important;
+    border:0 !important;
+    border-right:1px solid var(--design-grid) !important;
+    height:21px !important;
+    padding:3px 5px !important;
+    line-height:1.1 !important;
+    font-size:10px !important;
+    font-weight:400 !important;
+  }
+  .invoice-format-design .invoice-detail-table tbody tr:nth-child(odd) td{
+    background:var(--design-light) !important;
+  }
+  .invoice-format-design .invoice-detail-table tbody tr:nth-child(even) td{
+    background:#fff !important;
+  }
+  .invoice-format-design .invoice-detail-table .invoice-section-spacer td{
+    background:#fff !important;
+  }
+  .invoice-format-design .design-bottom-area{
+    margin-top:auto;
+    flex:0 0 auto;
+    padding-top:18px;
+  }
+  .invoice-format-design .design-totals{
+    border-top:1px solid #333;
+    padding-top:7px;
+    margin-bottom:8px;
+  }
+  .invoice-format-design .design-total-row{
+    display:grid;
+    grid-template-columns:1fr 135px;
+    justify-content:end;
+    width:52%;
+    margin-left:auto;
+    min-height:23px;
+    align-items:center;
+    font-size:11px;
+  }
+  .invoice-format-design .design-total-label{text-align:right;padding-right:28px}
+  .invoice-format-design .design-total-value{text-align:right}
+  .invoice-format-design .design-total-row.grand{
+    width:100%;
+    grid-template-columns:1fr 135px;
+    background:var(--design-mid);
+    min-height:30px;
+    font-size:13px;
+    font-weight:700;
+    padding:0 8px;
+  }
+  .invoice-format-design .design-total-row.grand .design-total-label{padding-right:28px}
+  .invoice-format-design .design-bank-remark{
+    display:grid;
+    grid-template-columns:1.35fr 1fr;
+    gap:40px;
+    min-height:92px;
+    padding:0 10px;
+  }
+  .invoice-format-design .design-bottom-title{
+    font-size:11px;
+    font-weight:700;
+    margin:0 0 10px;
+  }
+  .invoice-format-design .design-bank-text,
+  .invoice-format-design .design-remark-text{
+    white-space:pre-line;
+    font-size:10px;
+    line-height:1.65;
+  }
+  .invoice-format-design .design-remark-text{color:#666}
+  .invoice-format-design .design-cityscape{
+    height:33px;
+    margin-top:auto;
+    border-bottom:1px solid var(--design-border);
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:6px;
+    color:var(--design-border);
+    padding:0 5px;
+  }
+  .invoice-format-design .design-bottom-area + .design-cityscape{margin-top:0}
+  .invoice-format-design .design-sky-item{position:relative;display:block;flex:0 0 auto}
+  .invoice-format-design .design-sky-item.house{
+    width:30px;height:17px;border:1px solid currentColor;border-bottom:0;
+  }
+  .invoice-format-design .design-sky-item.house::before{
+    content:"";position:absolute;left:3px;top:-8px;width:20px;height:20px;
+    border-left:1px solid currentColor;border-top:1px solid currentColor;
+    transform:rotate(45deg) skew(-7deg,-7deg);background:#fff;
+  }
+  .invoice-format-design .design-sky-item.house::after{
+    content:"";position:absolute;left:12px;bottom:0;width:6px;height:9px;
+    border:1px solid currentColor;border-bottom:0;background:#fff;
+  }
+  .invoice-format-design .design-sky-item.building{
+    width:25px;height:27px;border:1px solid currentColor;border-bottom:0;
+    background:repeating-linear-gradient(90deg,transparent 0 6px,currentColor 6px 7px,transparent 7px 12px),
+      repeating-linear-gradient(0deg,transparent 0 6px,currentColor 6px 7px,transparent 7px 12px);
+    opacity:.75;
+  }
+  .invoice-format-design .design-sky-item.tree{
+    width:18px;height:18px;
+  }
+  .invoice-format-design .design-sky-item.tree::before,
+  .invoice-format-design .design-sky-item.tree::after{
+    content:"";position:absolute;border:1px solid currentColor;border-radius:50%;
+    width:10px;height:10px;top:1px;
+  }
+  .invoice-format-design .design-sky-item.tree::before{left:1px}
+  .invoice-format-design .design-sky-item.tree::after{right:1px}
+  .invoice-format-design .design-sky-item.tree{border-left:1px solid currentColor;margin-left:8px}
+
+  @media(max-width:600px){
+    .invoice-format-design .invoice-paper-inner{min-width:720px}
+  }
+  @media print{
+    .invoice-sheet.excel-template.invoice-format-design{
+      width:100% !important;
+      max-width:none !important;
+      overflow:visible !important;
+    }
+    .invoice-format-design .invoice-paper-inner{
+      width:100% !important;
+      height:280mm !important;
+      min-height:280mm !important;
+      max-height:280mm !important;
+      padding:10mm 11mm 6mm !important;
+      border:0.5mm solid var(--design-border) !important;
+      zoom:1 !important;
+      overflow:hidden !important;
+    }
+    .invoice-format-design .design-upper{min-height:82mm !important}
+    .invoice-format-design .design-continuation-head{min-height:20mm !important}
+    .invoice-format-design .invoice-detail-table td{height:4.6mm !important}
+    .invoice-format-design .design-bottom-area{padding-top:4mm !important}
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -3887,6 +4187,7 @@
         <label>請求書フォーマット</label>
         <select id="invoiceFormat">
           <option value="color">カラー</option>
+          <option value="design">デザイン</option>
           <option value="simple">シンプル（白黒）</option>
         </select>
 
@@ -3924,8 +4225,9 @@
         <div class="helper">請求書を作成後、「PDF保存・印刷」からPDF保存・印刷できます。PDF保存後は端末の共有機能から送付できます。</div>
       </div>
 
-      <div class="card no-print" id="companyInfoCard">
-        <h2>自社情報</h2>
+      <details class="card no-print company-info-details" id="companyInfoCard">
+        <summary>自社情報</summary>
+        <div class="company-info-details-body">
 
         <label>社名</label>
         <input id="companyInfoName" placeholder="例：株式会社○○">
@@ -3990,8 +4292,9 @@
           <button class="btn secondary" id="removeCompanyStampBtn" type="button">社印を削除</button>
         </div>
 
-        <button class="btn secondary" id="saveCompanyInfoBtn">自社情報を保存</button>
-      </div>
+          <button class="btn secondary" id="saveCompanyInfoBtn">自社情報を保存</button>
+        </div>
+      </details>
 
       <div id="invoicePreview"></div>
     </section>
@@ -6368,6 +6671,22 @@ function showDayDetail(date){
 
 function renderCompanyInfoForm(){
     if(!$("companyInfoName")) return;
+    const companyInfoCard = $("companyInfoCard");
+    if(companyInfoCard && companyInfoCard.dataset.initialized !== "true"){
+      const hasSavedCompanyInfo = [
+        state.companyInfo?.name,
+        state.companyInfo?.postalCode,
+        state.companyInfo?.address,
+        state.companyInfo?.personName,
+        state.companyInfo?.phone,
+        state.companyInfo?.invoiceNumber,
+        state.companyInfo?.bankName,
+        state.companyInfo?.bankAccountNumber,
+        state.companyInfo?.bankAccount
+      ].some(value=>String(value || "").trim());
+      companyInfoCard.open = !hasSavedCompanyInfo;
+      companyInfoCard.dataset.initialized = "true";
+    }
     $("companyInfoName").value = state.companyInfo?.name || "";
     $("companyInfoPostalCode").value = state.companyInfo?.postalCode || "";
     $("companyInfoAddress").value = state.companyInfo?.address || "";
@@ -6429,6 +6748,7 @@ function renderCompanyInfoForm(){
     };
     save();
     renderInvoice();
+    if($("companyInfoCard")) $("companyInfoCard").open = false;
     finishRegistration("自社情報を保存しました");
   }
 
@@ -6807,7 +7127,7 @@ function invoiceColorValue(key){
   function updateInvoiceColorVisibility(){
     const format = $("invoiceFormat")?.value || state.companyInfo?.invoiceFormat || "color";
     if($("invoiceColorSettings")){
-      $("invoiceColorSettings").style.display = format === "color" ? "block" : "none";
+      $("invoiceColorSettings").style.display = (format === "color" || format === "design") ? "block" : "none";
     }
   }
 
@@ -7201,6 +7521,8 @@ function getContractBillingIncluded(siteId, month){
     const taxRate = currentInvoiceTaxRate();
     const number = syncInvoiceNumber(true) || $("invoiceNumber").value.trim();
     const invoiceCompanyInfo = currentCompanyInfoForInvoice();
+    const selectedFormat = $("invoiceFormat")?.value || state.companyInfo?.invoiceFormat || "color";
+    const isDesignFormat = selectedFormat === "design";
 
     if(!clientId){
       $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選択してください。</div></div>`;
@@ -7420,6 +7742,138 @@ function getContractBillingIncluded(siteId, month){
       </table>
     `;
 
+    const toDesignDetailRow = (rowHtml) => {
+      const trAttributes = (rowHtml.match(/<tr([^>]*)>/i) || ["", ""])[1];
+      const cells = {};
+      rowHtml.replace(/<td class="([^"]+)">([\s\S]*?)<\/td>/g, (_match, className, value)=>{
+        cells[className] = value;
+        return _match;
+      });
+      const quantity = [cells.qty, cells.unit].filter(value=>value && value !== "&nbsp;").join(" ");
+      return `
+        <tr${trAttributes}>
+          <td class="date">${cells.date ?? "&nbsp;"}</td>
+          <td class="desc">${cells.desc ?? ""}</td>
+          <td class="price">${cells.price ?? ""}</td>
+          <td class="qty">${quantity}</td>
+          <td class="amount">${cells.amount ?? ""}</td>
+          <td class="note">${cells.note ?? ""}</td>
+        </tr>
+      `;
+    };
+
+    const designDetailTableHtml = (pageRows) => `
+      <table class="invoice-detail-table">
+        <colgroup>
+          <col style="width:11%">
+          <col style="width:34%">
+          <col style="width:14%">
+          <col style="width:11%">
+          <col style="width:17%">
+          <col style="width:13%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>品名</th>
+            <th>単価</th>
+            <th>数量</th>
+            <th>金額</th>
+            <th>備考</th>
+          </tr>
+        </thead>
+        <tbody>${pageRows.map(toDesignDetailRow).join("")}</tbody>
+      </table>
+    `;
+
+    const designCityscapeHtml = () => {
+      const skyline = ["house","tree","house","building","tree","house","building","house","tree","building","house","tree","house","building","tree","house"];
+      return `<div class="design-cityscape">${skyline.map(kind=>`<span class="design-sky-item ${kind}"></span>`).join("")}</div>`;
+    };
+
+    const designFirstPageHeaderHtml = (pageLabel="") => `
+      <div class="design-upper">
+        <div class="design-client">
+          <div>
+            <span class="design-client-name">${escapeHtml(client?.name || "")}</span>
+            <span class="design-client-honorific">御中</span>
+          </div>
+          ${client?.postalCode ? `<div>〒${escapeHtml(client.postalCode)}</div>` : ""}
+          ${client?.address ? `<div>${escapeHtml(client.address)}</div>` : ""}
+        </div>
+
+        <div class="design-meta">
+          <div>発行日：${formatJapaneseDate(period.end)}</div>
+          <div>請求書番号：${escapeHtml(number || "-")}</div>
+          ${pageLabel ? `<div>${escapeHtml(pageLabel)}</div>` : ""}
+        </div>
+
+        <div class="design-issuer">
+          <div class="design-issuer-name">${escapeHtml(invoiceCompanyInfo.name || "")}</div>
+          ${invoiceCompanyInfo.invoiceNumber ? `<div>登録番号：${escapeHtml(invoiceCompanyInfo.invoiceNumber)}</div>` : ""}
+          ${invoiceCompanyInfo.postalCode ? `<div>〒${escapeHtml(invoiceCompanyInfo.postalCode)}</div>` : ""}
+          ${invoiceCompanyInfo.address ? `<div>${escapeHtml(invoiceCompanyInfo.address)}</div>` : ""}
+          ${invoiceCompanyInfo.phone ? `<div>TEL ${escapeHtml(invoiceCompanyInfo.phone)}</div>` : ""}
+          ${(invoiceCompanyInfo.title || invoiceCompanyInfo.personName)
+            ? `<div>${escapeHtml([invoiceCompanyInfo.title, invoiceCompanyInfo.personName].filter(Boolean).join("　"))}</div>`
+            : ""}
+          ${invoiceCompanyInfo.stampDataUrl ? `<img class="invoice-company-stamp" src="${invoiceCompanyInfo.stampDataUrl}" alt="社印">` : ""}
+        </div>
+
+        <div class="design-greeting">
+          平素は格別のお引き立てを賜り、誠にありがとうございます。<br>
+          下記の通りご請求申し上げます。
+        </div>
+
+        <div class="design-amount-row">
+          <div>
+            <div class="design-amount-label">御請求金額（税込）</div>
+            <div class="design-amount-value">¥${Math.round(total).toLocaleString("ja-JP")}</div>
+          </div>
+          <div class="design-payment-date">お支払予定日：${escapeHtml(paymentDate || "")}</div>
+        </div>
+      </div>
+    `;
+
+    const designContinuationHeaderHtml = (pageLabel="") => `
+      <div class="design-continuation-head">
+        <div class="design-continuation-title">御請求明細書</div>
+        <div class="design-continuation-meta">
+          <div>請求書番号：${escapeHtml(number || "-")}</div>
+          ${pageLabel ? `<div>${escapeHtml(pageLabel)}</div>` : ""}
+        </div>
+      </div>
+    `;
+
+    const designBottomAreaHtml = () => `
+      <div class="design-bottom-area">
+        <div class="design-totals">
+          <div class="design-total-row">
+            <div class="design-total-label">小計</div>
+            <div class="design-total-value">¥${Math.round(subtotal).toLocaleString("ja-JP")}</div>
+          </div>
+          <div class="design-total-row">
+            <div class="design-total-label">消費税（${taxRate}%）</div>
+            <div class="design-total-value">¥${Math.round(tax).toLocaleString("ja-JP")}</div>
+          </div>
+          <div class="design-total-row grand">
+            <div class="design-total-label">合計</div>
+            <div class="design-total-value">¥${Math.round(total).toLocaleString("ja-JP")}</div>
+          </div>
+        </div>
+        <div class="design-bank-remark">
+          <div>
+            <div class="design-bottom-title">■ お振込先</div>
+            <div class="design-bank-text">${bankText ? escapeHtml(bankText).replace(/\n/g,"<br>") : ""}</div>
+          </div>
+          <div>
+            <div class="design-bottom-title">■ 備考</div>
+            <div class="design-remark-text">振込手数料はご負担くださいますようお願いいたします。</div>
+          </div>
+        </div>
+      </div>
+    `;
+
     const bottomAreaHtml = () => `
       <div class="invoice-bottom-area">
         <div class="invoice-totals-grid">
@@ -7506,10 +7960,23 @@ function getContractBillingIncluded(siteId, month){
       </div>
     `;
 
+    const pageFirstHeaderHtml = (pageLabel="") => isDesignFormat
+      ? designFirstPageHeaderHtml(pageLabel)
+      : firstPageHeaderHtml(pageLabel);
+    const pageContinuationHeaderHtml = (pageLabel="") => isDesignFormat
+      ? designContinuationHeaderHtml(pageLabel)
+      : continuationHeaderHtml(pageLabel);
+    const pageDetailTableHtml = (pageRows) => isDesignFormat
+      ? designDetailTableHtml(pageRows)
+      : detailTableHtml(pageRows);
+    const pageBottomAreaHtml = () => isDesignFormat
+      ? designBottomAreaHtml()
+      : bottomAreaHtml();
+
     const isIOSPrintDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const firstCapacity = isIOSPrintDevice ? 29 : 35;
-    const continuationCapacity = isIOSPrintDevice ? 36 : 40;
+    const firstCapacity = isDesignFormat ? 18 : (isIOSPrintDevice ? 29 : 35);
+    const continuationCapacity = isDesignFormat ? 32 : (isIOSPrintDevice ? 36 : 40);
     const actualRows = [...detailRows];
     const pages = [];
 
@@ -7520,9 +7987,10 @@ function getContractBillingIncluded(siteId, month){
       pages.push(`
         <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last">
           <div class="invoice-paper-inner">
-            ${firstPageHeaderHtml()}
-            ${detailTableHtml(pageRows)}
-            ${bottomAreaHtml()}
+            ${pageFirstHeaderHtml()}
+            ${pageDetailTableHtml(pageRows)}
+            ${pageBottomAreaHtml()}
+            ${isDesignFormat ? designCityscapeHtml() : ""}
           </div>
         </div>
       `);
@@ -7537,8 +8005,9 @@ function getContractBillingIncluded(siteId, month){
       pages.push(`
         <div class="invoice-sheet excel-template invoice-page invoice-page-first">
           <div class="invoice-paper-inner">
-            ${firstPageHeaderHtml(`1/${totalPages}`)}
-            ${detailTableHtml(firstRows)}
+            ${pageFirstHeaderHtml(`1/${totalPages}`)}
+            ${pageDetailTableHtml(firstRows)}
+            ${isDesignFormat ? designCityscapeHtml() : ""}
           </div>
         </div>
       `);
@@ -7556,9 +8025,10 @@ function getContractBillingIncluded(siteId, month){
         pages.push(`
           <div class="invoice-sheet excel-template invoice-page invoice-page-continuation ${isLast ? "invoice-page-last" : ""}">
             <div class="invoice-paper-inner">
-              ${continuationHeaderHtml(`${pageNo}/${totalPages}`)}
-              ${detailTableHtml(chunk)}
-              ${isLast ? bottomAreaHtml() : ""}
+              ${pageContinuationHeaderHtml(`${pageNo}/${totalPages}`)}
+              ${pageDetailTableHtml(chunk)}
+              ${isLast ? pageBottomAreaHtml() : ""}
+              ${isDesignFormat ? designCityscapeHtml() : ""}
             </div>
           </div>
         `);
@@ -7582,12 +8052,13 @@ function getContractBillingIncluded(siteId, month){
 
       invoiceSheets.forEach(invoiceSheet=>{
         invoiceSheet.classList.toggle("invoice-format-simple", formatKey === "simple");
-        invoiceSheet.classList.toggle("invoice-format-color", formatKey !== "simple");
+        invoiceSheet.classList.toggle("invoice-format-color", formatKey === "color");
+        invoiceSheet.classList.toggle("invoice-format-design", formatKey === "design");
         invoiceSheet.style.setProperty("font-family", invoiceFontFamily(fontKey), "important");
         invoiceSheet.style.setProperty("--inv-wine", themeColor);
 
         const topBar = invoiceSheet.querySelector(".top-wine-bar");
-        if(topBar && formatKey !== "simple"){
+        if(topBar && formatKey === "color"){
           topBar.style.background = `linear-gradient(90deg, ${themeColor} 0%, ${themeColor} 62%, #ffffff 100%)`;
         }
       });
