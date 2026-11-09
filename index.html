@@ -3958,7 +3958,7 @@
     zoom:1 !important;
     background:#fff !important;
   }
-  .invoice-pdf-export #invoicePreview .invoice-paper-inner{
+  .invoice-pdf-export #invoicePreview .invoice-page .invoice-paper-inner{
     width:100% !important;
     min-width:0 !important;
     max-width:100% !important;
@@ -4412,6 +4412,14 @@
 
         <button class="btn" id="makeInvoiceBtn">請求書を作成</button>
         <button class="btn secondary" id="printInvoiceBtn">PDF保存・印刷</button>
+        <div id="invoicePdfResult" hidden>
+          <button class="btn" id="shareInvoicePdfBtn" type="button" hidden>PDFを共有・保存</button>
+          <div class="helper">
+            <a id="openInvoicePdfLink">PDFを開く</a>
+            <span aria-hidden="true"> ｜ </span>
+            <a id="downloadInvoicePdfLink">ファイルとしてダウンロード</a>
+          </div>
+        </div>
         <div class="helper">請求書を作成後、「PDF保存・印刷」からPDF保存・印刷できます。PDF保存後は端末の共有機能から送付できます。</div>
       </div>
 
@@ -8043,87 +8051,65 @@ function getContractBillingIncluded(siteId, month){
     };
   }
 
-  async function createAndOpenInvoicePdf(){
-    const button = $("printInvoiceBtn");
-    const originalText = button?.textContent || "PDF保存・印刷";
-    const pdfTab = window.open("", "_blank");
+  function clearInvoicePdfResult(){
+    const openLink = $("openInvoicePdfLink");
+    const pdfUrl = openLink.getAttribute("href");
+    if(pdfUrl) URL.revokeObjectURL(pdfUrl);
+    openLink.removeAttribute("href");
+    $("downloadInvoicePdfLink").removeAttribute("href");
+    $("shareInvoicePdfBtn").onclick = null;
+    $("invoicePdfResult").hidden = true;
+  }
 
-    if(pdfTab){
-      pdfTab.document.write("<!doctype html><meta name='viewport' content='width=device-width'><title>PDF作成中</title><body style='font-family:sans-serif;padding:24px'>請求書PDFを作成しています…</body>");
-      pdfTab.document.close();
-    }
+  async function createInvoicePdf(){
+    const button = $("printInvoiceBtn");
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "PDF作成中…";
 
     try{
-      if(button){
-        button.disabled = true;
-        button.textContent = "PDF作成中…";
-      }
-
-      if(document.fonts?.ready) await document.fonts.ready;
-
       const pages = [...document.querySelectorAll("#invoicePreview .invoice-page")];
       if(!pages.length) throw new Error("請求書を作成できませんでした。");
+      const filename = safeInvoicePdfName();
 
       document.documentElement.classList.add("invoice-pdf-export");
-      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      if(document.fonts?.ready) await document.fonts.ready;
 
       const jpegPages = [];
-      for(let index=0; index<pages.length; index++){
-        if(pdfTab){
-          try{ pdfTab.document.body.textContent = `請求書PDFを作成しています…（${index + 1}/${pages.length}ページ）`; }catch(e){}
-        }
-        const page = pages[index];
+      for(const page of pages){
         jpegPages.push(await renderInvoicePageToJpeg(page));
       }
+      if(pages.some(page=>!page.isConnected)) return;
 
-      const pdfBlob = buildInvoicePdf(jpegPages);
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      if(pdfTab){
-        pdfTab.document.title = "請求書PDF";
-        pdfTab.document.body.innerHTML = "";
-        pdfTab.document.body.style.cssText = "font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:24px;background:#f4f7fb;color:#0f172a";
-        const card = pdfTab.document.createElement("div");
-        card.style.cssText = "max-width:520px;margin:12vh auto 0;padding:24px;background:#fff;border:1px solid #dbe3ef;border-radius:16px;text-align:center;box-shadow:0 12px 32px rgba(15,23,42,.08)";
-        const title = pdfTab.document.createElement("div");
-        title.textContent = "請求書PDFができました";
-        title.style.cssText = "font-size:20px;font-weight:800;margin-bottom:10px";
-        const note = pdfTab.document.createElement("div");
-        note.textContent = "下のボタンを押してPDFを開き、共有から保存・印刷してください。";
-        note.style.cssText = "font-size:14px;line-height:1.7;color:#475569;margin-bottom:18px";
-        const openLink = pdfTab.document.createElement("a");
-        openLink.href = pdfUrl;
-        openLink.textContent = "PDFを開く・保存する";
-        openLink.style.cssText = "display:block;padding:14px 18px;border-radius:12px;background:#2563eb;color:#fff;text-decoration:none;font-size:16px;font-weight:800";
-        const downloadLink = pdfTab.document.createElement("a");
-        downloadLink.href = pdfUrl;
-        downloadLink.download = safeInvoicePdfName();
-        downloadLink.textContent = "ファイルとしてダウンロード";
-        downloadLink.style.cssText = "display:block;margin-top:16px;color:#2563eb;font-size:14px";
-        card.append(title, note, openLink, downloadLink);
-        pdfTab.document.body.append(card);
-      }else{
-        const openLink = document.createElement("a");
-        openLink.href = pdfUrl;
-        openLink.download = safeInvoicePdfName();
-        openLink.style.display = "none";
-        document.body.appendChild(openLink);
-        openLink.click();
-        openLink.remove();
+      const pdfFile = new File([buildInvoicePdf(jpegPages)], filename, {type:"application/pdf"});
+      const pdfUrl = URL.createObjectURL(pdfFile);
+      $("openInvoicePdfLink").href = pdfUrl;
+      const downloadLink = $("downloadInvoicePdfLink");
+      downloadLink.href = pdfUrl;
+      downloadLink.download = filename;
+
+      const shareButton = $("shareInvoicePdfBtn");
+      const shareData = {files:[pdfFile]};
+      shareButton.hidden = !(navigator.share && navigator.canShare?.(shareData));
+      if(!shareButton.hidden){
+        shareButton.onclick = async ()=>{
+          try{
+            await navigator.share(shareData);
+          }catch(error){
+            if(error?.name !== "AbortError"){
+              alert("共有できませんでした。「PDFを開く」または「ファイルとしてダウンロード」をお試しください。");
+            }
+          }
+        };
       }
-      setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
+
+      $("invoicePdfResult").hidden = false;
     }catch(error){
-      if(pdfTab){
-        try{
-          pdfTab.document.body.innerHTML = `<div style="font-family:sans-serif;padding:24px;line-height:1.7"><b>PDFを作成できませんでした。</b><br>${String(error?.message || error).replace(/[&<>]/g, value=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[value]))}<br><br>この画面を閉じて、もう一度お試しください。</div>`;
-        }catch(e){}
-      }
       alert(`PDF作成エラー\n${error?.message || error}`);
     }finally{
       document.documentElement.classList.remove("invoice-pdf-export");
-      if(button){
-        button.disabled = false;
-        button.textContent = originalText;
-      }
+      button.disabled = false;
+      button.textContent = originalText;
       if(isMobileLikeDevice()) setTimeout(fitInvoicePreviewToWidth, 60);
     }
   }
@@ -8260,6 +8246,7 @@ function getContractBillingIncluded(siteId, month){
   }
 
   function renderInvoice(){
+    clearInvoicePdfResult();
     const __invoiceClientId = $("invoiceClient")?.value || "";
     if(isSelfCompanyClientId(__invoiceClientId)) return;
 
@@ -8846,8 +8833,7 @@ function getContractBillingIncluded(siteId, month){
   $("printInvoiceBtn").addEventListener("click", async ()=>{
     renderInvoice();
     if(isIOSDevice()){
-      await new Promise(resolve=>setTimeout(resolve, 100));
-      await createAndOpenInvoicePdf();
+      await createInvoicePdf();
       return;
     }
     setTimeout(()=>window.print(), 50);
