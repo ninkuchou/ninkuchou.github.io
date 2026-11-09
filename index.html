@@ -3838,6 +3838,9 @@
         <label>氏名</label>
         <input id="companyInfoPersonName" placeholder="例：山田 太郎">
 
+        <label>電話番号</label>
+        <input id="companyInfoPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="例：090-1234-5678">
+
         <label>インボイス登録番号</label>
         <input id="companyInfoInvoiceNumber" autocapitalize="characters" placeholder="例：T1234567890123">
 
@@ -4114,7 +4117,7 @@
   const BILLING_ENFORCEMENT_ENABLED = true;
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -4135,6 +4138,7 @@
   state.companyInfo.address = state.companyInfo.address || "";
   state.companyInfo.title = state.companyInfo.title || "";
   state.companyInfo.personName = state.companyInfo.personName || "";
+  state.companyInfo.phone = state.companyInfo.phone || "";
   state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
   state.companyInfo.invoiceFont = state.companyInfo.invoiceFont || "hiragino";
@@ -6223,6 +6227,7 @@ function renderCompanyInfoForm(){
     $("companyInfoAddress").value = state.companyInfo?.address || "";
     $("companyInfoTitle").value = state.companyInfo?.title || "";
     $("companyInfoPersonName").value = state.companyInfo?.personName || "";
+    $("companyInfoPhone").value = state.companyInfo?.phone || "";
     $("companyInfoInvoiceNumber").value = state.companyInfo?.invoiceNumber || "";
     $("companyInfoBankAccount").value = state.companyInfo?.bankAccount || "";
     if($("invoiceTax")) $("invoiceTax").value = state.companyInfo?.invoiceTax || "10";
@@ -6240,6 +6245,7 @@ function renderCompanyInfoForm(){
       address:$("companyInfoAddress")?.value.trim() || "",
       title:$("companyInfoTitle")?.value.trim() || "",
       personName:$("companyInfoPersonName")?.value.trim() || "",
+      phone:$("companyInfoPhone")?.value.trim() || "",
       invoiceNumber:$("companyInfoInvoiceNumber")?.value.trim() || "",
       bankAccount:$("companyInfoBankAccount")?.value.trim() || "",
       invoiceFont:state.companyInfo?.invoiceFont || "hiragino",
@@ -6252,6 +6258,25 @@ function renderCompanyInfoForm(){
     save();
     renderInvoice();
     finishRegistration("自社情報を保存しました");
+  }
+
+  function currentCompanyInfoForInvoice(){
+    const saved = state.companyInfo || {};
+    const valueOf = (id, key) => {
+      const input = $(id);
+      return input ? String(input.value || "").trim() : String(saved[key] || "");
+    };
+    return {
+      ...saved,
+      name:valueOf("companyInfoName", "name"),
+      postalCode:valueOf("companyInfoPostalCode", "postalCode"),
+      address:valueOf("companyInfoAddress", "address"),
+      title:valueOf("companyInfoTitle", "title"),
+      personName:valueOf("companyInfoPersonName", "personName"),
+      phone:valueOf("companyInfoPhone", "phone"),
+      invoiceNumber:valueOf("companyInfoInvoiceNumber", "invoiceNumber"),
+      bankAccount:valueOf("companyInfoBankAccount", "bankAccount")
+    };
   }
 
 
@@ -6988,6 +7013,7 @@ function getContractBillingIncluded(siteId, month){
     const month = $("invoiceMonth").value || monthLocal();
     const taxRate = currentInvoiceTaxRate();
     const number = syncInvoiceNumber(true) || $("invoiceNumber").value.trim();
+    const invoiceCompanyInfo = currentCompanyInfoForInvoice();
 
     if(!clientId){
       $("invoicePreview").innerHTML = `<div class="card"><div class="empty">元請け会社を選択してください。</div></div>`;
@@ -7168,7 +7194,7 @@ function getContractBillingIncluded(siteId, month){
       `);
     });
 
-    const bankText = String(state.companyInfo?.bankAccount || "")
+    const bankText = String(invoiceCompanyInfo.bankAccount || "")
       .split(/\r?\n/)
       .map(line=>line.trim())
       .filter(Boolean)
@@ -7265,14 +7291,15 @@ function getContractBillingIncluded(siteId, month){
 
         <div class="invoice-issuer-block">
           <div class="invoice-issuer-date">${formatJapaneseDate(period.end)}</div>
-          ${state.companyInfo?.postalCode ? `<div>〒${escapeHtml(state.companyInfo.postalCode)}</div>` : ""}
-          ${state.companyInfo?.address ? `<div>${escapeHtml(state.companyInfo.address)}</div>` : ""}
-          <div class="invoice-issuer-name">${escapeHtml(state.companyInfo?.name || "")}</div>
-          ${state.companyInfo?.stampDataUrl ? `<img class="invoice-company-stamp" src="${state.companyInfo.stampDataUrl}" alt="社印">` : ""}
-          ${(state.companyInfo?.title || state.companyInfo?.personName)
-            ? `<div style="margin-top:9px">${escapeHtml([state.companyInfo.title, state.companyInfo.personName].filter(Boolean).join("　"))}</div>`
+          ${invoiceCompanyInfo.postalCode ? `<div>〒${escapeHtml(invoiceCompanyInfo.postalCode)}</div>` : ""}
+          ${invoiceCompanyInfo.address ? `<div>${escapeHtml(invoiceCompanyInfo.address)}</div>` : ""}
+          <div class="invoice-issuer-name">${escapeHtml(invoiceCompanyInfo.name || "")}</div>
+          ${invoiceCompanyInfo.stampDataUrl ? `<img class="invoice-company-stamp" src="${invoiceCompanyInfo.stampDataUrl}" alt="社印">` : ""}
+          ${(invoiceCompanyInfo.title || invoiceCompanyInfo.personName)
+            ? `<div style="margin-top:9px">${escapeHtml([invoiceCompanyInfo.title, invoiceCompanyInfo.personName].filter(Boolean).join("　"))}</div>`
             : ""}
-          ${state.companyInfo?.invoiceNumber ? `<div>登録番号:${escapeHtml(state.companyInfo.invoiceNumber)}</div>` : ""}
+          ${invoiceCompanyInfo.phone ? `<div>TEL:${escapeHtml(invoiceCompanyInfo.phone)}</div>` : ""}
+          ${invoiceCompanyInfo.invoiceNumber ? `<div>登録番号:${escapeHtml(invoiceCompanyInfo.invoiceNumber)}</div>` : ""}
         </div>
 
         <div class="invoice-greeting">
@@ -7378,6 +7405,13 @@ function getContractBillingIncluded(siteId, month){
   }
 
   $("saveCompanyInfoBtn").addEventListener("click", saveCompanyInfo);
+  [
+    "companyInfoName","companyInfoPostalCode","companyInfoAddress",
+    "companyInfoTitle","companyInfoPersonName","companyInfoPhone",
+    "companyInfoInvoiceNumber","companyInfoBankAccount"
+  ].forEach(id=>{
+    $(id)?.addEventListener("input", renderInvoice);
+  });
   $("makeInvoiceBtn").addEventListener("click", renderInvoice);
   $("printInvoiceBtn").addEventListener("click", ()=>{
     renderInvoice();
@@ -8029,6 +8063,7 @@ function getContractBillingIncluded(siteId, month){
         address:ci.address || "",
         title:ci.title || "",
         person_name:ci.personName || "",
+        phone:ci.phone || "",
         invoice_registration_number:ci.invoiceNumber || "",
         bank_account:ci.bankAccount || "",
         invoice_font:ci.invoiceFont || "hiragino",
@@ -8144,6 +8179,7 @@ function getContractBillingIncluded(siteId, month){
           address:(s && s.address) || "",
           title:(s && s.title) || "",
           personName:(s && s.person_name) || "",
+          phone:(s && s.phone) || "",
           invoiceNumber:(s && s.invoice_registration_number) || "",
           bankAccount:(s && s.bank_account) || "",
           invoiceFont:(s && s.invoice_font) || "hiragino",
@@ -9331,6 +9367,7 @@ function getContractBillingIncluded(siteId, month){
             address: clean.companyInfo.address || "",
             title: clean.companyInfo.title || "",
             personName: clean.companyInfo.personName || "",
+            phone: clean.companyInfo.phone || "",
             invoiceNumber: clean.companyInfo.invoiceNumber || "",
             bankAccount: clean.companyInfo.bankAccount || "",
             invoiceFont: clean.companyInfo.invoiceFont || "hiragino",
@@ -9340,7 +9377,7 @@ function getContractBillingIncluded(siteId, month){
             stampDataUrl: clean.companyInfo.stampDataUrl || "",
             stampFileName: clean.companyInfo.stampFileName || ""
           }
-        : {name:"", postalCode:"", address:"", title:"", personName:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"}
+        : {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFont:"hiragino", invoiceColor:"navy"}
     };
   }
 
