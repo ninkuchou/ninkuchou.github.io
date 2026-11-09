@@ -3414,7 +3414,7 @@
     padding-bottom:10px !important;
   }
   .invoice-format-simple .invoice-company-stamp{
-    filter:grayscale(1) contrast(1.15) !important;
+    filter:none !important;
   }
   .invoice-format-simple .invoice-detail-table{
     border-collapse:collapse !important;
@@ -6421,7 +6421,10 @@ function renderCompanyInfoForm(){
   }
 
   function generateCompanyStampDataUrl(companyName){
-    const name = String(companyName || "").trim();
+    // 会社名欄の表示はそのままにして、社印を作るときだけ略称を正式表記へ変換する。
+    const name = String(companyName || "")
+      .trim()
+      .replace(/（株）|\(株\)|㈱/g, "株式会社");
     if(!name) throw new Error("先に自社情報の会社名を入力してください");
 
     const chars = Array.from(name.replace(/\s+/g, ""));
