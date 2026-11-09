@@ -7848,20 +7848,34 @@ function getContractBillingIncluded(siteId, month){
     return normalizeImportedState(merged);
   }
 
+  function cloudSelfCompanyClientId(companyId){
+    return `${SELF_COMPANY_CLIENT_ID}:${companyId}`;
+  }
+
   function toCloudRows(){
     const cid = cloudCompanyId;
+    const selfClientId = cloudSelfCompanyClientId(cid);
     return {
-      clients: state.clients.map(x=>({
-        id:String(x.id), company_id:cid, client_number:x.clientNumber ?? null,
-        name:x.name || "", postal_code:x.postalCode || "", address:x.address || "",
-        bill_rate:Number(x.billRate||0), color:x.color || "", closing_day:Number(x.closingDay||0),
-        payment:x.payment || ""
-      })),
+      clients: [
+        ...state.clients.map(x=>({
+          id:String(x.id), company_id:cid, client_number:x.clientNumber ?? null,
+          name:x.name || "", postal_code:x.postalCode || "", address:x.address || "",
+          bill_rate:Number(x.billRate||0), color:x.color || "", closing_day:Number(x.closingDay||0),
+          payment:x.payment || ""
+        })),
+        {
+          id:selfClientId, company_id:cid, client_number:null,
+          name:"自社", postal_code:"", address:"", bill_rate:0,
+          color:"", closing_day:0, payment:""
+        }
+      ],
       worker_companies: state.workerCompanies.map(x=>({
         id:String(x.id), company_id:cid, name:x.name || "", rate:Number(x.rate||0)
       })),
       sites: state.sites.map(x=>({
-        id:String(x.id), company_id:cid, client_id:x.clientId || null, name:x.name || "",
+        id:String(x.id), company_id:cid,
+        client_id:x.clientId===SELF_COMPANY_CLIENT_ID ? selfClientId : (x.clientId || null),
+        name:x.name || "",
         contract_type:x.contractType || "常用", contract_work_content:x.contractWorkContent || "",
         revenue:Number(x.revenue||0), bill_rate:Number(x.billRate||0)
       })),
@@ -8080,7 +8094,7 @@ function getContractBillingIncluded(siteId, month){
     return {
       initialized: !!s || tables.some(t=>map[t].length),
       state:{
-        clients:map.clients.map(x=>({
+        clients:map.clients.filter(x=>x.id!==cloudSelfCompanyClientId(companyId)).map(x=>({
           id:x.id, clientNumber:x.client_number, name:x.name, postalCode:x.postal_code || "",
           address:x.address || "", billRate:Number(x.bill_rate||0), color:x.color || "",
           closingDay:Number(x.closing_day||0), payment:x.payment || ""
@@ -8089,7 +8103,11 @@ function getContractBillingIncluded(siteId, month){
           id:x.id, name:x.name, rate:Number(x.rate||0)
         })),
         sites:map.sites.map(x=>({
-          id:x.id, clientId:x.client_id || "", name:x.name, contractType:x.contract_type || "常用",
+          id:x.id,
+          clientId:x.client_id===cloudSelfCompanyClientId(companyId)
+            ? SELF_COMPANY_CLIENT_ID
+            : (x.client_id || ""),
+          name:x.name, contractType:x.contract_type || "常用",
           contractWorkContent:x.contract_work_content || "",
           revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0)
         })),
