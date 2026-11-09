@@ -3845,6 +3845,36 @@
     .invoice-format-design .design-bottom-area{padding-top:4mm !important}
   }
 
+  /* iPhone / iPad印刷では外側余白を除き、A4の印刷可能範囲に収める */
+  @media print{
+    html.ios-print-device .invoice-sheet.excel-template.invoice-format-design{
+      width:100% !important;
+      max-width:100% !important;
+      height:276mm !important;
+      min-height:276mm !important;
+      max-height:276mm !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow:hidden !important;
+      break-inside:avoid-page !important;
+      page-break-inside:avoid !important;
+    }
+    html.ios-print-device .invoice-format-design .invoice-paper-inner{
+      width:100% !important;
+      height:276mm !important;
+      min-height:276mm !important;
+      max-height:276mm !important;
+      margin:0 !important;
+      padding:8mm 9mm 5mm !important;
+      overflow:hidden !important;
+      zoom:1 !important;
+    }
+    html.ios-print-device .invoice-format-design .design-upper{min-height:78mm !important}
+    html.ios-print-device .invoice-format-design .design-continuation-head{min-height:18mm !important}
+    html.ios-print-device .invoice-format-design .invoice-detail-table td{height:4.2mm !important}
+    html.ios-print-device .invoice-format-design .design-bottom-area{padding-top:2mm !important}
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -7228,7 +7258,7 @@ function invoiceColorValue(key){
     const map = {
       wine:"#7d2342",
       navy:"#23395d",
-      blue:"#2f5f8f",
+      blue:"#2f9ed8",
       green:"#2f6b4f",
       brown:"#6b4a32",
       red:"#b42318",
@@ -8186,6 +8216,7 @@ function getContractBillingIncluded(siteId, month){
 
     const isIOSPrintDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    document.documentElement.classList.toggle("ios-print-device", isIOSPrintDevice);
     // デザイン形式は1行目を白、最下段を色付きにする偶数行で固定し、
     // 明細欄を合計欄直前の黒ラインまで伸ばす。
     const firstCapacity = isDesignFormat ? 26 : (isIOSPrintDevice ? 29 : 35);
