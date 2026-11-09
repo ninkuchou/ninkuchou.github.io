@@ -4115,6 +4115,8 @@
   let cloudSyncInFlight = false;
   let cloudSyncPending = false;
   let cloudBaselineRows = null;
+  const CLOUD_DIRTY_COMPANY_KEY = "jinkou_cloud_dirty_company_v1";
+  const LOCAL_STATE_COMPANY_KEY = "jinkou_local_state_company_v1";
   // 本番の利用制限は最終確認後にtrueへ変更する。
   const BILLING_ENFORCEMENT_ENABLED = true;
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
@@ -4184,11 +4186,17 @@
   }
   function saveLocalOnly(){
     if(!hasStorage) return;
-    try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+    try{
+      localStorage.setItem(KEY, JSON.stringify(state));
+      if(cloudCompanyId) localStorage.setItem(LOCAL_STATE_COMPANY_KEY, cloudCompanyId);
+    }catch(e){}
   }
 
   function save(){
     saveLocalOnly();
+    if(cloudReady && cloudCompanyId){
+      try{ localStorage.setItem(CLOUD_DIRTY_COMPANY_KEY, cloudCompanyId); }catch(e){}
+    }
     scheduleCloudSync();
   }
 
@@ -4231,8 +4239,29 @@
   function scheduleCloudSync(){
     if(!cloudReady || !cloudCompanyId) return;
     if(cloudSyncTimer) clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = setTimeout(()=>syncStateToCloud(), 700);
+    if(cloudSyncInFlight){
+      cloudSyncPending = true;
+      return;
+    }
+    cloudSyncTimer = setTimeout(()=>{
+      cloudSyncTimer = null;
+      syncStateToCloud();
+    }, 50);
   }
+
+  function flushCloudSync(){
+    if(!cloudReady || !cloudCompanyId) return;
+    if(cloudSyncTimer){
+      clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = null;
+    }
+    syncStateToCloud();
+  }
+
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "hidden") flushCloudSync();
+  });
+  window.addEventListener("pagehide", flushCloudSync);
 
   const $ = id => document.getElementById(id);
 
@@ -7738,7 +7767,8 @@ function getContractBillingIncluded(siteId, month){
 
   function startTutorial(force=false){
     if(tutorialActive) return;
-    if(!force && localStorage.getItem(TUTORIAL_SEEN_KEY) === "1") return;
+    const accountHasSeenTutorial = state.recentSelects?.tutorialSeen === true;
+    if(!force && accountHasSeenTutorial) return;
 
     tutorialActive = true;
     tutorialIndex = 0;
@@ -7755,6 +7785,9 @@ function getContractBillingIncluded(siteId, month){
     $("tutorialOverlay").classList.remove("active");
     $("tutorialOverlay").setAttribute("aria-hidden","true");
     localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+    if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+    state.recentSelects.tutorialSeen = true;
+    save();
   }
 
   $("tutorialNextBtn")?.addEventListener("click", ()=>{
@@ -7794,6 +7827,25 @@ function getContractBillingIncluded(siteId, month){
         s.companyInfo.invoiceNumber || s.companyInfo.stampDataUrl
       ))
     );
+  }
+
+  function mergePendingLocalState(cloudState, localState){
+    const cloud = normalizeImportedState(cloudState || defaultState);
+    const local = normalizeImportedState(localState || defaultState);
+    const arrayKeys = [
+      "clients","workerCompanies","sites","workers","entries","siteExpenses",
+      "invoiceNumbers","progressBillings","contractBillingIncludes"
+    ];
+    const merged = {...cloud};
+    for(const key of arrayKeys){
+      const byId = new Map((cloud[key] || []).map(row=>[String(row.id), row]));
+      for(const row of (local[key] || [])) byId.set(String(row.id), row);
+      merged[key] = [...byId.values()];
+    }
+    merged.recentSelects = {...(cloud.recentSelects || {}), ...(local.recentSelects || {})};
+    merged.bulkCompanyFilter = local.bulkCompanyFilter || cloud.bulkCompanyFilter || "all";
+    merged.companyInfo = {...(cloud.companyInfo || {}), ...(local.companyInfo || {})};
+    return normalizeImportedState(merged);
   }
 
   function toCloudRows(){
@@ -7982,6 +8034,11 @@ function getContractBillingIncluded(siteId, month){
 
       // 成功した状態を次回差分比較の基準にする。
       cloudBaselineRows = cloneCloudRows(rows);
+      try{
+        if(localStorage.getItem(CLOUD_DIRTY_COMPANY_KEY) === cloudCompanyId){
+          localStorage.removeItem(CLOUD_DIRTY_COMPANY_KEY);
+        }
+      }catch(e){}
 
       setCloudStatus("クラウド保存済み", "ok");
     }catch(err){
@@ -8559,6 +8616,14 @@ function getContractBillingIncluded(siteId, month){
     setCloudStatus("クラウド読込中…", "syncing");
     const company = await getOrCreateCompany(session.user);
     cloudCompanyId = company.id;
+    let pendingLocalState = null;
+    try{
+      const dirtyCompanyId = localStorage.getItem(CLOUD_DIRTY_COMPANY_KEY) || "";
+      const localStateCompanyId = localStorage.getItem(LOCAL_STATE_COMPANY_KEY) || "";
+      if(dirtyCompanyId === company.id && localStateCompanyId === company.id && appHasMeaningfulData(state)){
+        pendingLocalState = normalizeImportedState(state);
+      }
+    }catch(e){}
 
     const bar = $("cloudAccountBar");
     if(bar) bar.style.display = "grid";
@@ -8581,12 +8646,17 @@ function getContractBillingIncluded(siteId, month){
 
     if(cloud.initialized){
       state = normalizeImportedState(cloud.state);
-      saveLocalOnly();
       cloudBaselineRows = cloneCloudRows(toCloudRows());
+      if(pendingLocalState){
+        state = mergePendingLocalState(state, pendingLocalState);
+      }
+      saveLocalOnly();
       setCloudStatus("クラウド保存済み", "ok");
     }else{
-      // クラウドが空なら、端末の旧データを使わず空の状態から開始する。
-      state = normalizeImportedState(defaultState);
+      // 同じ会社の未送信データがあれば復元し、それ以外は空の状態から開始する。
+      state = pendingLocalState
+        ? normalizeImportedState(pendingLocalState)
+        : normalizeImportedState(defaultState);
       saveLocalOnly();
       cloudBaselineRows = Object.fromEntries(
         CLOUD_TABLES_PARENT_FIRST.map(t=>[t, []])
@@ -8595,6 +8665,7 @@ function getContractBillingIncluded(siteId, month){
     }
 
     renderAll();
+    if(pendingLocalState) scheduleCloudSync();
     refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
     if(!options.suppressTutorial){
       setTimeout(()=>startTutorial(false), 450);
