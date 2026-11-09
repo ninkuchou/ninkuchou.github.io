@@ -1557,6 +1557,67 @@
       margin:0;
       padding:8px 12px;
     }
+    .company-logo-settings{
+      margin-top:10px;
+      padding:12px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:#fff;
+    }
+    .company-logo-settings-row{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .company-logo-settings img{
+      width:96px;
+      height:64px;
+      object-fit:contain;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:#fff;
+    }
+    .company-logo-settings .btn{
+      width:auto;
+      margin:0;
+      padding:8px 12px;
+    }
+    .company-logo-size-control{
+      display:grid;
+      grid-template-columns:auto minmax(120px,1fr) auto;
+      align-items:center;
+      gap:8px;
+      margin-top:12px;
+    }
+    .company-logo-size-control input{margin:0}
+
+    .excel-template .invoice-company-logo{
+      position:absolute;
+      z-index:20;
+      height:auto;
+      max-height:30%;
+      object-fit:contain;
+      cursor:grab;
+      touch-action:none;
+      user-select:none;
+      -webkit-user-drag:none;
+      filter:none;
+    }
+    .excel-template .invoice-company-logo.dragging{
+      cursor:grabbing;
+      outline:2px dashed #2563eb;
+      outline-offset:3px;
+    }
+    @media print{
+      .excel-template .invoice-company-logo{
+        cursor:default !important;
+        pointer-events:none !important;
+        outline:0 !important;
+        -webkit-print-color-adjust:exact !important;
+        print-color-adjust:exact !important;
+      }
+    }
 
     /* 社印は右上の会社情報ブロック内に重ねる。会社情報自体の絶対配置は崩さない */
     .excel-template .invoice-issuer-block{
@@ -3623,6 +3684,7 @@
     width:100%;
     border-collapse:collapse !important;
     border:0 !important;
+    border-bottom:1.5px solid #333 !important;
     table-layout:fixed;
     margin:0 !important;
     font-size:10px;
@@ -3655,10 +3717,10 @@
     font-weight:400 !important;
   }
   .invoice-format-design .invoice-detail-table tbody tr:nth-child(odd) td{
-    background:var(--design-light) !important;
+    background:#fff !important;
   }
   .invoice-format-design .invoice-detail-table tbody tr:nth-child(even) td{
-    background:#fff !important;
+    background:var(--design-light) !important;
   }
   .invoice-format-design .invoice-detail-table .invoice-section-spacer td{
     background:#fff !important;
@@ -3778,7 +3840,8 @@
     }
     .invoice-format-design .design-upper{min-height:82mm !important}
     .invoice-format-design .design-continuation-head{min-height:20mm !important}
-    .invoice-format-design .invoice-detail-table td{height:4.6mm !important}
+    .invoice-format-design .invoice-detail-table td{height:4.4mm !important}
+    #invoicePreview .invoice-format-design .invoice-detail-table{border-bottom:0.5mm solid #333 !important}
     .invoice-format-design .design-bottom-area{padding-top:4mm !important}
   }
 
@@ -4290,6 +4353,27 @@
         <div id="companyStampPreview" class="stamp-settings-preview" style="display:none">
           <img id="companyStampPreviewImage" alt="社印プレビュー">
           <button class="btn secondary" id="removeCompanyStampBtn" type="button">社印を削除</button>
+        </div>
+
+        <label>会社マーク</label>
+        <input id="companyLogoFile" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+        <div class="helper">JPG / PNG対応。請求書の1ページ目に表示し、プレビュー上でドラッグして好きな位置へ移動できます。</div>
+        <div id="companyLogoSettings" class="company-logo-settings" style="display:none">
+          <div class="company-logo-settings-row">
+            <img id="companyLogoPreviewImage" alt="会社マークのプレビュー">
+            <label style="display:flex;align-items:center;gap:7px;margin:0">
+              <input id="companyLogoEnabled" type="checkbox" style="width:auto;margin:0">
+              請求書に表示
+            </label>
+            <button class="btn secondary" id="resetCompanyLogoPositionBtn" type="button">位置を初期化</button>
+            <button class="btn secondary" id="removeCompanyLogoBtn" type="button">マークを削除</button>
+          </div>
+          <div class="company-logo-size-control">
+            <span>大きさ</span>
+            <input id="companyLogoSize" type="range" min="6" max="35" step="1" value="18">
+            <span id="companyLogoSizeValue">18%</span>
+          </div>
+          <div class="helper" style="margin-top:8px">位置と大きさは自動保存されます。</div>
         </div>
 
           <button class="btn secondary" id="saveCompanyInfoBtn">自社情報を保存</button>
@@ -6709,6 +6793,7 @@ function renderCompanyInfoForm(){
       $("invoiceTaxCustom").style.display = ($("invoiceTax").value === "custom") ? "block" : "none";
     }
     renderCompanyStampPreview();
+    renderCompanyLogoSettings();
   }
 
   function saveCompanyInfo(){
@@ -7016,6 +7101,37 @@ function renderCompanyInfoForm(){
     }
   }
 
+  async function handleCompanyLogoFile(file){
+    if(!file) return;
+    const name = String(file.name || "");
+    const type = String(file.type || "").toLowerCase();
+    const isImage = type.startsWith("image/") || /\.(jpe?g|png)$/i.test(name);
+    if(!isImage){
+      alert("会社マークはJPGまたはPNGを選択してください");
+      return;
+    }
+    if(Number(file.size || 0) > 10 * 1024 * 1024){
+      alert("画像サイズは10MB以下にしてください");
+      return;
+    }
+
+    try{
+      const dataUrl = await imageFileToStampDataUrl(file);
+      updateInvoiceLogoSettings({
+        dataUrl,
+        fileName:name,
+        enabled:true,
+        x:61,
+        y:9,
+        width:18
+      });
+      renderCompanyLogoSettings();
+      renderInvoice();
+    }catch(err){
+      alert(err?.message || "会社マークを読み込めませんでした");
+    }
+  }
+
 function nextInvoiceSequence(clientId){
     const used = state.invoiceNumbers
       .filter(x=>x.clientId===clientId)
@@ -7129,6 +7245,52 @@ function invoiceColorValue(key){
     if($("invoiceColorSettings")){
       $("invoiceColorSettings").style.display = (format === "color" || format === "design") ? "block" : "none";
     }
+  }
+
+  function invoiceLogoSettings(){
+    const raw = state.recentSelects?.invoiceLogo;
+    const logo = raw && typeof raw === "object" ? raw : {};
+    return {
+      dataUrl:String(logo.dataUrl || ""),
+      fileName:String(logo.fileName || ""),
+      enabled:logo.enabled !== false,
+      x:Number.isFinite(Number(logo.x)) ? Math.max(0, Math.min(94, Number(logo.x))) : 61,
+      y:Number.isFinite(Number(logo.y)) ? Math.max(0, Math.min(94, Number(logo.y))) : 9,
+      width:Number.isFinite(Number(logo.width)) ? Math.max(6, Math.min(35, Number(logo.width))) : 18
+    };
+  }
+
+  function updateInvoiceLogoSettings(patch, shouldSave=true){
+    if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
+    state.recentSelects.invoiceLogo = {...invoiceLogoSettings(), ...(patch || {})};
+    if(shouldSave) save();
+    return state.recentSelects.invoiceLogo;
+  }
+
+  function renderCompanyLogoSettings(){
+    const wrap = $("companyLogoSettings");
+    const img = $("companyLogoPreviewImage");
+    const enabled = $("companyLogoEnabled");
+    const size = $("companyLogoSize");
+    const sizeValue = $("companyLogoSizeValue");
+    if(!wrap || !img || !enabled || !size || !sizeValue) return;
+    const logo = invoiceLogoSettings();
+    if(logo.dataUrl){
+      img.src = logo.dataUrl;
+      wrap.style.display = "block";
+    }else{
+      img.removeAttribute("src");
+      wrap.style.display = "none";
+    }
+    enabled.checked = logo.enabled;
+    size.value = String(logo.width);
+    sizeValue.textContent = `${Math.round(logo.width)}%`;
+  }
+
+  function invoiceCompanyLogoHtml(){
+    const logo = invoiceLogoSettings();
+    if(!logo.dataUrl || !logo.enabled) return "";
+    return `<img class="invoice-company-logo" src="${logo.dataUrl}" alt="会社マーク" style="left:${logo.x}%;top:${logo.y}%;width:${logo.width}%">`;
   }
 
   function invoiceFontFamily(key){
@@ -7508,6 +7670,55 @@ function getContractBillingIncluded(siteId, month){
 
     preview.addEventListener("touchend", endPinch, {passive:true});
     preview.addEventListener("touchcancel", endPinch, {passive:true});
+  }
+
+  function bindInvoiceLogoDrag(){
+    const logo = document.querySelector("#invoicePreview .invoice-page-first .invoice-company-logo");
+    if(!logo || logo.dataset.dragBound === "true") return;
+    logo.dataset.dragBound = "true";
+
+    logo.addEventListener("pointerdown", (event)=>{
+      if(event.button !== undefined && event.button !== 0) return;
+      const parent = logo.closest(".invoice-paper-inner");
+      if(!parent) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const parentRect = parent.getBoundingClientRect();
+      const logoRect = logo.getBoundingClientRect();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = logoRect.left - parentRect.left;
+      const startTop = logoRect.top - parentRect.top;
+      logo.classList.add("dragging");
+      try{ logo.setPointerCapture(event.pointerId); }catch(_err){}
+
+      const onMove = (moveEvent)=>{
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        const maxLeft = Math.max(0, parentRect.width - logoRect.width);
+        const maxTop = Math.max(0, parentRect.height - logoRect.height);
+        const left = Math.max(0, Math.min(maxLeft, startLeft + dx));
+        const top = Math.max(0, Math.min(maxTop, startTop + dy));
+        logo.style.left = `${(left / parentRect.width) * 100}%`;
+        logo.style.top = `${(top / parentRect.height) * 100}%`;
+      };
+
+      const onEnd = ()=>{
+        logo.removeEventListener("pointermove", onMove);
+        logo.removeEventListener("pointerup", onEnd);
+        logo.removeEventListener("pointercancel", onEnd);
+        logo.classList.remove("dragging");
+        updateInvoiceLogoSettings({
+          x:parseFloat(logo.style.left) || 0,
+          y:parseFloat(logo.style.top) || 0
+        });
+      };
+
+      logo.addEventListener("pointermove", onMove);
+      logo.addEventListener("pointerup", onEnd);
+      logo.addEventListener("pointercancel", onEnd);
+    });
   }
 
   function renderInvoice(){
@@ -7975,8 +8186,10 @@ function getContractBillingIncluded(siteId, month){
 
     const isIOSPrintDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const firstCapacity = isDesignFormat ? 18 : (isIOSPrintDevice ? 29 : 35);
-    const continuationCapacity = isDesignFormat ? 32 : (isIOSPrintDevice ? 36 : 40);
+    // デザイン形式は1行目を白、最下段を色付きにする偶数行で固定し、
+    // 明細欄を合計欄直前の黒ラインまで伸ばす。
+    const firstCapacity = isDesignFormat ? 26 : (isIOSPrintDevice ? 29 : 35);
+    const continuationCapacity = isDesignFormat ? 38 : (isIOSPrintDevice ? 36 : 40);
     const actualRows = [...detailRows];
     const pages = [];
 
@@ -7987,6 +8200,7 @@ function getContractBillingIncluded(siteId, month){
       pages.push(`
         <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last">
           <div class="invoice-paper-inner">
+            ${invoiceCompanyLogoHtml()}
             ${pageFirstHeaderHtml()}
             ${pageDetailTableHtml(pageRows)}
             ${pageBottomAreaHtml()}
@@ -8005,6 +8219,7 @@ function getContractBillingIncluded(siteId, month){
       pages.push(`
         <div class="invoice-sheet excel-template invoice-page invoice-page-first">
           <div class="invoice-paper-inner">
+            ${invoiceCompanyLogoHtml()}
             ${pageFirstHeaderHtml(`1/${totalPages}`)}
             ${pageDetailTableHtml(firstRows)}
             ${isDesignFormat ? designCityscapeHtml() : ""}
@@ -8062,6 +8277,7 @@ function getContractBillingIncluded(siteId, month){
           topBar.style.background = `linear-gradient(90deg, ${themeColor} 0%, ${themeColor} 62%, #ffffff 100%)`;
         }
       });
+      bindInvoiceLogoDrag();
     }
   }
 
@@ -8144,6 +8360,43 @@ function getContractBillingIncluded(siteId, month){
     const file = event.target.files && event.target.files[0];
     await handleCompanyStampFile(file);
     event.target.value = "";
+  });
+
+  $("companyLogoFile")?.addEventListener("change", async (event)=>{
+    const file = event.target.files && event.target.files[0];
+    await handleCompanyLogoFile(file);
+    event.target.value = "";
+  });
+
+  $("companyLogoEnabled")?.addEventListener("change", ()=>{
+    updateInvoiceLogoSettings({enabled:$("companyLogoEnabled").checked});
+    renderInvoice();
+  });
+
+  $("companyLogoSize")?.addEventListener("input", ()=>{
+    const width = Number($("companyLogoSize").value || 18);
+    updateInvoiceLogoSettings({width}, false);
+    if($("companyLogoSizeValue")) $("companyLogoSizeValue").textContent = `${Math.round(width)}%`;
+    renderInvoice();
+  });
+
+  $("companyLogoSize")?.addEventListener("change", ()=>{
+    updateInvoiceLogoSettings({width:Number($("companyLogoSize").value || 18)});
+  });
+
+  $("resetCompanyLogoPositionBtn")?.addEventListener("click", ()=>{
+    updateInvoiceLogoSettings({x:61, y:9, width:18, enabled:true});
+    renderCompanyLogoSettings();
+    renderInvoice();
+  });
+
+  $("removeCompanyLogoBtn")?.addEventListener("click", ()=>{
+    const logo = invoiceLogoSettings();
+    if(!logo.dataUrl) return;
+    if(!confirm("登録している会社マークを削除する？")) return;
+    updateInvoiceLogoSettings({dataUrl:"", fileName:"", enabled:false, x:61, y:9, width:18});
+    renderCompanyLogoSettings();
+    renderInvoice();
   });
 
   $("removeCompanyStampBtn")?.addEventListener("click", ()=>{
