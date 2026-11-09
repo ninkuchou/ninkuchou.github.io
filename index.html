@@ -3949,8 +3949,26 @@
         <label>インボイス登録番号</label>
         <input id="companyInfoInvoiceNumber" autocapitalize="characters" placeholder="例：T1234567890123">
 
-        <label>振込先口座</label>
-        <textarea id="companyInfoBankAccount" rows="3" placeholder="例：○○銀行 ○○支店 普通 1234567 口座名義 ○○"></textarea>
+        <label>金融機関</label>
+        <input id="companyInfoBankName" placeholder="例：三井住友銀行">
+
+        <label>支店名</label>
+        <input id="companyInfoBankBranch" placeholder="例：垂水支店">
+
+        <label>口座種別</label>
+        <select id="companyInfoBankAccountType">
+          <option value="">選択してください</option>
+          <option value="普通">普通</option>
+          <option value="当座">当座</option>
+          <option value="貯蓄">貯蓄</option>
+          <option value="その他">その他</option>
+        </select>
+
+        <label>口座番号</label>
+        <input id="companyInfoBankAccountNumber" inputmode="numeric" autocomplete="off" placeholder="例：1234567">
+
+        <label>口座名義</label>
+        <input id="companyInfoBankAccountHolder" placeholder="例：カ）リファイズ">
         <label>消費税率</label>
         <select id="invoiceTax">
           <option value="10">10%</option>
@@ -4222,7 +4240,7 @@
   const BILLING_ENFORCEMENT_ENABLED = true;
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
-  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"} };
+  const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", bankName:"", bankBranch:"", bankAccountType:"", bankAccountNumber:"", bankAccountHolder:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"} };
   let state = load();
   let editingClientId = "";
   let editingSiteId = "";
@@ -4246,6 +4264,11 @@
   state.companyInfo.phone = state.companyInfo.phone || "";
   state.companyInfo.invoiceNumber = state.companyInfo.invoiceNumber || "";
   state.companyInfo.bankAccount = state.companyInfo.bankAccount || "";
+  state.companyInfo.bankName = state.companyInfo.bankName || "";
+  state.companyInfo.bankBranch = state.companyInfo.bankBranch || "";
+  state.companyInfo.bankAccountType = state.companyInfo.bankAccountType || "";
+  state.companyInfo.bankAccountNumber = state.companyInfo.bankAccountNumber || "";
+  state.companyInfo.bankAccountHolder = state.companyInfo.bankAccountHolder || "";
   state.companyInfo.invoiceFormat = state.companyInfo.invoiceFormat || "color";
   state.companyInfo.invoiceFont = state.companyInfo.invoiceFont || "hiragino";
   state.companyInfo.invoiceColor = state.companyInfo.invoiceColor || "navy";
@@ -6326,6 +6349,23 @@ function showDayDetail(date){
     });
   }
 
+  function formattedBankAccount(info, includeLegacy=true){
+    const bank = info || {};
+    const lines = [
+      ["金融機関", bank.bankName],
+      ["支店名", bank.bankBranch],
+      ["口座種別", bank.bankAccountType],
+      ["口座番号", bank.bankAccountNumber],
+      ["口座名義", bank.bankAccountHolder]
+    ]
+      .map(([label, value])=>[label, String(value || "").trim()])
+      .filter(([, value])=>value)
+      .map(([label, value])=>`${label}：${value}`);
+
+    if(lines.length) return lines.join("\n");
+    return includeLegacy ? String(bank.bankAccount || "").trim() : "";
+  }
+
 function renderCompanyInfoForm(){
     if(!$("companyInfoName")) return;
     $("companyInfoName").value = state.companyInfo?.name || "";
@@ -6335,7 +6375,11 @@ function renderCompanyInfoForm(){
     $("companyInfoPersonName").value = state.companyInfo?.personName || "";
     $("companyInfoPhone").value = state.companyInfo?.phone || "";
     $("companyInfoInvoiceNumber").value = state.companyInfo?.invoiceNumber || "";
-    $("companyInfoBankAccount").value = state.companyInfo?.bankAccount || "";
+    $("companyInfoBankName").value = state.companyInfo?.bankName || "";
+    $("companyInfoBankBranch").value = state.companyInfo?.bankBranch || "";
+    $("companyInfoBankAccountType").value = state.companyInfo?.bankAccountType || "";
+    $("companyInfoBankAccountNumber").value = state.companyInfo?.bankAccountNumber || "";
+    $("companyInfoBankAccountHolder").value = state.companyInfo?.bankAccountHolder || "";
     if($("invoiceFormat")) $("invoiceFormat").value = state.companyInfo?.invoiceFormat || "color";
     if($("invoiceFont")) $("invoiceFont").value = state.companyInfo?.invoiceFont || "hiragino";
     if($("invoiceColor")) $("invoiceColor").value = state.companyInfo?.invoiceColor || "navy";
@@ -6349,6 +6393,22 @@ function renderCompanyInfoForm(){
   }
 
   function saveCompanyInfo(){
+    const hadStructuredBankDetails = [
+      state.companyInfo?.bankName,
+      state.companyInfo?.bankBranch,
+      state.companyInfo?.bankAccountType,
+      state.companyInfo?.bankAccountNumber,
+      state.companyInfo?.bankAccountHolder
+    ].some(value=>String(value || "").trim());
+    const bankDetails = {
+      bankName:$("companyInfoBankName")?.value.trim() || "",
+      bankBranch:$("companyInfoBankBranch")?.value.trim() || "",
+      bankAccountType:$("companyInfoBankAccountType")?.value || "",
+      bankAccountNumber:$("companyInfoBankAccountNumber")?.value.trim() || "",
+      bankAccountHolder:$("companyInfoBankAccountHolder")?.value.trim() || ""
+    };
+    const bankAccount = formattedBankAccount(bankDetails, false) ||
+      (hadStructuredBankDetails ? "" : state.companyInfo?.bankAccount || "");
     state.companyInfo = {
       name:$("companyInfoName")?.value.trim() || "",
       postalCode:$("companyInfoPostalCode")?.value.trim() || "",
@@ -6357,7 +6417,8 @@ function renderCompanyInfoForm(){
       personName:$("companyInfoPersonName")?.value.trim() || "",
       phone:$("companyInfoPhone")?.value.trim() || "",
       invoiceNumber:$("companyInfoInvoiceNumber")?.value.trim() || "",
-      bankAccount:$("companyInfoBankAccount")?.value.trim() || "",
+      bankAccount,
+      ...bankDetails,
       invoiceFormat:state.companyInfo?.invoiceFormat || "color",
       invoiceFont:state.companyInfo?.invoiceFont || "hiragino",
       invoiceColor:state.companyInfo?.invoiceColor || "navy",
@@ -6386,7 +6447,12 @@ function renderCompanyInfoForm(){
       personName:valueOf("companyInfoPersonName", "personName"),
       phone:valueOf("companyInfoPhone", "phone"),
       invoiceNumber:valueOf("companyInfoInvoiceNumber", "invoiceNumber"),
-      bankAccount:valueOf("companyInfoBankAccount", "bankAccount")
+      bankAccount:saved.bankAccount || "",
+      bankName:valueOf("companyInfoBankName", "bankName"),
+      bankBranch:valueOf("companyInfoBankBranch", "bankBranch"),
+      bankAccountType:valueOf("companyInfoBankAccountType", "bankAccountType"),
+      bankAccountNumber:valueOf("companyInfoBankAccountNumber", "bankAccountNumber"),
+      bankAccountHolder:valueOf("companyInfoBankAccountHolder", "bankAccountHolder")
     };
   }
 
@@ -7315,7 +7381,7 @@ function getContractBillingIncluded(siteId, month){
       `);
     });
 
-    const bankText = String(invoiceCompanyInfo.bankAccount || "")
+    const bankText = formattedBankAccount(invoiceCompanyInfo)
       .split(/\r?\n/)
       .map(line=>line.trim())
       .filter(Boolean)
@@ -7532,9 +7598,11 @@ function getContractBillingIncluded(siteId, month){
   [
     "companyInfoName","companyInfoPostalCode","companyInfoAddress",
     "companyInfoTitle","companyInfoPersonName","companyInfoPhone",
-    "companyInfoInvoiceNumber","companyInfoBankAccount"
+    "companyInfoInvoiceNumber","companyInfoBankName","companyInfoBankBranch",
+    "companyInfoBankAccountType","companyInfoBankAccountNumber","companyInfoBankAccountHolder"
   ].forEach(id=>{
     $(id)?.addEventListener("input", renderInvoice);
+    $(id)?.addEventListener("change", renderInvoice);
   });
   $("makeInvoiceBtn").addEventListener("click", renderInvoice);
   $("printInvoiceBtn").addEventListener("click", ()=>{
@@ -7975,6 +8043,7 @@ function getContractBillingIncluded(siteId, month){
       (s.contractBillingIncludes && s.contractBillingIncludes.length) ||
       (s.companyInfo && (
         s.companyInfo.name || s.companyInfo.address || s.companyInfo.bankAccount ||
+        s.companyInfo.bankName || s.companyInfo.bankAccountNumber ||
         s.companyInfo.invoiceNumber || s.companyInfo.stampDataUrl
       ))
     );
@@ -8196,6 +8265,11 @@ function getContractBillingIncluded(siteId, month){
         phone:ci.phone || "",
         invoice_registration_number:ci.invoiceNumber || "",
         bank_account:ci.bankAccount || "",
+        bank_name:ci.bankName || "",
+        bank_branch:ci.bankBranch || "",
+        bank_account_type:ci.bankAccountType || "",
+        bank_account_number:ci.bankAccountNumber || "",
+        bank_account_holder:ci.bankAccountHolder || "",
         invoice_format:ci.invoiceFormat || "color",
         invoice_font:ci.invoiceFont || "hiragino",
         invoice_color:ci.invoiceColor || "navy",
@@ -8313,6 +8387,11 @@ function getContractBillingIncluded(siteId, month){
           phone:(s && s.phone) || "",
           invoiceNumber:(s && s.invoice_registration_number) || "",
           bankAccount:(s && s.bank_account) || "",
+          bankName:(s && s.bank_name) || "",
+          bankBranch:(s && s.bank_branch) || "",
+          bankAccountType:(s && s.bank_account_type) || "",
+          bankAccountNumber:(s && s.bank_account_number) || "",
+          bankAccountHolder:(s && s.bank_account_holder) || "",
           invoiceFormat:(s && s.invoice_format) || "color",
           invoiceFont:(s && s.invoice_font) || "hiragino",
           invoiceColor:(s && s.invoice_color) || "navy",
@@ -9502,6 +9581,11 @@ function getContractBillingIncluded(siteId, month){
             phone: clean.companyInfo.phone || "",
             invoiceNumber: clean.companyInfo.invoiceNumber || "",
             bankAccount: clean.companyInfo.bankAccount || "",
+            bankName: clean.companyInfo.bankName || "",
+            bankBranch: clean.companyInfo.bankBranch || "",
+            bankAccountType: clean.companyInfo.bankAccountType || "",
+            bankAccountNumber: clean.companyInfo.bankAccountNumber || "",
+            bankAccountHolder: clean.companyInfo.bankAccountHolder || "",
             invoiceFormat: clean.companyInfo.invoiceFormat || "color",
             invoiceFont: clean.companyInfo.invoiceFont || "hiragino",
             invoiceColor: clean.companyInfo.invoiceColor || "navy",
@@ -9510,7 +9594,7 @@ function getContractBillingIncluded(siteId, month){
             stampDataUrl: clean.companyInfo.stampDataUrl || "",
             stampFileName: clean.companyInfo.stampFileName || ""
           }
-        : {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"}
+        : {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", bankName:"", bankBranch:"", bankAccountType:"", bankAccountNumber:"", bankAccountHolder:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"}
     };
   }
 
