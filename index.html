@@ -8091,25 +8091,63 @@ function getContractBillingIncluded(siteId, month){
     title.textContent = "請求書PDFができました";
     title.style.cssText = "font-size:20px;font-weight:800;color:#0f172a;margin-bottom:8px";
     const note = document.createElement("div");
-    note.textContent = "共有・保存を押して、ファイル保存または印刷を選んでください。";
+    note.textContent = "そのまま印刷するか、共有・保存を選んでください。";
     note.style.cssText = "font-size:14px;line-height:1.7;color:#475569;margin-bottom:18px";
+
+    const printFrame = document.createElement("iframe");
+    printFrame.title = "印刷用請求書PDF";
+    printFrame.src = invoicePdfObjectUrl;
+    printFrame.style.cssText = "position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+
+    const sharePdf = async ()=>{
+      if(navigator.share && (!navigator.canShare || navigator.canShare({files:[pdfFile]}))){
+        await navigator.share({files:[pdfFile], title:"請求書PDF"});
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = invoicePdfObjectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
+    const printButton = document.createElement("button");
+    printButton.type = "button";
+    printButton.disabled = true;
+    printButton.textContent = "印刷準備中…";
+    printButton.style.cssText = "display:block;width:100%;border:0;border-radius:12px;padding:14px 18px;background:#2563eb;color:#fff;font-size:16px;font-weight:800;opacity:.65";
+    const enablePrint = ()=>{
+      printButton.disabled = false;
+      printButton.textContent = "このまま印刷する";
+      printButton.style.opacity = "1";
+    };
+    printFrame.addEventListener("load", enablePrint, {once:true});
+    setTimeout(enablePrint, 1200);
+    printButton.addEventListener("click", async ()=>{
+      try{
+        const printWindow = printFrame.contentWindow;
+        if(!printWindow) throw new Error("印刷画面を開けませんでした");
+        printWindow.focus();
+        printWindow.print();
+      }catch(error){
+        try{
+          await sharePdf();
+        }catch(shareError){
+          if(shareError?.name !== "AbortError"){
+            alert("直接印刷を開けませんでした。共有・保存から『プリント』を選んでください。");
+          }
+        }
+      }
+    });
 
     const shareButton = document.createElement("button");
     shareButton.type = "button";
     shareButton.textContent = "共有・保存する";
-    shareButton.style.cssText = "display:block;width:100%;border:0;border-radius:12px;padding:14px 18px;background:#2563eb;color:#fff;font-size:16px;font-weight:800";
+    shareButton.style.cssText = "display:block;width:100%;margin-top:10px;border:1px solid #cbd5e1;border-radius:12px;padding:13px 18px;background:#f8fafc;color:#0f172a;font-size:16px;font-weight:800";
     shareButton.addEventListener("click", async ()=>{
       try{
-        if(navigator.share && (!navigator.canShare || navigator.canShare({files:[pdfFile]}))){
-          await navigator.share({files:[pdfFile], title:"請求書PDF"});
-          return;
-        }
-        const link = document.createElement("a");
-        link.href = invoicePdfObjectUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        await sharePdf();
       }catch(error){
         if(error?.name !== "AbortError") alert(`PDFを共有できませんでした\n${error?.message || error}`);
       }
@@ -8128,7 +8166,8 @@ function getContractBillingIncluded(siteId, month){
     closeButton.style.cssText = "margin-top:18px;border:0;background:transparent;color:#64748b;font-size:14px;text-decoration:underline";
     closeButton.addEventListener("click", closeInvoicePdfActions);
 
-    card.append(title, note, shareButton, openLink, closeButton);
+    card.append(title, note, printButton, shareButton, openLink, closeButton);
+    overlay.appendChild(printFrame);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
   }
