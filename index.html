@@ -6986,16 +6986,15 @@ function showDayDetail(date){
 
   function formattedBankAccount(info, includeLegacy=true){
     const bank = info || {};
+    const joinValues = values=>values
+      .map(value=>String(value || "").trim())
+      .filter(Boolean)
+      .join("　");
     const lines = [
-      ["金融機関", bank.bankName],
-      ["支店名", bank.bankBranch],
-      ["口座種別", bank.bankAccountType],
-      ["口座番号", bank.bankAccountNumber],
-      ["口座名義", bank.bankAccountHolder]
-    ]
-      .map(([label, value])=>[label, String(value || "").trim()])
-      .filter(([, value])=>value)
-      .map(([label, value])=>`${label}：${value}`);
+      joinValues([bank.bankName, bank.bankBranch]),
+      joinValues([bank.bankAccountType, bank.bankAccountNumber]),
+      joinValues([bank.bankAccountHolder])
+    ].filter(Boolean);
 
     if(lines.length) return lines.join("\n");
     return includeLegacy ? String(bank.bankAccount || "").trim() : "";
