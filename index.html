@@ -9701,6 +9701,61 @@ function getContractBillingIncluded(siteId, month){
     return chunks;
   }
 
+  function companyInfoCloudSnapshot(ci){
+    return {
+      name:ci.name || "",
+      postalCode:ci.postalCode || "",
+      address:ci.address || "",
+      title:ci.title || "",
+      personName:ci.personName || "",
+      phone:ci.phone || "",
+      invoiceNumber:ci.invoiceNumber || "",
+      bankAccount:ci.bankAccount || "",
+      bankName:ci.bankName || "",
+      bankBranch:ci.bankBranch || "",
+      bankAccountType:ci.bankAccountType || "",
+      bankAccountNumber:ci.bankAccountNumber || "",
+      bankAccountHolder:ci.bankAccountHolder || "",
+      invoiceFormat:ci.invoiceFormat || "color",
+      invoiceFont:ci.invoiceFont || "hiragino",
+      invoiceColor:ci.invoiceColor || "navy",
+      invoiceTax:ci.invoiceTax || "10",
+      invoiceTaxCustom:ci.invoiceTaxCustom || "",
+      stampDataUrl:ci.stampDataUrl || "",
+      stampFileName:ci.stampFileName || ""
+    };
+  }
+
+  function missingCompanySettingsColumn(error){
+    const raw = String([
+      error?.message,
+      error?.details,
+      error?.hint
+    ].filter(Boolean).join(" "));
+    const match = raw.match(/Could not find the ['\"]([^'\"]+)['\"] column/i)
+      || raw.match(/column\s+(?:company_settings\.)?['\"]?([a-z0-9_]+)['\"]?\s+does not exist/i);
+    return match ? match[1] : "";
+  }
+
+  async function upsertCompanySettingsCompat(settings){
+    const payload = {...settings};
+    // 旧DBに追加列がなくても、その列だけ外して再試行する。
+    // 自社情報と振込先の完全な控えは recent_selects 内にも保存している。
+    for(let attempt=0; attempt<30; attempt++){
+      const result = await supabaseClient
+        .from("company_settings")
+        .upsert(payload, {onConflict:"company_id"});
+      if(!result.error) return result;
+
+      const missing = missingCompanySettingsColumn(result.error);
+      if(!missing || !(missing in payload) || missing === "company_id" || missing === "recent_selects"){
+        return result;
+      }
+      delete payload[missing];
+    }
+    return {error:new Error("company_settings の列互換処理が完了しませんでした")};
+  }
+
   async function syncStateToCloud(){
     if(!cloudReady || !cloudCompanyId) return;
     if(cloudSyncInFlight){
@@ -9773,6 +9828,10 @@ function getContractBillingIncluded(siteId, month){
       }
 
       const ci = state.companyInfo || {};
+      const recentSelectsForCloud = {
+        ...(state.recentSelects || {}),
+        __companyInfoCloudV1:companyInfoCloudSnapshot(ci)
+      };
       const settings = {
         company_id:cloudCompanyId,
         company_name:ci.name || "",
@@ -9795,13 +9854,11 @@ function getContractBillingIncluded(siteId, month){
         invoice_tax_custom:ci.invoiceTaxCustom || "",
         stamp_data_url:ci.stampDataUrl || "",
         stamp_file_name:ci.stampFileName || "",
-        recent_selects:state.recentSelects || {},
+        recent_selects:recentSelectsForCloud,
         bulk_company_filter:state.bulkCompanyFilter || "all",
         updated_at:new Date().toISOString()
       };
-      const settingsResult = await supabaseClient
-        .from("company_settings")
-        .upsert(settings);
+      const settingsResult = await upsertCompanySettingsCompat(settings);
       if(settingsResult.error){
         throw new Error(`company_settings: ${settingsResult.error.message || settingsResult.error.details || settingsResult.error.hint || "保存に失敗しました"}`);
       }
@@ -9850,6 +9907,22 @@ function getContractBillingIncluded(siteId, month){
 
     const map = Object.fromEntries(tables.map((t,i)=>[t, results[i].data || []]));
     const s = settingsResult.data;
+    const storedRecentSelects = (s && s.recent_selects && typeof s.recent_selects === "object")
+      ? s.recent_selects
+      : {};
+    const cloudCompanyInfo = (storedRecentSelects.__companyInfoCloudV1
+      && typeof storedRecentSelects.__companyInfoCloudV1 === "object")
+      ? storedRecentSelects.__companyInfoCloudV1
+      : {};
+    const recentSelects = {...storedRecentSelects};
+    delete recentSelects.__companyInfoCloudV1;
+    const companyValue = (column, key, fallback="") => {
+      if(Object.prototype.hasOwnProperty.call(cloudCompanyInfo, key)){
+        return cloudCompanyInfo[key];
+      }
+      const value = s && s[column];
+      return value === undefined || value === null || value === "" ? fallback : value;
+    };
 
     return {
       initialized: !!s || tables.some(t=>map[t].length),
@@ -9894,29 +9967,29 @@ function getContractBillingIncluded(siteId, month){
           id:x.id, clientId:x.client_id, month:x.billing_month,
           sequence:Number(x.sequence||1), number:x.number || ""
         })),
-        recentSelects:(s && s.recent_selects) || {},
+        recentSelects,
         bulkCompanyFilter:(s && s.bulk_company_filter) || "all",
         companyInfo:{
-          name:(s && s.company_name) || "",
-          postalCode:(s && s.postal_code) || "",
-          address:(s && s.address) || "",
-          title:(s && s.title) || "",
-          personName:(s && s.person_name) || "",
-          phone:(s && s.phone) || "",
-          invoiceNumber:(s && s.invoice_registration_number) || "",
-          bankAccount:(s && s.bank_account) || "",
-          bankName:(s && s.bank_name) || "",
-          bankBranch:(s && s.bank_branch) || "",
-          bankAccountType:(s && s.bank_account_type) || "",
-          bankAccountNumber:(s && s.bank_account_number) || "",
-          bankAccountHolder:(s && s.bank_account_holder) || "",
-          invoiceFormat:(s && s.invoice_format) || "color",
-          invoiceFont:(s && s.invoice_font) || "hiragino",
-          invoiceColor:(s && s.invoice_color) || "navy",
-          invoiceTax:(s && s.invoice_tax) || "10",
-          invoiceTaxCustom:(s && s.invoice_tax_custom) || "",
-          stampDataUrl:(s && s.stamp_data_url) || "",
-          stampFileName:(s && s.stamp_file_name) || ""
+          name:companyValue("company_name", "name"),
+          postalCode:companyValue("postal_code", "postalCode"),
+          address:companyValue("address", "address"),
+          title:companyValue("title", "title"),
+          personName:companyValue("person_name", "personName"),
+          phone:companyValue("phone", "phone"),
+          invoiceNumber:companyValue("invoice_registration_number", "invoiceNumber"),
+          bankAccount:companyValue("bank_account", "bankAccount"),
+          bankName:companyValue("bank_name", "bankName"),
+          bankBranch:companyValue("bank_branch", "bankBranch"),
+          bankAccountType:companyValue("bank_account_type", "bankAccountType"),
+          bankAccountNumber:companyValue("bank_account_number", "bankAccountNumber"),
+          bankAccountHolder:companyValue("bank_account_holder", "bankAccountHolder"),
+          invoiceFormat:companyValue("invoice_format", "invoiceFormat", "color"),
+          invoiceFont:companyValue("invoice_font", "invoiceFont", "hiragino"),
+          invoiceColor:companyValue("invoice_color", "invoiceColor", "navy"),
+          invoiceTax:companyValue("invoice_tax", "invoiceTax", "10"),
+          invoiceTaxCustom:companyValue("invoice_tax_custom", "invoiceTaxCustom"),
+          stampDataUrl:companyValue("stamp_data_url", "stampDataUrl"),
+          stampFileName:companyValue("stamp_file_name", "stampFileName")
         }
       }
     };
