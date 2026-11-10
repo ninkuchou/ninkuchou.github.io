@@ -3688,11 +3688,20 @@
     width:100%;
     border-collapse:collapse !important;
     border:0 !important;
-    border-bottom:3px double #333 !important;
+    border-bottom:0 !important;
     table-layout:fixed;
     margin:0 !important;
     font-size:10px;
     flex:0 0 auto;
+  }
+  .invoice-format-design .design-detail-double-line{
+    flex:0 0 auto;
+    width:100%;
+    height:4px;
+    margin:0;
+    border-top:1px solid #333;
+    border-bottom:1px solid #333;
+    box-sizing:border-box;
   }
   .invoice-format-design .invoice-detail-table th{
     background:var(--design-mid) !important;
@@ -3781,7 +3790,7 @@
   }
   .invoice-format-design .design-remark-text{color:#666}
   .invoice-format-design .design-cityscape{
-    height:33px;
+    height:42px;
     margin-top:auto;
     border-bottom:1px solid var(--design-border);
     display:flex;
@@ -3840,6 +3849,7 @@
 
   .invoice-format-design .design-sky-item.cloud{
     width:25px;height:8px;border-bottom:1px solid currentColor;
+    margin-bottom:22px;
   }
   .invoice-format-design .design-sky-item.cloud::before,
   .invoice-format-design .design-sky-item.cloud::after{
@@ -3848,9 +3858,9 @@
   .invoice-format-design .design-sky-item.cloud::before{left:3px;bottom:0;width:10px;height:7px}
   .invoice-format-design .design-sky-item.cloud::after{left:10px;bottom:0;width:12px;height:10px}
   .invoice-format-design .design-sky-item.cloud-a{transform:scale(.8);transform-origin:center bottom}
-  .invoice-format-design .design-sky-item.cloud-b{width:29px;transform:scaleY(.86);transform-origin:center bottom}
-  .invoice-format-design .design-sky-item.cloud-c{width:21px;transform:scale(.72);transform-origin:center bottom}
-  .invoice-format-design .design-sky-item.cloud-d{transform:scaleX(1.08);transform-origin:center bottom}
+  .invoice-format-design .design-sky-item.cloud-b{width:29px;margin-bottom:27px;transform:scaleY(.86);transform-origin:center bottom}
+  .invoice-format-design .design-sky-item.cloud-c{width:21px;margin-bottom:19px;transform:scale(.72);transform-origin:center bottom}
+  .invoice-format-design .design-sky-item.cloud-d{margin-bottom:25px;transform:scaleX(1.08);transform-origin:center bottom}
 
   .invoice-format-design .design-sky-item.chick{
     width:16px;height:11px;border:1px solid currentColor;border-radius:52% 48% 45% 45%;margin-bottom:1px;
@@ -3903,7 +3913,12 @@
     .invoice-format-design .design-upper{min-height:82mm !important}
     .invoice-format-design .design-continuation-head{min-height:20mm !important}
     .invoice-format-design .invoice-detail-table td{height:4.4mm !important}
-    #invoicePreview .invoice-format-design .invoice-detail-table{border-bottom:0.8mm double #333 !important}
+    #invoicePreview .invoice-format-design .invoice-detail-table{border-bottom:0 !important}
+    #invoicePreview .invoice-format-design .design-detail-double-line{
+      height:1.2mm !important;
+      border-top:0.25mm solid #333 !important;
+      border-bottom:0.25mm solid #333 !important;
+    }
     .invoice-format-design .design-bottom-area{padding-top:1mm !important}
   }
 
@@ -4040,7 +4055,7 @@
     position:relative !important;
   }
   .invoice-pdf-export #invoicePreview .invoice-format-design .design-bottom-area{
-    margin-bottom:40px !important;
+    margin-bottom:88px !important;
   }
   .invoice-pdf-export #invoicePreview .invoice-format-design .design-cityscape{
     position:absolute !important;
@@ -4048,7 +4063,7 @@
     right:38px !important;
     bottom:22px !important;
     width:auto !important;
-    height:33px !important;
+    height:42px !important;
     margin:0 !important;
   }
 
@@ -4058,7 +4073,7 @@
     }
     #invoicePreview .invoice-format-design .design-bottom-area{
       /* PCの印刷CSSでは街並みを絶対配置するため、備考欄を十分上へ逃がす */
-      margin-bottom:19mm !important;
+      margin-bottom:25mm !important;
     }
     #invoicePreview .invoice-format-design .design-cityscape{
       position:absolute !important;
@@ -4066,7 +4081,7 @@
       right:11mm !important;
       bottom:6mm !important;
       width:auto !important;
-      height:9mm !important;
+      height:11mm !important;
       margin:0 !important;
     }
   }
@@ -8735,6 +8750,7 @@ function getContractBillingIncluded(siteId, month){
         </thead>
         <tbody>${pageRows.map(toDesignDetailRow).join("")}</tbody>
       </table>
+      <div class="design-detail-double-line" aria-hidden="true"></div>
     `;
 
     const designCityscapeHtml = () => {
