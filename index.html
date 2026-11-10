@@ -3976,6 +3976,42 @@
     overflow:hidden !important;
   }
 
+  /* PDF化・印刷時も街並みを必ず用紙内に残す。
+     下端へ固定し、振込先・備考の領域とは専用の余白で分離する。 */
+  .invoice-pdf-export #invoicePreview .invoice-format-design .invoice-paper-inner{
+    position:relative !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-format-design .design-bottom-area{
+    margin-bottom:40px !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-format-design .design-cityscape{
+    position:absolute !important;
+    left:38px !important;
+    right:38px !important;
+    bottom:22px !important;
+    width:auto !important;
+    height:33px !important;
+    margin:0 !important;
+  }
+
+  @media print{
+    #invoicePreview .invoice-format-design .invoice-paper-inner{
+      position:relative !important;
+    }
+    #invoicePreview .invoice-format-design .design-bottom-area{
+      margin-bottom:11mm !important;
+    }
+    #invoicePreview .invoice-format-design .design-cityscape{
+      position:absolute !important;
+      left:11mm !important;
+      right:11mm !important;
+      bottom:6mm !important;
+      width:auto !important;
+      height:9mm !important;
+      margin:0 !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
