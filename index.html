@@ -4624,7 +4624,8 @@
           <div class="helper" style="margin-top:8px">位置と大きさは自動保存されます。</div>
         </div>
 
-          <button class="btn secondary" id="saveCompanyInfoBtn">自社情報を保存</button>
+          <div class="helper" style="margin-top:12px">入力内容は自動保存されます。</div>
+          <button class="btn secondary" id="saveCompanyInfoBtn">保存して閉じる</button>
         </div>
       </details>
 
@@ -7043,7 +7044,7 @@ function renderCompanyInfoForm(){
     renderCompanyLogoSettings();
   }
 
-  function saveCompanyInfo(){
+  function persistCompanyInfoFromForm(){
     const hadStructuredBankDetails = [
       state.companyInfo?.bankName,
       state.companyInfo?.bankBranch,
@@ -7080,8 +7081,33 @@ function renderCompanyInfoForm(){
     };
     save();
     renderInvoice();
+  }
+
+  function saveCompanyInfo(){
+    if(companyInfoAutoSaveTimer){
+      clearTimeout(companyInfoAutoSaveTimer);
+      companyInfoAutoSaveTimer = null;
+    }
+    persistCompanyInfoFromForm();
     if($("companyInfoCard")) $("companyInfoCard").open = false;
     finishRegistration("自社情報を保存しました");
+  }
+
+  let companyInfoAutoSaveTimer = null;
+  function scheduleCompanyInfoAutoSave(delay=600){
+    if(companyInfoAutoSaveTimer) clearTimeout(companyInfoAutoSaveTimer);
+    companyInfoAutoSaveTimer = setTimeout(()=>{
+      companyInfoAutoSaveTimer = null;
+      persistCompanyInfoFromForm();
+    }, delay);
+  }
+
+  function flushCompanyInfoAutoSave(){
+    if(!companyInfoAutoSaveTimer) return;
+    clearTimeout(companyInfoAutoSaveTimer);
+    companyInfoAutoSaveTimer = null;
+    persistCompanyInfoFromForm();
+    flushCloudSync();
   }
 
   function currentCompanyInfoForInvoice(){
@@ -9077,8 +9103,14 @@ function getContractBillingIncluded(siteId, month){
     "companyInfoInvoiceNumber","companyInfoBankName","companyInfoBankBranch",
     "companyInfoBankAccountType","companyInfoBankAccountNumber","companyInfoBankAccountHolder"
   ].forEach(id=>{
-    $(id)?.addEventListener("input", renderInvoice);
-    $(id)?.addEventListener("change", renderInvoice);
+    $(id)?.addEventListener("input", ()=>{
+      renderInvoice();
+      scheduleCompanyInfoAutoSave();
+    });
+    $(id)?.addEventListener("change", ()=>{
+      renderInvoice();
+      scheduleCompanyInfoAutoSave(0);
+    });
   });
   $("makeInvoiceBtn").addEventListener("click", renderInvoice);
   $("printInvoiceBtn").addEventListener("click", async ()=>{
@@ -9120,8 +9152,18 @@ function getContractBillingIncluded(siteId, month){
       $("invoiceTaxCustom").value = "";
     }
     renderInvoice();
+    scheduleCompanyInfoAutoSave(0);
   });
-  $("invoiceTaxCustom").addEventListener("input", renderInvoice);
+  $("invoiceTaxCustom").addEventListener("input", ()=>{
+    renderInvoice();
+    scheduleCompanyInfoAutoSave();
+  });
+  $("invoiceTaxCustom").addEventListener("change", ()=>scheduleCompanyInfoAutoSave(0));
+
+  window.addEventListener("pagehide", flushCompanyInfoAutoSave);
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "hidden") flushCompanyInfoAutoSave();
+  });
 
   $("generateCompanyStampBtn")?.addEventListener("click", createCompanyStampFromName);
 
