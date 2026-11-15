@@ -4291,6 +4291,18 @@
         <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
         <label id="siteBillRateLabel">現場別の例外単価 / 1人工（任意）</label>
         <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
+        <div id="siteMultiplierWrap">
+          <div class="row">
+            <div>
+              <label>現場別の早出掛け率（任意）</label>
+              <input id="siteEarlyMultiplier" inputmode="decimal" type="number" min="0" step="0.05" placeholder="未入力なら元請け設定">
+            </div>
+            <div>
+              <label>現場別の残業掛け率（任意）</label>
+              <input id="siteOvertimeMultiplier" inputmode="decimal" type="number" min="0" step="0.05" placeholder="未入力なら元請け設定">
+            </div>
+          </div>
+        </div>
         <button class="btn" id="addSiteBtn">現場を追加</button>
       </div>
       <div class="card">
@@ -4308,6 +4320,18 @@
         <input id="clientAddress" autocomplete="street-address" placeholder="例：○○県○○市...">
         <label>基本人工単価</label>
         <input id="clientBillRate" inputmode="numeric" type="number" min="0" placeholder="例：30000">
+
+        <div class="row">
+          <div>
+            <label>早出掛け率</label>
+            <input id="clientEarlyMultiplier" inputmode="decimal" type="number" min="0" step="0.05" value="1.25" placeholder="例：1.25">
+          </div>
+          <div>
+            <label>残業掛け率</label>
+            <input id="clientOvertimeMultiplier" inputmode="decimal" type="number" min="0" step="0.05" value="1.25" placeholder="例：1.25">
+          </div>
+        </div>
+        <div class="helper" style="margin-top:6px">1時間単価は「基本人工単価 ÷ 8 × 掛け率」で計算します。</div>
 
         <label>カレンダー表示色</label>
         <div class="client-color-row" id="clientColorPicker">
@@ -5323,6 +5347,8 @@
       postalCode:$("clientPostalCode").value.trim(),
       address:$("clientAddress").value.trim(),
       billRate:Number($("clientBillRate").value||0),
+      earlyMultiplier:normalizedClientMultiplier($("clientEarlyMultiplier").value),
+      overtimeMultiplier:normalizedClientMultiplier($("clientOvertimeMultiplier").value),
       color:$("clientColor").value || "#2563eb",
       closingDay:(()=>{
         const preset = $("clientClosingDayPreset").value;
@@ -5351,6 +5377,8 @@
     $("clientPostalCode").value="";
     $("clientAddress").value="";
     $("clientBillRate").value="";
+    $("clientEarlyMultiplier").value="1.25";
+    $("clientOvertimeMultiplier").value="1.25";
     $("clientColor").value="#2563eb";
     document.querySelectorAll("#clientColorPicker .color-choice").forEach((b,i)=>b.classList.toggle("selected", i===0));
     $("clientClosingDayPreset").value="0";
@@ -5373,7 +5401,7 @@
   function updateSiteBillingFieldsVisibility(){
     const isSelf = isSelfCompanyClientId($("siteClient")?.value || "");
 
-    const ids = ["siteContractTypeLabel","siteContractType","siteContractTypeHelp","siteRevenueLabel","siteRevenue","siteBillRateLabel","siteBillRate"];
+    const ids = ["siteContractTypeLabel","siteContractType","siteContractTypeHelp","siteRevenueLabel","siteRevenue","siteBillRateLabel","siteBillRate","siteMultiplierWrap"];
     ids.forEach(id=>{
       const el = $(id);
       if(el) el.style.display = isSelf ? "none" : "";
@@ -5384,6 +5412,8 @@
       if($("siteContractWorkContent")) $("siteContractWorkContent").value = "";
       if($("siteRevenue")) $("siteRevenue").value = "";
       if($("siteBillRate")) $("siteBillRate").value = "";
+      if($("siteEarlyMultiplier")) $("siteEarlyMultiplier").value = "";
+      if($("siteOvertimeMultiplier")) $("siteOvertimeMultiplier").value = "";
     }
 
     updateSiteContractFields();
@@ -5394,6 +5424,9 @@
     const isContract = !isSelf && ($("siteContractType")?.value || "常用") === "請負";
     if($("siteContractWorkContentWrap")){
       $("siteContractWorkContentWrap").style.display = isContract ? "block" : "none";
+    }
+    if($("siteMultiplierWrap")){
+      $("siteMultiplierWrap").style.display = (!isSelf && !isContract) ? "block" : "none";
     }
   }
 
@@ -5412,7 +5445,9 @@
       contractType:isSelf ? "常用" : ($("siteContractType") ? ($("siteContractType").value || "常用") : "常用"),
       contractWorkContent:isSelf ? "" : ($("siteContractWorkContent")?.value.trim() || ""),
       revenue:isSelf ? 0 : Number($("siteRevenue").value||0),
-      billRate:isSelf ? 0 : Number($("siteBillRate").value||0)
+      billRate:isSelf ? 0 : Number($("siteBillRate").value||0),
+      earlyMultiplier:isSelf ? null : optionalClientMultiplier($("siteEarlyMultiplier")?.value),
+      overtimeMultiplier:isSelf ? null : optionalClientMultiplier($("siteOvertimeMultiplier")?.value)
     };
     let savedSiteId = editingSiteId || "";
     if(editingSiteId){
@@ -5440,6 +5475,8 @@
     if($("siteContractWorkContent")) $("siteContractWorkContent").value="";
     $("siteRevenue").value="";
     $("siteBillRate").value="";
+    $("siteEarlyMultiplier").value="";
+    $("siteOvertimeMultiplier").value="";
     updateSiteBillingFieldsVisibility();
     renderAll();
     finishRegistration(wasEdit ? "現場を更新しました" : "現場を追加しました");
@@ -5659,6 +5696,8 @@
         postalCode:"",
         address:"",
         billRate:0,
+        earlyMultiplier:1.25,
+        overtimeMultiplier:1.25,
         color:"#94a3b8",
         closingDay:"",
         payment:""
@@ -5666,6 +5705,19 @@
     } return state.clients.find(x=>x.id===id); }
   function clientColor(client){
     return client?.color || "#64748b";
+  }
+  function normalizedClientMultiplier(value){
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : 1.25;
+  }
+  function optionalClientMultiplier(value){
+    if(value === null || value === undefined || String(value).trim() === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : null;
+  }
+  function effectiveSiteMultiplier(site, key, client){
+    const siteValue = optionalClientMultiplier(site?.[key]);
+    return siteValue === null ? normalizedClientMultiplier(client?.[key]) : siteValue;
   }
   function workerCompanyById(id){ return state.workerCompanies.find(x=>x.id===id); }
   function effectiveWorkerRate(worker){
@@ -5703,6 +5755,8 @@
     $("clientPostalCode").value = c.postalCode || "";
     $("clientAddress").value = c.address || "";
     $("clientBillRate").value = c.billRate || "";
+    $("clientEarlyMultiplier").value = normalizedClientMultiplier(c.earlyMultiplier);
+    $("clientOvertimeMultiplier").value = normalizedClientMultiplier(c.overtimeMultiplier);
     const closing = Number(c.closingDay||0);
     const standardClosingDays = [0,5,10,15,20,25];
     if(standardClosingDays.includes(closing)){
@@ -5747,6 +5801,8 @@
     if($("siteContractWorkContent")) $("siteContractWorkContent").value = s.contractWorkContent || "";
     $("siteRevenue").value = s.revenue || "";
     $("siteBillRate").value = s.billRate || "";
+    $("siteEarlyMultiplier").value = optionalClientMultiplier(s.earlyMultiplier) ?? "";
+    $("siteOvertimeMultiplier").value = optionalClientMultiplier(s.overtimeMultiplier) ?? "";
     updateSiteBillingFieldsVisibility();
     $("addSiteBtn").textContent = "現場を更新";
     try{$("siteName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
@@ -6171,7 +6227,7 @@
         <div class="item-line">
           <div>
             <strong><span class="client-dot" style="background:${clientColor(c)}"></span>${escapeHtml(c.name)}</strong>
-            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}${c.closingDay ? c.closingDay + "日締め" : "末日締め"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
+            <small>${c.billRate ? "基本単価 " + yen(c.billRate) + " / " : ""}早出 ×${normalizedClientMultiplier(c.earlyMultiplier)} / 残業 ×${normalizedClientMultiplier(c.overtimeMultiplier)} / ${c.closingDay ? c.closingDay + "日締め" : "末日締め"}${c.payment ? " / " + escapeHtml(c.payment) : ""}</small>
           </div>
           <div class="item-actions">
             <button class="edit-link" onclick="editClient('${c.id}')">編集</button>
@@ -6225,7 +6281,7 @@
           <div class="item-line">
             <div>
               <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
-              <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}</small>
+              <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}${optionalClientMultiplier(s.earlyMultiplier) !== null ? " / 早出 ×" + optionalClientMultiplier(s.earlyMultiplier) : ""}${optionalClientMultiplier(s.overtimeMultiplier) !== null ? " / 残業 ×" + optionalClientMultiplier(s.overtimeMultiplier) : ""}</small>
             </div>
             <div class="item-actions">
               <button class="edit-link" type="button" data-site-action="edit" data-site-id="${s.id}">編集</button>
@@ -7736,12 +7792,38 @@ function getContractBillingIncluded(siteId, month){
 
       const dailyLaborMap = {};
       siteEntries.forEach(e=>{
-        if(!dailyLaborMap[e.date]) dailyLaborMap[e.date] = 0;
-        dailyLaborMap[e.date] += Number(e.jinko||0);
+        if(!dailyLaborMap[e.date]){
+          dailyLaborMap[e.date] = {
+            jinko:0,
+            earlyHours:0,
+            overtimeHours:0,
+            earlyWorkerIds:new Set(),
+            overtimeWorkerIds:new Set()
+          };
+        }
+        const daily = dailyLaborMap[e.date];
+        daily.jinko += Number(e.jinko||0);
+        const earlyHours = Number(e.early||0);
+        const overtimeHours = Number(e.overtime||0);
+        if(earlyHours > 0){
+          daily.earlyHours += earlyHours;
+          daily.earlyWorkerIds.add(String(e.workerId || e.id));
+        }
+        if(overtimeHours > 0){
+          daily.overtimeHours += overtimeHours;
+          daily.overtimeWorkerIds.add(String(e.workerId || e.id));
+        }
       });
       const dailyLabor = Object.entries(dailyLaborMap)
         .sort((a,b)=>a[0].localeCompare(b[0]))
-        .map(([date,jinko])=>({date,jinko}));
+        .map(([date,v])=>({
+          date,
+          jinko:v.jinko,
+          earlyHours:v.earlyHours,
+          overtimeHours:v.overtimeHours,
+          earlyPeople:v.earlyWorkerIds.size,
+          overtimePeople:v.overtimeWorkerIds.size
+        }));
 
       const siteExpenseItems = state.siteExpenses.filter(
         x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end)
@@ -7807,6 +7889,14 @@ function getContractBillingIncluded(siteId, month){
       const siteClient = clientById(site.clientId);
       const rate = Number(site.billRate || siteClient?.billRate || 0);
       const laborAmount = jinko * rate;
+      const earlyMultiplier = effectiveSiteMultiplier(site, "earlyMultiplier", siteClient);
+      const overtimeMultiplier = effectiveSiteMultiplier(site, "overtimeMultiplier", siteClient);
+      const earlyRate = Math.round(rate / 8 * earlyMultiplier);
+      const overtimeRate = Math.round(rate / 8 * overtimeMultiplier);
+      const earlyHours = dailyLabor.reduce((sum,d)=>sum + Number(d.earlyHours||0), 0);
+      const overtimeHours = dailyLabor.reduce((sum,d)=>sum + Number(d.overtimeHours||0), 0);
+      const earlyAmount = Math.round(earlyHours * earlyRate);
+      const overtimeAmount = Math.round(overtimeHours * overtimeRate);
 
       return {
         site,
@@ -7815,19 +7905,27 @@ function getContractBillingIncluded(siteId, month){
         dailyLabor,
         rate,
         laborAmount,
+        earlyMultiplier,
+        overtimeMultiplier,
+        earlyRate,
+        overtimeRate,
+        earlyHours,
+        overtimeHours,
+        earlyAmount,
+        overtimeAmount,
         expenses,
         dailyExpenses,
         hasTaxIncludedExpense,
         percent:0,
         contractAmount:0,
         progressAmount:0,
-        amount: laborAmount + expenses
+        amount: laborAmount + earlyAmount + overtimeAmount + expenses
       };
     }).filter(r=>{
       if(r.contractType === "請負"){
         return r.included && r.percent > 0;
       }
-      return r.jinko > 0 || r.expenses > 0;
+      return r.jinko > 0 || r.earlyHours > 0 || r.overtimeHours > 0 || r.expenses > 0;
     });
   }
 
@@ -8570,13 +8668,37 @@ function getContractBillingIncluded(siteId, month){
           rate:Number(r.rate || 0),
           labor:d
         });
+        if(Number(d.earlyHours || 0) > 0){
+          dailyItems.push({
+            date:d.date,
+            type:"early",
+            typeOrder:1,
+            siteOrder,
+            itemOrder,
+            siteName:r.site.name,
+            rate:Number(r.earlyRate || 0),
+            labor:d
+          });
+        }
+        if(Number(d.overtimeHours || 0) > 0){
+          dailyItems.push({
+            date:d.date,
+            type:"overtime",
+            typeOrder:2,
+            siteOrder,
+            itemOrder,
+            siteName:r.site.name,
+            rate:Number(r.overtimeRate || 0),
+            labor:d
+          });
+        }
       });
 
       (r.dailyExpenses || []).forEach((d, itemOrder)=>{
         dailyItems.push({
           date:d.date,
           type:"expense",
-          typeOrder:1,
+          typeOrder:3,
           siteOrder,
           itemOrder,
           siteName:r.site.name,
@@ -8686,6 +8808,28 @@ function getContractBillingIncluded(siteId, month){
             <td class="unit">人工</td>
             <td class="price">${Math.round(item.rate).toLocaleString("ja-JP")}</td>
             <td class="amount">${Math.round(dailyAmount).toLocaleString("ja-JP")}</td>
+            <td class="note"></td>
+          </tr>
+        `);
+        return;
+      }
+
+      if(item.type === "early" || item.type === "overtime"){
+        const d = item.labor;
+        const isEarly = item.type === "early";
+        const hours = Number(isEarly ? d.earlyHours : d.overtimeHours) || 0;
+        const people = Number(isEarly ? d.earlyPeople : d.overtimePeople) || 0;
+        const hourlyRate = Number(item.rate || 0);
+        const amount = Math.round(hours * hourlyRate);
+        const hoursText = hours.toFixed(hours % 1 ? 2 : 0).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+        detailRows.push(`
+          <tr>
+            <td class="date">${displayDate}</td>
+            <td class="desc">${isEarly ? "早出" : "残業"} ${hoursText}時間</td>
+            <td class="qty">${people}</td>
+            <td class="unit">人</td>
+            <td class="price">${Math.round(hourlyRate).toLocaleString("ja-JP")}</td>
+            <td class="amount">${amount.toLocaleString("ja-JP")}</td>
             <td class="note"></td>
           </tr>
         `);
@@ -9882,7 +10026,19 @@ function getContractBillingIncluded(siteId, month){
       const ci = state.companyInfo || {};
       const recentSelectsForCloud = {
         ...(state.recentSelects || {}),
-        __companyInfoCloudV1:companyInfoCloudSnapshot(ci)
+        __companyInfoCloudV1:companyInfoCloudSnapshot(ci),
+        __clientBillingMultipliersV1:Object.fromEntries(
+          state.clients.map(client=>[String(client.id), {
+            earlyMultiplier:normalizedClientMultiplier(client.earlyMultiplier),
+            overtimeMultiplier:normalizedClientMultiplier(client.overtimeMultiplier)
+          }])
+        ),
+        __siteBillingMultipliersV1:Object.fromEntries(
+          state.sites.map(site=>[String(site.id), {
+            earlyMultiplier:optionalClientMultiplier(site.earlyMultiplier),
+            overtimeMultiplier:optionalClientMultiplier(site.overtimeMultiplier)
+          }])
+        )
       };
       const settings = {
         company_id:cloudCompanyId,
@@ -9966,8 +10122,18 @@ function getContractBillingIncluded(siteId, month){
       && typeof storedRecentSelects.__companyInfoCloudV1 === "object")
       ? storedRecentSelects.__companyInfoCloudV1
       : {};
+    const clientBillingMultipliers = (storedRecentSelects.__clientBillingMultipliersV1
+      && typeof storedRecentSelects.__clientBillingMultipliersV1 === "object")
+      ? storedRecentSelects.__clientBillingMultipliersV1
+      : {};
+    const siteBillingMultipliers = (storedRecentSelects.__siteBillingMultipliersV1
+      && typeof storedRecentSelects.__siteBillingMultipliersV1 === "object")
+      ? storedRecentSelects.__siteBillingMultipliersV1
+      : {};
     const recentSelects = {...storedRecentSelects};
     delete recentSelects.__companyInfoCloudV1;
+    delete recentSelects.__clientBillingMultipliersV1;
+    delete recentSelects.__siteBillingMultipliersV1;
     const companyValue = (column, key, fallback="") => {
       if(Object.prototype.hasOwnProperty.call(cloudCompanyInfo, key)){
         return cloudCompanyInfo[key];
@@ -9982,7 +10148,9 @@ function getContractBillingIncluded(siteId, month){
         clients:map.clients.filter(x=>x.id!==cloudSelfCompanyClientId(companyId)).map(x=>({
           id:x.id, clientNumber:x.client_number, name:x.name, postalCode:x.postal_code || "",
           address:x.address || "", billRate:Number(x.bill_rate||0), color:x.color || "",
-          closingDay:Number(x.closing_day||0), payment:x.payment || ""
+          closingDay:Number(x.closing_day||0), payment:x.payment || "",
+          earlyMultiplier:normalizedClientMultiplier(clientBillingMultipliers[String(x.id)]?.earlyMultiplier),
+          overtimeMultiplier:normalizedClientMultiplier(clientBillingMultipliers[String(x.id)]?.overtimeMultiplier)
         })),
         workerCompanies:map.worker_companies.map(x=>({
           id:x.id, name:x.name, rate:Number(x.rate||0)
@@ -9994,7 +10162,9 @@ function getContractBillingIncluded(siteId, month){
             : (x.client_id || ""),
           name:x.name, contractType:x.contract_type || "常用",
           contractWorkContent:x.contract_work_content || "",
-          revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0)
+          revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0),
+          earlyMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.earlyMultiplier),
+          overtimeMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.overtimeMultiplier)
         })),
         workers:map.workers.map(x=>({
           id:x.id, companyId:x.company_ref_id || "", name:x.name, rate:Number(x.rate||0),
@@ -11203,9 +11373,17 @@ function getContractBillingIncluded(siteId, month){
   function normalizeImportedState(data){
     const clean = data && typeof data === "object" ? data : {};
     return {
-      clients: Array.isArray(clean.clients) ? clean.clients : [],
+      clients: Array.isArray(clean.clients) ? clean.clients.map(client=>({
+        ...client,
+        earlyMultiplier:normalizedClientMultiplier(client?.earlyMultiplier),
+        overtimeMultiplier:normalizedClientMultiplier(client?.overtimeMultiplier)
+      })) : [],
       workerCompanies: Array.isArray(clean.workerCompanies) ? clean.workerCompanies : [],
-      sites: Array.isArray(clean.sites) ? clean.sites : [],
+      sites: Array.isArray(clean.sites) ? clean.sites.map(site=>({
+        ...site,
+        earlyMultiplier:optionalClientMultiplier(site?.earlyMultiplier),
+        overtimeMultiplier:optionalClientMultiplier(site?.overtimeMultiplier)
+      })) : [],
       workers: Array.isArray(clean.workers) ? clean.workers : [],
       entries: Array.isArray(clean.entries) ? clean.entries : [],
       siteExpenses: Array.isArray(clean.siteExpenses) ? clean.siteExpenses : [],
