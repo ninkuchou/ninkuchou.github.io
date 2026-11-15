@@ -2048,7 +2048,10 @@
     position:relative !important; right:auto !important; top:auto !important; transform:none !important;
     display:inline-flex !important; align-items:center; justify-content:center;
     min-width:54px !important; min-height:54px !important; padding:10px 12px !important;
-    font-size:30px !important; border-radius:14px; background:#eff6ff; box-shadow:inset 0 0 0 1px #bfdbfe;
+    font-size:30px !important; border-radius:14px;
+    background:linear-gradient(145deg,#fffef0,#fde68a) !important;
+    box-shadow:0 0 0 4px rgba(255,255,255,.96),0 0 24px rgba(250,204,21,.95),inset 0 0 0 2px #facc15 !important;
+    color:#0f172a !important;
     pointer-events:none; cursor:default;
   }
   .tutorial-demo-alert.invoice-alert-btn span{
@@ -2066,6 +2069,8 @@
   }
   .invoice-alert-btn.tutorial-highlight{
     position:absolute !important;
+    background:linear-gradient(145deg,#fffef0,#fde68a) !important;
+    box-shadow:0 0 0 5px rgba(255,255,255,.98),0 0 28px rgba(250,204,21,.95) !important;
   }
   @media (min-width:700px){ .tutorial-card.bottom{ bottom:28px; } .tutorial-card.top{ top:28px; } }
 
@@ -9335,7 +9340,12 @@ function getContractBillingIncluded(siteId, month){
       view:"invoice",
       target:"#invoiceAlertBtn",
       title:"⑧ 請求書の作り忘れを防止",
-      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p><p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
+      html:`<p>締め日が来た請求があると、画面上部のロゴ右側に請求通知アイコンが表示されます。</p>
+        <div class="tutorial-icon-demo" aria-label="請求通知アイコンの見本">
+          <button class="tutorial-demo-alert invoice-alert-btn" type="button" tabindex="-1" aria-hidden="true">🧾<span>1</span></button>
+          <div class="tutorial-icon-demo-label">請求通知アイコン</div>
+        </div>
+        <p>このアイコンを押すと「請求」タブの請求チェックを開けます。請求書を作成したら「✓」を押して、作成済みにしてください。</p>`
     },
     {
       title:"⑨ ホーム画面に追加",
@@ -9476,7 +9486,7 @@ function getContractBillingIncluded(siteId, month){
     if(!step) return;
 
     clearTutorialHighlight();
-    setTutorialInvoiceAlert(tutorialIndex === 8);
+    setTutorialInvoiceAlert(tutorialIndex === 7);
     activateViewForTutorial(step.view);
 
     // 集計ステップは月別 / 現場別の切替そのものを説明するため、
