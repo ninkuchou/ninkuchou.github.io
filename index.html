@@ -5734,6 +5734,21 @@
     const overtimeCost = Number(entry.overtime||0) * Number(w?.overtimeRate||0);
     return base + earlyCost + overtimeCost;
   }
+  function workerEntryRevenue(entry){
+    const site = siteById(entry.siteId);
+    if(!site || isSelfCompanyClientId(site.clientId)) return 0;
+    if((site.contractType || "常用") === "請負") return 0;
+
+    const client = site.clientId ? clientById(site.clientId) : null;
+    const rate = Number(site.billRate || client?.billRate || 0);
+    const earlyRate = Math.round(rate / 8 * effectiveSiteMultiplier(site, "earlyMultiplier", client));
+    const overtimeRate = Math.round(rate / 8 * effectiveSiteMultiplier(site, "overtimeMultiplier", client));
+    return (
+      Number(entry.jinko || 0) * rate +
+      Number(entry.early || 0) * earlyRate +
+      Number(entry.overtime || 0) * overtimeRate
+    );
+  }
   function siteById(id){ return state.sites.find(x=>x.id===id); }
   function workerById(id){ return state.workers.find(x=>x.id===id); }
 
@@ -6874,12 +6889,16 @@ function showDayDetail(date){
 
     const byWorker = {};
     entries.forEach(e=>{
-      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0};
-      const w = workerById(e.workerId);
+      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,revenue:0,hasRevenue:false,early:0,overtime:0};
       byWorker[e.workerId].jinko += Number(e.jinko||0);
       byWorker[e.workerId].early += Number(e.early||0);
       byWorker[e.workerId].overtime += Number(e.overtime||0);
       byWorker[e.workerId].cost += workerEntryCost(e);
+      const site = siteById(e.siteId);
+      if(site && !isSelfCompanyClientId(site.clientId) && (site.contractType || "常用") !== "請負"){
+        byWorker[e.workerId].hasRevenue = true;
+        byWorker[e.workerId].revenue += workerEntryRevenue(e);
+      }
     });
 
     const rows = Object.entries(byWorker).map(([wid,v])=>{
@@ -6890,7 +6909,10 @@ function showDayDetail(date){
             <strong>${escapeHtml(w?.name||"不明")}</strong>
             <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""}</small>
           </div>
-          <b>${yen(v.cost)}</b>
+          <div style="text-align:right;display:grid;gap:3px;flex:0 0 auto">
+            ${v.hasRevenue ? `<span><small style="display:inline">売上</small> <b>${yen(v.revenue)}</b></span>` : ""}
+            <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
+          </div>
         </div>
       </div>`;
     }).join("");
@@ -6913,7 +6935,7 @@ function showDayDetail(date){
             <strong>${escapeHtml(c?.name || "未設定")}</strong>
             <small>${v.jinko.toFixed(2)}人工</small>
           </div>
-          <b>${yen(v.cost)}</b>
+          <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
         </div>
       </div>`;
     }).join("");
