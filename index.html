@@ -4517,8 +4517,11 @@
         </div>
 
         <div id="summaryMonthWrap">
-          <label>月</label>
+          <label>集計月（締め日の月）</label>
           <div class="date-wrap"><input id="summaryMonth" type="month"></div>
+          <label for="summaryStartDay">集計期間の開始日</label>
+          <select id="summaryStartDay"></select>
+          <div id="summaryPeriodLabel" class="helper"></div>
         </div>
 
         <label>現場</label>
@@ -5799,6 +5802,34 @@
 
   let summaryMode = "monthly";
 
+  function summaryStartDay(){
+    const day = Number(state.recentSelects?.summaryStartDay || 1);
+    return Number.isInteger(day) && day>=1 && day<=31 ? day : 1;
+  }
+
+  function summaryPeriodFor(month){
+    const match = /^(\d{4})-(\d{2})$/.exec(month) || /^(\d{4})-(\d{2})$/.exec(monthLocal());
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2])-1;
+    const startDay = summaryStartDay();
+    const firstMonthIndex = startDay===1 ? monthIndex : monthIndex-1;
+    const anchor = index=>{
+      const last = new Date(year,index+1,0).getDate();
+      return new Date(year,index,Math.min(startDay,last));
+    };
+    const first = anchor(firstMonthIndex);
+    const last = anchor(firstMonthIndex+1);
+    last.setDate(last.getDate()-1);
+    const dateString = d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    return {start:dateString(first),end:dateString(last)};
+  }
+
+  $("summaryStartDay").innerHTML = Array.from({length:31},(_,index)=>{
+    const day = index+1;
+    return `<option value="${day}">${day===1 ? "1日〜月末" : `${day}日〜翌月${day-1}日${day>=29 ? "（ない月は月末）" : ""}`}</option>`;
+  }).join("");
+  $("summaryStartDay").value=String(summaryStartDay());
+
   let summarySiteOptionsSignature = "";
 
   function summarySiteSignature(sites){
@@ -5898,7 +5929,7 @@
     }
     if($("summaryModeHint")){
       $("summaryModeHint").textContent = summaryMode === "monthly"
-        ? "選択した月の人工・売上・人件費・経費・粗利を集計します。"
+        ? "表示中の期間の人工・売上・人件費・経費・粗利を集計します。"
         : "選択した現場を月をまたいで集計します。下のカレンダーをスクロールして、日付を押すとその日の詳細を確認できます。";
     }
 
@@ -5924,6 +5955,11 @@
   $("summaryModeMonthly")?.addEventListener("click", ()=>setSummaryMode("monthly"));
   $("summaryModeSite")?.addEventListener("click", ()=>setSummaryMode("site"));
   $("summaryMonth").addEventListener("change", renderSummary);
+  $("summaryStartDay").addEventListener("change",()=>{
+    state.recentSelects.summaryStartDay=Number($("summaryStartDay").value);
+    save();
+    renderSummary();
+  });
   $("summarySite").addEventListener("change", ()=>{
     if(summaryMode === "site" && $("summarySite").value === "all"){
       syncSummarySiteOptions();
@@ -6908,12 +6944,13 @@
   }
 
 
-  function calendarHtmlForMonth(entries, month, siteFilter){
+  function calendarHtmlForMonth(entries, month, siteFilter, period){
     siteFilter = siteFilter || "all";
 
     const [year, mon] = month.split("-").map(Number);
-    const first = new Date(year, mon-1, 1);
-    const lastDay = new Date(year, mon, 0).getDate();
+    const first = period ? new Date(...period.start.split("-").map((value,index)=>index===1 ? Number(value)-1 : Number(value))) : new Date(year, mon-1, 1);
+    const last = period ? new Date(...period.end.split("-").map((value,index)=>index===1 ? Number(value)-1 : Number(value))) : new Date(year, mon, 0);
+    const dayCount = Math.round((Date.UTC(last.getFullYear(),last.getMonth(),last.getDate())-Date.UTC(first.getFullYear(),first.getMonth(),first.getDate()))/86400000)+1;
     const startWeekday = first.getDay();
 
     const heads = ["日","月","火","水","木","金","土"]
@@ -6924,8 +6961,10 @@
       cells += `<div class="cal-day empty"></div>`;
     }
 
-    for(let day=1; day<=lastDay; day++){
-      const date = `${year}-${String(mon).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    for(let offset=0; offset<dayCount; offset++){
+      const current = new Date(first.getFullYear(),first.getMonth(),first.getDate()+offset);
+      const day = current.getDate();
+      const date = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
       const dayEntries = entries.filter(e=>e.date===date);
 
       const bySite = {};
@@ -6962,7 +7001,7 @@
 
       cells += `
         <div class="cal-day" onclick="showDayDetail('${date}')">
-          <div class="cal-date">${day}日</div>
+          <div class="cal-date">${period ? `${current.getMonth()+1}/${day}` : `${day}日`}</div>
           ${clientTags ? `<div class="cal-client-tags">${clientTags}</div>` : ""}
           ${chips}${expenseMark}${more}
         </div>`;
@@ -7002,11 +7041,11 @@
     }</div>`;
   }
 
-  function renderCalendar(entries, month, siteFilter){
+  function renderCalendar(entries, month, siteFilter, period){
     siteFilter = siteFilter || "all";
     const box = $("summaryCalendar");
     if(!box) return;
-    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter);
+    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter, period);
   }
 
   
@@ -7236,6 +7275,9 @@ function showDayDetail(date){
   }
 
   function renderSummary(){
+    if($("summaryStartDay") && $("summaryStartDay").value!==String(summaryStartDay())){
+      $("summaryStartDay").value=String(summaryStartDay());
+    }
     const selectedSite = $("summarySite")?.value || "";
     const siteFilter = summaryMode === "site" ? selectedSite : (selectedSite || "all");
 
@@ -7256,17 +7298,20 @@ function showDayDetail(date){
       }
     }else{
       const month = $("summaryMonth").value || monthLocal();
-      entries = state.entries.filter(e=>e.date.startsWith(month));
+      const period = summaryPeriodFor(month);
+      const periodLabel = `${period.start.replaceAll("-","/")}〜${period.end.replaceAll("-","/")}`;
+      $("summaryPeriodLabel").textContent = `集計期間：${periodLabel}（設定は変更するまで保持）`;
+      entries = state.entries.filter(e=>dateInRange(e.date,period.start,period.end));
       if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
 
-      if($("summaryCalendarTitle")) $("summaryCalendarTitle").textContent = "月間カレンダー";
-      renderCalendar(entries, month, siteFilter);
+      if($("summaryCalendarTitle")) $("summaryCalendarTitle").textContent = `集計カレンダー（${periodLabel}）`;
+      renderCalendar(entries, month, siteFilter, period);
 
       const totalJinko = entries.reduce((a,e)=>a+Number(e.jinko||0),0);
       const totalEarly = entries.reduce((a,e)=>a+Number(e.early||0),0);
       const totalOvertime = entries.reduce((a,e)=>a+Number(e.overtime||0),0);
       const labor = entries.reduce((a,e)=>a + workerEntryCost(e),0);
-      let siteExpenses = state.siteExpenses.filter(x=>x.date.startsWith(month));
+      let siteExpenses = state.siteExpenses.filter(x=>dateInRange(x.date,period.start,period.end));
       if(siteFilter!=="all") siteExpenses = siteExpenses.filter(x=>x.siteId===siteFilter);
 
       const sharedExpenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
