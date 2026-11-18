@@ -4328,6 +4328,16 @@
           <button class="btn secondary" id="selectAllBtn" type="button">全員チェック</button>
           <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
         </div>
+        <details id="bulkAllowanceDetails" class="expense-details">
+          <summary>チェック中の作業員に手当を一括設定</summary>
+          <div class="expense-details-body">
+            <div class="helper">表示中でチェックが入っている作業員に適用します。あとから個別に変更できます。</div>
+            <div class="bulk-actions">
+              <button class="btn secondary" id="bulkNightBtn" type="button" data-bulk-allowance="night">夜勤を一括追加</button>
+              <button class="btn secondary" id="bulkTravelBtn" type="button" data-bulk-allowance="travel">出張を一括追加</button>
+            </div>
+          </div>
+        </details>
 
         <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業や手当を入力できます。</div>
         <div id="entrySavePreview" class="helper" role="status" aria-live="polite" style="margin:10px 0;font-weight:600"></div>
@@ -4389,6 +4399,14 @@
             </div>
           </div>
         </details>
+        <div class="site-default-allowances">
+          <label>入力時に作業員へ適用する手当</label>
+          <div class="bulk-allowances">
+            <label><input id="siteDefaultNight" type="checkbox">夜勤</label>
+            <label><input id="siteDefaultTravel" type="checkbox">出張</label>
+          </div>
+          <div class="helper">この現場の新しい人工入力で、作業員の初期チェックに反映します。入力時に個別変更できます。</div>
+        </div>
         <button class="btn" id="addSiteBtn">現場を追加</button>
       </div>
       <div class="card">
@@ -5745,6 +5763,8 @@
       contractWorkContent:isContract ? String(site.contractWorkContent||"").trim() : "",
       revenue:isContract ? contractSiteAmount(site) : 0,
       contractItems:items,
+      defaultNight:site.defaultNight===true,
+      defaultTravel:site.defaultTravel===true,
       billRate:isContract ? 0 : Number(site.billRate||0),
       earlyMultiplier:isContract ? null : optionalClientMultiplier(site.earlyMultiplier),
       overtimeMultiplier:isContract ? null : optionalClientMultiplier(site.overtimeMultiplier)
@@ -5784,6 +5804,8 @@
       contractWorkContent:isSelf ? "" : ($("siteContractWorkContent")?.value.trim() || ""),
       revenue:isContract ? (contractItems.length ? contractItems.reduce((sum,item)=>sum+item.amount,0) : Number($("siteRevenue").value||0)) : 0,
       contractItems:contractItems,
+      defaultNight:$("siteDefaultNight").checked,
+      defaultTravel:$("siteDefaultTravel").checked,
       billRate:isSelf ? 0 : Number($("siteBillRate").value||0),
       earlyMultiplier:isSelf ? null : optionalClientMultiplier($("siteEarlyMultiplier")?.value),
       overtimeMultiplier:isSelf ? null : optionalClientMultiplier($("siteOvertimeMultiplier")?.value)
@@ -5833,8 +5855,11 @@
     $("siteBillRate").value="";
     $("siteEarlyMultiplier").value="";
     $("siteOvertimeMultiplier").value="";
+    $("siteDefaultNight").checked=false;
+    $("siteDefaultTravel").checked=false;
     $("siteRateOverrides").open=false;
     updateSiteBillingFieldsVisibility();
+    loadedEntryContext="";
     renderAll();
     finishRegistration(wasEdit ? "現場を更新しました" : "現場を追加しました");
   });
@@ -6303,6 +6328,8 @@
     $("siteBillRate").value = s.billRate || "";
     $("siteEarlyMultiplier").value = optionalClientMultiplier(s.earlyMultiplier) ?? "";
     $("siteOvertimeMultiplier").value = optionalClientMultiplier(s.overtimeMultiplier) ?? "";
+    $("siteDefaultNight").checked = s.defaultNight === true;
+    $("siteDefaultTravel").checked = s.defaultTravel === true;
     $("siteRateOverrides").open = !!(s.billRate || optionalClientMultiplier(s.earlyMultiplier) !== null || optionalClientMultiplier(s.overtimeMultiplier) !== null);
     updateSiteBillingFieldsVisibility();
     $("addSiteBtn").textContent = "現場を更新";
@@ -6429,6 +6456,7 @@
 
   let bulkWorkerSelectionDraft = null;
   const bulkAllowanceDraft = new Map();
+  const bulkAllowanceDefaultApplied = new Set();
   const bulkJinkoDraft = new Map();
   let loadedEntryContext = "";
   let loadedEntryState = null;
@@ -6481,6 +6509,46 @@
     // 既に入力した手当は、作業員登録の設定を後で変えても当時の名称・金額を残す。
     saved.forEach(item=>options.set(item.id,item));
     return [...options.values()];
+  }
+
+  function checkedBulkWorkerRows(){
+    return [...document.querySelectorAll("#bulkWorkerList .member-row")]
+      .filter(row=>row.querySelector(".bulk-check")?.checked);
+  }
+
+  function bulkAllowanceDefaults(){
+    const site=siteById($("entrySite").value);
+    return {
+      night:site?.defaultNight === true,
+      travel:site?.defaultTravel === true
+    };
+  }
+
+  function updateBulkAllowanceButtons(){
+    const rows = checkedBulkWorkerRows();
+    [["bulkNightBtn",".bulk-night","夜勤"],["bulkTravelBtn",".bulk-travel","出張"]].forEach(([id,selector,label])=>{
+      const button = $(id);
+      if(!button) return;
+      const allApplied = rows.length>0 && rows.every(row=>row.querySelector(selector)?.checked);
+      button.disabled = rows.length===0;
+      button.dataset.remove = allApplied ? "1" : "0";
+      button.textContent = `${label}を一括${allApplied ? "解除" : "追加"}`;
+    });
+  }
+
+  function initializeBulkWorkerAllowance(workerId){
+    if(bulkAllowanceDefaultApplied.has(workerId)) return;
+    const saved = state.entries.find(e=>e.date===$("entryDate").value && e.siteId===$("entrySite").value && e.workerId===workerId);
+    const defaults = bulkAllowanceDefaults();
+    bulkAllowanceDraft.set(workerId,{
+      ...(bulkAllowanceDraft.get(workerId) || {}),
+      early:bulkAllowanceDraft.get(workerId)?.early ?? (saved?.early ? String(saved.early) : ""),
+      overtime:bulkAllowanceDraft.get(workerId)?.overtime ?? (saved?.overtime ? String(saved.overtime) : ""),
+      night:saved ? saved.nightShift===true : defaults.night,
+      travel:saved ? saved.businessTrip===true : defaults.travel,
+      customIds:bulkAllowanceDraft.get(workerId)?.customIds ?? (saved ? normalizedCustomAllowances(saved.customAllowances).map(item=>item.id) : [])
+    });
+    bulkAllowanceDefaultApplied.add(workerId);
   }
 
   function updateEntrySavePreview(){
@@ -6551,6 +6619,7 @@
 
     if(!workers.length){
       box.innerHTML = `<div class="empty">この所属会社の作業員はまだ登録されていません。</div>`;
+      updateBulkAllowanceButtons();
       updateEntrySavePreview();
       return;
     }
@@ -6601,6 +6670,7 @@
         </div>
       </div>
     `;}).join("");
+    updateBulkAllowanceButtons();
     updateEntrySavePreview();
   }
 
@@ -6614,9 +6684,22 @@
   });
 
   $("bulkWorkerList").addEventListener("change", event=>{
-    if(event.target.matches(".bulk-check")) captureBulkWorkerSelection();
+    if(event.target.matches(".bulk-check")){
+      captureBulkWorkerSelection();
+      if(event.target.checked){
+        const workerId=event.target.dataset.workerId;
+        initializeBulkWorkerAllowance(workerId);
+        const allowance=bulkAllowanceDraft.get(workerId);
+        const row=event.target.closest(".member-row");
+        row.querySelector(".bulk-night").checked=allowance.night;
+        row.querySelector(".bulk-travel").checked=allowance.travel;
+        updateBulkAllowanceSummary(row.querySelector(".member-allowance-details"));
+      }
+    }
     if(event.target.matches(".bulk-jinko")) bulkJinkoDraft.set(event.target.dataset.workerId,event.target.value);
+    if(event.target.matches(".bulk-night,.bulk-travel")) bulkAllowanceDefaultApplied.add(event.target.dataset.workerId);
     if(event.target.matches(".bulk-early,.bulk-overtime,.bulk-night,.bulk-travel,.bulk-custom-allowance")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
+    updateBulkAllowanceButtons();
   });
   $("bulkWorkerList").addEventListener("click", event=>{
     const button = event.target.closest(".member-extra-toggle");
@@ -6628,6 +6711,22 @@
   });
   $("bulkWorkerList").addEventListener("input", event=>{
     if(event.target.matches(".bulk-early,.bulk-overtime")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
+  });
+
+  $("bulkAllowanceDetails").addEventListener("click",event=>{
+    const button = event.target.closest("[data-bulk-allowance]");
+    if(!button || button.disabled) return;
+    const selector = button.dataset.bulkAllowance === "night" ? ".bulk-night" : ".bulk-travel";
+    const apply = button.dataset.remove !== "1";
+    checkedBulkWorkerRows().forEach(row=>{
+      const checkbox = row.querySelector(selector);
+      if(!checkbox) return;
+      checkbox.checked = apply;
+      bulkAllowanceDefaultApplied.add(checkbox.dataset.workerId);
+      updateBulkAllowanceSummary(row.querySelector(".member-allowance-details"));
+    });
+    updateBulkAllowanceButtons();
+    updateEntrySavePreview();
   });
 
   ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
@@ -6660,6 +6759,7 @@
     const expenses = state.siteExpenses.filter(x=>x.date===date && x.siteId===siteId);
     bulkWorkerSelectionDraft = entries.length ? entries.map(e=>e.workerId) : null;
     bulkAllowanceDraft.clear();
+    bulkAllowanceDefaultApplied.clear();
     bulkJinkoDraft.clear();
     entries.forEach(e=>{
       bulkJinkoDraft.set(e.workerId,String(e.jinko ?? 1));
@@ -6671,6 +6771,8 @@
         customIds:normalizedCustomAllowances(e.customAllowances).map(item=>item.id)
       });
     });
+    const selected=bulkWorkerSelection();
+    selected.forEach(initializeBulkWorkerAllowance);
     renderBulkWorkers();
 
     $("existingDaySummary").textContent = entries.length || expenses.length
@@ -6696,14 +6798,18 @@
 
 
   $("selectAllBtn").addEventListener("click", ()=>{
-    document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
+    document.querySelectorAll(".bulk-check").forEach(x=>{
+      if(!x.checked){x.checked=true;x.dispatchEvent(new Event("change",{bubbles:true}));}
+    });
     captureBulkWorkerSelection();
+    updateBulkAllowanceButtons();
     updateEntrySavePreview();
   });
 
   $("clearAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=false);
     captureBulkWorkerSelection();
+    updateBulkAllowanceButtons();
     updateEntrySavePreview();
   });
 
@@ -11131,7 +11237,9 @@ function getContractBillingIncluded(siteId, month){
         __siteBillingMultipliersV1:Object.fromEntries(
           state.sites.map(site=>[String(site.id), {
             earlyMultiplier:optionalClientMultiplier(site.earlyMultiplier),
-            overtimeMultiplier:optionalClientMultiplier(site.overtimeMultiplier)
+            overtimeMultiplier:optionalClientMultiplier(site.overtimeMultiplier),
+            defaultNight:site.defaultNight === true,
+            defaultTravel:site.defaultTravel === true
           }])
         ),
         __contractLineItemsV1:Object.fromEntries(
@@ -11281,7 +11389,9 @@ function getContractBillingIncluded(siteId, month){
           revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0),
           contractItems:normalizedContractItems(contractLineItems[String(x.id)]),
           earlyMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.earlyMultiplier),
-          overtimeMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.overtimeMultiplier)
+          overtimeMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.overtimeMultiplier),
+          defaultNight:siteBillingMultipliers[String(x.id)]?.defaultNight === true,
+          defaultTravel:siteBillingMultipliers[String(x.id)]?.defaultTravel === true
         })),
         workers:map.workers.map(x=>({
           id:x.id, companyId:x.company_ref_id || "", name:x.name, rate:Number(x.rate||0),
