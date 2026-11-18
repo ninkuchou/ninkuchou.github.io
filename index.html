@@ -5329,7 +5329,10 @@
       siteId,
       ...list.filter(id=>id!==siteId)
     ].slice(0,1000);
+    state.recentSelects.siteUsageUpdatedAt = new Date().toISOString();
     save();
+    renderSelects();
+    renderSites();
   }
 
   function hideSiteFromSelectors(siteId){
@@ -5385,6 +5388,7 @@
       siteId,
       ...recent.filter(id=>id!==siteId)
     ].slice(0,1000);
+    state.recentSelects.siteUsageUpdatedAt = new Date().toISOString();
 
     save();
     renderAll();
@@ -5715,6 +5719,25 @@
   $("siteContractType")?.addEventListener("change", updateSiteContractFields);
   updateSiteBillingFieldsVisibility();
 
+  function siteRegistrationFingerprint(site){
+    const contractType=site.contractType || "常用";
+    const isContract=contractType==="請負";
+    const items=isContract ? normalizedContractItems(site.contractItems).map(item=>({
+      name:item.name,quantity:item.quantity,unit:item.unit,unitPrice:item.unitPrice
+    })) : [];
+    return JSON.stringify({
+      name:String(site.name||"").trim(),
+      clientId:String(site.clientId||""),
+      contractType,
+      contractWorkContent:isContract ? String(site.contractWorkContent||"").trim() : "",
+      revenue:isContract ? contractSiteAmount(site) : 0,
+      contractItems:items,
+      billRate:isContract ? 0 : Number(site.billRate||0),
+      earlyMultiplier:isContract ? null : optionalClientMultiplier(site.earlyMultiplier),
+      overtimeMultiplier:isContract ? null : optionalClientMultiplier(site.overtimeMultiplier)
+    });
+  }
+
   $("addSiteBtn").addEventListener("click", ()=>{
     const name = $("siteName").value.trim();
     if(!name){ alert("現場名を入力してください"); return; }
@@ -5752,6 +5775,13 @@
       earlyMultiplier:isSelf ? null : optionalClientMultiplier($("siteEarlyMultiplier")?.value),
       overtimeMultiplier:isSelf ? null : optionalClientMultiplier($("siteOvertimeMultiplier")?.value)
     };
+    const duplicate=state.sites.some(site=>site.id!==editingSiteId &&
+      siteRegistrationFingerprint(site)===siteRegistrationFingerprint(data));
+    if(duplicate){
+      alert("同じ内容の現場がすでに登録されています。登録内容を確認してください。");
+      $("siteName").focus();
+      return;
+    }
     let savedSiteId = editingSiteId || "";
     if(editingSiteId){
       const s = siteById(editingSiteId);
@@ -5768,6 +5798,7 @@
         savedSiteId,
         ...recent.filter(id=>id!==savedSiteId)
       ].slice(0,1000);
+      state.recentSelects.siteUsageUpdatedAt = new Date().toISOString();
     }
     const wasEdit = !!editingSiteId;
     if(isContract && (data.contractWorkContent || contractItems.length)){
@@ -6562,7 +6593,10 @@
   }
 
   $("entryDate").addEventListener("change",()=>loadExistingDayForm(true));
-  $("entrySite").addEventListener("change",()=>loadExistingDayForm(true));
+  $("entrySite").addEventListener("change",()=>{
+    rememberSiteUsage($("entrySite").value);
+    loadExistingDayForm(true);
+  });
   $("existingExpenseSelect").addEventListener("change",loadExpenseForEditing);
 
 
@@ -10614,6 +10648,15 @@ function getContractBillingIncluded(siteId, month){
       merged[key] = [...byId.values()];
     }
     merged.recentSelects = {...(cloud.recentSelects || {}), ...(local.recentSelects || {})};
+    const cloudUsage = cloud.recentSelects?.siteUsage;
+    if(Array.isArray(cloudUsage)){
+      const cloudUpdated = Date.parse(cloud.recentSelects?.siteUsageUpdatedAt || "") || 0;
+      const localUpdated = Date.parse(local.recentSelects?.siteUsageUpdatedAt || "") || 0;
+      if(cloudUpdated >= localUpdated){
+        merged.recentSelects.siteUsage = [...cloudUsage];
+        merged.recentSelects.siteUsageUpdatedAt = cloud.recentSelects?.siteUsageUpdatedAt || "";
+      }
+    }
     merged.bulkCompanyFilter = local.bulkCompanyFilter || cloud.bulkCompanyFilter || "all";
     merged.companyInfo = {...(cloud.companyInfo || {}), ...(local.companyInfo || {})};
     return normalizeImportedState(merged);
