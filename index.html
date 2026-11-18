@@ -4316,13 +4316,17 @@
         <div id="siteContractTypeHelp" class="helper">常用＝人工単価で請求 / 請負＝工事金額・出来高率で請求</div>
 
         <div id="siteContractWorkContentWrap" style="display:none">
-          <label>工事内容（内訳を使わない場合）</label>
+          <div id="siteContractTemplateWrap" style="display:none">
+            <label for="siteContractTemplate">保存済みの工事内容・項目を呼び出す</label>
+            <select id="siteContractTemplate"><option value="">選択してください</option></select>
+          </div>
+          <label>工事内容（任意）</label>
           <input id="siteContractWorkContent" type="text" placeholder="例：足場工事">
           <div id="siteContractItemsWrap">
             <label>請負内訳（任意）</label>
             <div id="siteContractItemsList"></div>
             <button id="addSiteContractItemBtn" type="button" class="btn secondary">項目を追加</button>
-            <div class="helper">項目名と金額を入力すると、請負金額の合計と請求書の明細に反映します。</div>
+            <div class="helper">項目名と金額を入力すると、請負金額の合計と請求書の明細に反映します。人工入力時にも項目を選択できます。</div>
           </div>
         </div>
 
@@ -5475,6 +5479,40 @@
     return items.length ? items.reduce((sum,item)=>sum+item.amount,0) : Number(site?.revenue||0);
   }
 
+  function contractTemplates(){
+    const saved = Array.isArray(state.recentSelects?.contractTemplates)
+      ? state.recentSelects.contractTemplates : [];
+    const templates = saved.filter(x=>x && x.id && (x.workContent || normalizedContractItems(x.items).length));
+    const seen = new Set(templates.map(x=>String(x.id)));
+    state.sites.forEach(site=>{
+      if((site.contractType||"常用")!=="請負" || seen.has(String(site.id))) return;
+      if(!site.contractWorkContent && !normalizedContractItems(site.contractItems).length) return;
+      templates.push({id:String(site.id),name:site.name,workContent:site.contractWorkContent||"",
+        items:normalizedContractItems(site.contractItems),revenue:Number(site.revenue||0)});
+    });
+    return templates;
+  }
+
+  function renderContractTemplateOptions(){
+    const select = $("siteContractTemplate");
+    if(!select) return;
+    const templates = contractTemplates();
+    const current = select.value;
+    $("siteContractTemplateWrap").style.display = templates.length ? "" : "none";
+    select.innerHTML = `<option value="">選択してください</option>` + templates.map(t=>
+      `<option value="${escapeHtml(String(t.id))}">${escapeHtml(String(t.name||t.workContent||"請負工事"))}${t.workContent && t.workContent!==t.name ? " / " + escapeHtml(String(t.workContent)) : ""}</option>`
+    ).join("");
+    if(templates.some(t=>String(t.id)===current)) select.value=current;
+  }
+
+  $("siteContractTemplate")?.addEventListener("change",()=>{
+    const template = contractTemplates().find(t=>String(t.id)===$("siteContractTemplate").value);
+    if(!template) return;
+    $("siteContractWorkContent").value = String(template.workContent||"");
+    $("siteRevenue").value = Number(template.revenue||0) || "";
+    renderSiteContractItems(normalizedContractItems(template.items).map(item=>({...item,id:uid()})));
+  });
+
   function renderSiteContractItems(items=[]){
     const list = $("siteContractItemsList");
     if(!list) return;
@@ -5599,12 +5637,21 @@
       ].slice(0,1000);
     }
     const wasEdit = !!editingSiteId;
+    if(isContract && (data.contractWorkContent || contractItems.length)){
+      const saved = Array.isArray(state.recentSelects.contractTemplates) ? state.recentSelects.contractTemplates : [];
+      state.recentSelects.contractTemplates = [
+        {id:String(savedSiteId),name,workContent:data.contractWorkContent,
+          items:contractItems.map(item=>({...item})),revenue:data.revenue},
+        ...saved.filter(t=>String(t?.id)!==String(savedSiteId))
+      ].slice(0,100);
+    }
     editingSiteId = "";
     $("addSiteBtn").textContent = "現場を追加";
     save();
     $("siteName").value="";
     if($("siteContractType")) $("siteContractType").value="常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value="";
+    $("siteContractTemplate").value="";
     renderSiteContractItems();
     $("siteRevenue").value="";
     $("siteBillRate").value="";
@@ -6021,6 +6068,7 @@
     $("siteClient").value = s.clientId || "";
     if($("siteContractType")) $("siteContractType").value = s.contractType || "常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value = s.contractWorkContent || "";
+    $("siteContractTemplate").value = "";
     $("siteRevenue").value = s.revenue || "";
     renderSiteContractItems(normalizedContractItems(s.contractItems));
     $("siteBillRate").value = s.billRate || "";
@@ -6293,6 +6341,7 @@
       rememberRecent(id, el.value);
     });
   });
+
 
   $("selectAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
@@ -12191,6 +12240,7 @@ function getContractBillingIncluded(siteId, month){
     renderSelects();
     renderBulkWorkers();
     renderSites();
+    renderContractTemplateOptions();
     renderWorkers();
     renderRecent();
     renderSummary();
