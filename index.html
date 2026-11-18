@@ -136,7 +136,10 @@
     .summary-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
     .summary-calendar-head h2{margin-bottom:8px}
     .worker-detail-active{background:#eff6ff;border-color:#93c5fd}
-    .worker-detail-button{font-size:12px;white-space:nowrap}
+    .worker-detail-button,#summaryWorkerDetailBack{
+      border:1px solid #d1d5db;background:#eef0f3;color:#374151;
+      border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;white-space:nowrap;
+    }
     .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
     .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
@@ -4138,9 +4141,12 @@
   /* カラー請求書の口座情報は改行位置を固定する。 */
   .excel-template.invoice-format-color .bank-body{
     display:block !important;
-    white-space:nowrap !important;
     font-size:10px !important;
     line-height:1.3 !important;
+  }
+  .excel-template.invoice-format-color .bank-body .bank-line{
+    display:block;
+    white-space:nowrap;
   }
 
 </style>
@@ -4538,13 +4544,15 @@
           <button id="summaryModeSite" class="summary-mode-btn" type="button">現場別</button>
         </div>
 
-        <div id="summaryMonthWrap">
-          <label>集計月（締め日の月）</label>
-          <div class="date-wrap"><input id="summaryMonth" type="month"></div>
-          <label for="summaryStartDay">集計期間の開始日</label>
-          <select id="summaryStartDay"></select>
-          <div id="summaryPeriodLabel" class="helper"></div>
-        </div>
+        <details id="summaryMonthWrap" class="expense-details">
+          <summary id="summaryPeriodLabel">集計期間を設定</summary>
+          <div class="expense-details-body">
+            <label>集計月（締め日の月）</label>
+            <div class="date-wrap"><input id="summaryMonth" type="month"></div>
+            <label for="summaryStartDay">集計期間の開始日</label>
+            <select id="summaryStartDay"></select>
+          </div>
+        </details>
 
         <label>現場</label>
         <select id="summarySite"></select>
@@ -9542,12 +9550,28 @@ function getContractBillingIncluded(siteId, month){
       .map(line=>line.trim())
       .filter(Boolean)
       .join("\n");
-    const bankFirstLine = [invoiceCompanyInfo.bankName,invoiceCompanyInfo.bankBranch]
+    let bankFirstLine = [invoiceCompanyInfo.bankName,invoiceCompanyInfo.bankBranch]
       .map(value=>String(value || "").trim()).filter(Boolean).join("　");
-    const bankSecondLine = [invoiceCompanyInfo.bankAccountType,invoiceCompanyInfo.bankAccountNumber,invoiceCompanyInfo.bankAccountHolder]
+    let bankSecondLine = [invoiceCompanyInfo.bankAccountType,invoiceCompanyInfo.bankAccountNumber,invoiceCompanyInfo.bankAccountHolder]
       .map(value=>String(value || "").trim()).filter(Boolean).join("　");
-    const colorBankText = bankFirstLine || bankSecondLine
-      ? [bankFirstLine,bankSecondLine].filter(Boolean).join("\n") : bankText;
+    if(!bankFirstLine && !bankSecondLine && bankText){
+      const lines = bankText.split("\n");
+      if(lines.length > 1){
+        bankFirstLine = lines[0];
+        bankSecondLine = lines.slice(1).join("　");
+      }else{
+        const legacyParts = bankText.match(/^(.*?(?:支店|本店|営業部|出張所))[\s　]*(.*)$/) ||
+          bankText.match(/^(.*?)[\s　]+((?:普通|当座|貯蓄|総合).*)$/);
+        if(legacyParts){
+          bankFirstLine = legacyParts[1].trim();
+          bankSecondLine = legacyParts[2].trim();
+        }else{
+          bankFirstLine = bankText;
+        }
+      }
+    }
+    const colorBankHtml = [bankFirstLine,bankSecondLine].filter(Boolean)
+      .map(line=>`<span class="bank-line">${escapeHtml(line)}</span>`).join("");
 
     const blankDetailRow = () => `
       <tr>
@@ -9755,7 +9779,7 @@ function getContractBillingIncluded(siteId, month){
             ${bankText ? `
               <div class="invoice-bank">
                 <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                <div class="bank-body">${escapeHtml(($('invoiceFormat')?.value || state.companyInfo?.invoiceFormat || 'color') === 'color' ? colorBankText : bankText).replace(/\n/g,"<br>")}</div>
+                <div class="bank-body">${selectedFormat === "color" ? colorBankHtml : escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
               </div>
             ` : ""}
           </div>
