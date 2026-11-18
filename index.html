@@ -140,6 +140,14 @@
       border:1px solid #d1d5db;background:#eef0f3;color:#374151;
       border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;white-space:nowrap;
     }
+    .recent-group>summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;list-style:none}
+    .recent-group>summary>span{min-width:0;overflow-wrap:anywhere}
+    .recent-group>summary::-webkit-details-marker{display:none}
+    .recent-group>summary::after{content:"＋";font-size:19px;color:#64748b;flex:0 0 auto}
+    .recent-group[open]>summary::after{content:"−"}
+    .recent-group-body{border-top:1px solid var(--line);margin-top:10px;padding-top:8px}
+    .recent-group-body .item-line{padding:7px 0;border-bottom:1px solid var(--line)}
+    .recent-group-body .item-line:last-child{border-bottom:0}
     .site-search-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
     .site-search-heading h2,.site-search-heading label{margin:0}
     .site-search-heading input{width:min(56%,340px);min-width:0;margin:0;font-size:14px}
@@ -7273,71 +7281,87 @@
 
   function renderRecent(){
     const compare=workerRecentRank();
-    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)||compare(a.workerId,b.workerId)).slice(0,30);
-    if(!list.length && !state.siteExpenses.length){
+    const groups = new Map();
+    const getGroup = item=>{
+      const key = `${item.date}\u001f${item.siteId}`;
+      if(!groups.has(key)) groups.set(key,{date:item.date,siteId:item.siteId,entries:[],expenses:[]});
+      return groups.get(key);
+    };
+    state.entries.forEach(e=>getGroup(e).entries.push(e));
+    state.siteExpenses.forEach(x=>getGroup(x).expenses.push(x));
+    if(!groups.size){
       $("recentEntries").innerHTML = `<div class="empty">まだ入力がありません。</div>`;
       return;
     }
-    const entryRows = list.map(e=>{
-      const s = siteById(e.siteId);
-      const w = workerById(e.workerId);
-      return `<div class="item">
-        <div class="item-line">
-          <div>
-            <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}${e.nightShift ? ` / 夜勤 ×${Number(e.nightMultiplier || workerNightMultiplier(w))}` : ""}${e.businessTrip ? ` / 出張 +${yen(e.travelAllowance ?? w?.travelAllowance)}` : ""}${customAllowanceDescription(e.customAllowances)}</small>
+    const siteOrder = new Map(sortSitesForSelect(state.sites).map((s,index)=>[s.id,index]));
+    const recentGroups = [...groups.values()]
+      .sort((a,b)=>b.date.localeCompare(a.date)||(siteOrder.get(a.siteId)??Infinity)-(siteOrder.get(b.siteId)??Infinity))
+      .slice(0,20);
+    $("recentEntries").innerHTML = recentGroups.map(group=>{
+      const site = siteById(group.siteId);
+      const entries = group.entries.sort((a,b)=>compare(a.workerId,b.workerId));
+      const labor = entries.reduce((sum,e)=>sum+workerEntryCost(e),0);
+      const jinko = entries.reduce((sum,e)=>sum+Number(e.jinko||0),0);
+      const expenseTotal = group.expenses.reduce((sum,x)=>sum+Number(x.amount||0),0);
+      const entryRows = entries.map(e=>{
+        const w = workerById(e.workerId);
+        return `<div class="item-line">
+          <div><strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
+            <small>人件費 ${yen(workerEntryCost(e))}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}${e.nightShift ? ` / 夜勤 ×${Number(e.nightMultiplier || workerNightMultiplier(w))}` : ""}${e.businessTrip ? ` / 出張 +${yen(e.travelAllowance ?? w?.travelAllowance)}` : ""}${customAllowanceDescription(e.customAllowances)}</small>
           </div>
           <div class="item-actions"><button class="recent-edit-button" type="button" data-edit-entry="${escapeHtml(String(e.id))}">編集</button>
-          <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button></div>
-        </div>
-      </div>`;
-    }).join("");
-
-    const recentShared = [...state.siteExpenses].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(x=>{
-      const s = siteById(x.siteId);
-      return `<div class="item">
-        <div class="item-line">
-          <div>
-            <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span> <span class="pill">${x.billable === false ? "請求しない" : "請求する"}</span></strong>
-            <small>${x.date} / ${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
-          </div>
-          <div class="item-actions"><button class="recent-edit-button" type="button" data-edit-expense="${escapeHtml(String(x.id))}">編集</button>
+            <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button></div>
+        </div>`;
+      }).join("");
+      const expenseRows = group.expenses.map(x=>`<div class="item-line">
+        <div><strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span> <span class="pill">${x.billable === false ? "請求しない" : "請求する"}</span></strong>
+          <small>${x.memo ? escapeHtml(x.memo) : "メモなし"}</small></div>
+        <div class="item-actions"><button class="recent-edit-button" type="button" data-edit-expense="${escapeHtml(String(x.id))}">編集</button>
           <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button></div>
-        </div>
-      </div>`;
+      </div>`).join("");
+      return `<details class="item recent-group"><summary><span><strong>${escapeHtml(group.date)} / ${escapeHtml(site?.name||"不明")}</strong>
+        <small>${entries.length}人・${jinko.toFixed(jinko%1?2:0)}人工・人件費 ${yen(labor)}${group.expenses.length ? ` / 現場経費 ${yen(expenseTotal)}（${group.expenses.length}件）` : ""}</small></span></summary>
+        <div class="recent-group-body"><button class="recent-edit-button" type="button" data-edit-day="${escapeHtml(group.date)}" data-edit-site="${escapeHtml(group.siteId)}">この現場を編集</button>
+          ${entryRows}${expenseRows}</div></details>`;
     }).join("");
-
-    $("recentEntries").innerHTML = entryRows + recentShared;
   }
 
-  $("recentEntries").addEventListener("click",event=>{
-    const button = event.target.closest("[data-edit-entry],[data-edit-expense]");
-    if(!button) return;
-    const entry = button.dataset.editEntry ? state.entries.find(e=>String(e.id)===button.dataset.editEntry) : null;
-    const expense = button.dataset.editExpense ? state.siteExpenses.find(x=>String(x.id)===button.dataset.editExpense) : null;
-    const item = entry || expense;
-    if(!item) return;
-    $("entryDate").value = item.date;
+  function openEntryForEditing(date,siteId,{workerId="",expenseId="",switchTab=false}={}){
+    if(switchTab) document.querySelector('nav button[data-view="input"]')?.click();
+    $("entryDate").value = date;
     $("entrySiteSearch").value = "";
     renderEntrySiteOptions();
     const siteSelect = $("entrySite");
-    if(![...siteSelect.options].some(opt=>opt.value===item.siteId)){
-      const site = siteById(item.siteId);
+    if(![...siteSelect.options].some(opt=>opt.value===siteId)){
+      const site = siteById(siteId);
       if(site) siteSelect.add(new Option(site.name + "（非表示）",site.id));
     }
-    siteSelect.value = item.siteId;
-    if(entry && $("bulkCompanyFilter")?.value !== "all") $("bulkCompanyFilter").value = "all";
+    siteSelect.value = siteId;
+    if(workerId && $("bulkCompanyFilter")?.value !== "all") $("bulkCompanyFilter").value = "all";
     loadExistingDayForm(true);
-    if(expense){
-      $("existingExpenseSelect").value = String(expense.id);
+    if(expenseId){
+      $("existingExpenseSelect").value = String(expenseId);
       loadExpenseForEditing();
       $("siteExpenseDetails").open = true;
     }
-    const target = entry
-      ? [...document.querySelectorAll("#bulkWorkerList .member-row")].find(row=>row.querySelector(".bulk-check")?.dataset.workerId===entry.workerId)
-      : $("siteExpenseDetails");
-    (target || $("view-input .card"))?.scrollIntoView({behavior:"smooth",block:"center"});
+    const target = workerId
+      ? [...document.querySelectorAll("#bulkWorkerList .member-row")].find(row=>row.querySelector(".bulk-check")?.dataset.workerId===workerId)
+      : expenseId ? $("siteExpenseDetails") : $("entrySite");
+    requestAnimationFrame(()=>(target || $("view-input .card"))?.scrollIntoView({behavior:"smooth",block:"center"}));
     updateEntrySavePreview();
+  }
+
+  $("recentEntries").addEventListener("click",event=>{
+    const button = event.target.closest("[data-edit-entry],[data-edit-expense],[data-edit-day]");
+    if(!button) return;
+    const entry = button.dataset.editEntry ? state.entries.find(e=>String(e.id)===button.dataset.editEntry) : null;
+    const expense = button.dataset.editExpense ? state.siteExpenses.find(x=>String(x.id)===button.dataset.editExpense) : null;
+    if(button.dataset.editDay && button.dataset.editSite){
+      openEntryForEditing(button.dataset.editDay,button.dataset.editSite);
+    }else if(entry || expense){
+      const item = entry || expense;
+      openEntryForEditing(item.date,item.siteId,{workerId:entry?.workerId || "",expenseId:expense?.id || ""});
+    }
   });
 
 
@@ -7543,9 +7567,10 @@ function showDayDetail(date){
         : "";
 
       return `<div class="item" style="border-left:5px solid ${clientColor(client)}">
-        <div style="margin-bottom:8px">
-          <strong>${client ? `<span class="client-dot" style="background:${clientColor(client)}"></span>` : ""}${escapeHtml(s?.name||"不明")}</strong>
-          <small>${client ? "元請け " + escapeHtml(client.name) : "元請け未設定"}</small>
+        <div class="item-line" style="margin-bottom:8px">
+          <div><strong>${client ? `<span class="client-dot" style="background:${clientColor(client)}"></span>` : ""}${escapeHtml(s?.name||"不明")}</strong>
+            <small>${client ? "元請け " + escapeHtml(client.name) : "元請け未設定"}</small></div>
+          <button class="recent-edit-button" type="button" data-day-edit-date="${escapeHtml(date)}" data-day-edit-site="${escapeHtml(siteId)}">編集</button>
         </div>
         ${workersHtml}
         ${expensesHtml}
@@ -7565,6 +7590,11 @@ function showDayDetail(date){
 
   window.showDayDetail = showDayDetail;
   window.removeAllFromDay = removeAllFromDay;
+
+  $("dayDetail").addEventListener("click",event=>{
+    const button = event.target.closest("[data-day-edit-date][data-day-edit-site]");
+    if(button) openEntryForEditing(button.dataset.dayEditDate,button.dataset.dayEditSite,{switchTab:true});
+  });
 
   function siteLifetimeStats(site){
     const entries = state.entries.filter(e=>e.siteId===site.id);
