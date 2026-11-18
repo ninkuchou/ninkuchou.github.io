@@ -179,6 +179,9 @@
     .worker-custom-allowance-row{display:grid;grid-template-columns:minmax(0,1fr) 105px 38px;gap:7px;align-items:center;margin-top:8px}
     .worker-custom-allowance-row input{min-width:0}
     .worker-custom-allowance-row button{border:0;background:#fee2e2;color:var(--danger);border-radius:8px;min-height:42px;cursor:pointer}
+    .contract-item-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 38px;gap:7px;align-items:center;margin-top:8px}
+    .contract-item-row input{min-width:0}
+    .contract-item-row button{border:0;background:#fee2e2;color:var(--danger);border-radius:8px;min-height:42px;cursor:pointer}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
     .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
     @media(max-width:430px){
@@ -4313,27 +4316,35 @@
         <div id="siteContractTypeHelp" class="helper">常用＝人工単価で請求 / 請負＝工事金額・出来高率で請求</div>
 
         <div id="siteContractWorkContentWrap" style="display:none">
-          <label>工事内容</label>
+          <label>工事内容（内訳を使わない場合）</label>
           <input id="siteContractWorkContent" type="text" placeholder="例：足場工事">
-          <div class="helper">請負工事の請求書に表示する工事内容です。</div>
-        </div>
-
-        <label id="siteRevenueLabel" style="display:none">請負金額（任意）</label>
-        <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000" style="display:none">
-        <label id="siteBillRateLabel">現場別の例外単価 / 1人工（任意）</label>
-        <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
-        <div id="siteMultiplierWrap">
-          <div class="row">
-            <div>
-              <label>現場別の早出掛け率（任意）</label>
-              <input id="siteEarlyMultiplier" inputmode="decimal" type="number" min="0" step="0.05" placeholder="未入力なら元請け設定">
-            </div>
-            <div>
-              <label>現場別の残業掛け率（任意）</label>
-              <input id="siteOvertimeMultiplier" inputmode="decimal" type="number" min="0" step="0.05" placeholder="未入力なら元請け設定">
-            </div>
+          <div id="siteContractItemsWrap">
+            <label>請負内訳（任意）</label>
+            <div id="siteContractItemsList"></div>
+            <button id="addSiteContractItemBtn" type="button" class="btn secondary">項目を追加</button>
+            <div class="helper">項目名と金額を入力すると、請負金額の合計と請求書の明細に反映します。</div>
           </div>
         </div>
+
+        <label id="siteRevenueLabel" style="display:none">請負金額（合計）</label>
+        <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000" style="display:none">
+        <details id="siteRateOverrides" class="expense-details">
+          <summary>現場別の単価・掛け率を設定</summary>
+          <label id="siteBillRateLabel">現場別の例外単価 / 1人工（任意）</label>
+          <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
+          <div id="siteMultiplierWrap">
+            <div class="row">
+              <div>
+                <label>現場別の早出掛け率（任意）</label>
+                <input id="siteEarlyMultiplier" inputmode="decimal" type="number" min="0" step="0.05" placeholder="未入力なら元請け設定">
+              </div>
+              <div>
+                <label>現場別の残業掛け率（任意）</label>
+                <input id="siteOvertimeMultiplier" inputmode="decimal" type="number" min="0" step="0.05" placeholder="未入力なら元請け設定">
+              </div>
+            </div>
+          </div>
+        </details>
         <button class="btn" id="addSiteBtn">現場を追加</button>
       </div>
       <div class="card">
@@ -4455,20 +4466,19 @@
         <label>作業員別の例外単価（任意）</label>
         <input id="workerRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら所属会社の基本単価">
 
-        <div class="row">
-          <div>
-            <label>早出単価 / 1時間</label>
-            <input id="workerEarlyRate" inputmode="numeric" type="number" min="0" placeholder="例：2500">
-          </div>
-          <div>
-            <label>残業単価 / 1時間</label>
-            <input id="workerOvertimeRate" inputmode="numeric" type="number" min="0" placeholder="例：3000">
-          </div>
-        </div>
-
         <details id="workerAllowanceDetails" class="expense-details">
-          <summary>夜勤・出張・その他の手当設定</summary>
+          <summary>早出・残業・手当設定</summary>
           <div class="expense-details-body">
+            <div class="row">
+              <div>
+                <label>早出単価 / 1時間</label>
+                <input id="workerEarlyRate" inputmode="numeric" type="number" min="0" placeholder="例：2500">
+              </div>
+              <div>
+                <label>残業単価 / 1時間</label>
+                <input id="workerOvertimeRate" inputmode="numeric" type="number" min="0" placeholder="例：3000">
+              </div>
+            </div>
             <div class="row">
               <div>
                 <label>夜勤の支払倍率</label>
@@ -5454,10 +5464,59 @@
     return id === SELF_COMPANY_CLIENT_ID;
   }
 
+  function normalizedContractItems(items){
+    return Array.isArray(items) ? items.filter(item=>item && String(item.name||"").trim() && Number.isFinite(Number(item.amount)) && Number(item.amount)>=0).map(item=>({
+      id:String(item.id||uid()), name:String(item.name).trim(), amount:Number(item.amount)
+    })) : [];
+  }
+
+  function contractSiteAmount(site){
+    const items = normalizedContractItems(site?.contractItems);
+    return items.length ? items.reduce((sum,item)=>sum+item.amount,0) : Number(site?.revenue||0);
+  }
+
+  function renderSiteContractItems(items=[]){
+    const list = $("siteContractItemsList");
+    if(!list) return;
+    list.innerHTML = items.map(item=>`<div class="contract-item-row" data-id="${escapeHtml(String(item.id||uid()))}">
+      <input class="contract-item-name" placeholder="項目名（例：建方工事）" value="${escapeHtml(String(item.name||""))}">
+      <input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額" value="${item.amount ?? ""}">
+      <button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>
+    </div>`).join("");
+    updateSiteContractTotal();
+  }
+
+  function updateSiteContractTotal(){
+    const rows = [...document.querySelectorAll("#siteContractItemsList .contract-item-row")];
+    const amount = $("siteRevenue");
+    if(!amount) return;
+    amount.readOnly = rows.length > 0;
+    if(rows.length){
+      amount.value = rows.reduce((sum,row)=>sum+Number(row.querySelector(".contract-item-amount")?.value||0),0);
+    }
+  }
+
+  $("addSiteContractItemBtn")?.addEventListener("click",()=>{
+    const list = $("siteContractItemsList");
+    const row = document.createElement("div");
+    row.className = "contract-item-row";
+    row.dataset.id = uid();
+    row.innerHTML = `<input class="contract-item-name" placeholder="項目名（例：建方工事）"><input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額"><button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>`;
+    list.appendChild(row);
+    updateSiteContractTotal();
+    row.querySelector(".contract-item-name").focus();
+  });
+  $("siteContractItemsList")?.addEventListener("input",updateSiteContractTotal);
+  $("siteContractItemsList")?.addEventListener("click",event=>{
+    if(!event.target.closest(".contract-item-remove")) return;
+    event.target.closest(".contract-item-row").remove();
+    updateSiteContractTotal();
+  });
+
   function updateSiteBillingFieldsVisibility(){
     const isSelf = isSelfCompanyClientId($("siteClient")?.value || "");
 
-    const ids = ["siteContractTypeLabel","siteContractType","siteContractTypeHelp","siteRevenueLabel","siteRevenue","siteBillRateLabel","siteBillRate","siteMultiplierWrap"];
+    const ids = ["siteContractTypeLabel","siteContractType","siteContractTypeHelp","siteRevenueLabel","siteRevenue"];
     ids.forEach(id=>{
       const el = $(id);
       if(el) el.style.display = isSelf ? "none" : "";
@@ -5484,8 +5543,8 @@
     if($("siteContractWorkContentWrap")){
       $("siteContractWorkContentWrap").style.display = isContract ? "block" : "none";
     }
-    if($("siteMultiplierWrap")){
-      $("siteMultiplierWrap").style.display = (!isSelf && !isContract) ? "block" : "none";
+    if($("siteRateOverrides")){
+      $("siteRateOverrides").style.display = (!isSelf && !isContract) ? "block" : "none";
     }
   }
 
@@ -5498,12 +5557,26 @@
     if(!name){ alert("現場名を入力してください"); return; }
     const clientId = $("siteClient").value || "";
     const isSelf = isSelfCompanyClientId(clientId);
+    const isContract = !isSelf && $("siteContractType")?.value === "請負";
+    const itemRows = isContract ? [...document.querySelectorAll("#siteContractItemsList .contract-item-row")] : [];
+    const contractItems = [];
+    for(const row of itemRows){
+      const itemName = row.querySelector(".contract-item-name").value.trim();
+      const rawAmount = row.querySelector(".contract-item-amount").value;
+      if(!itemName || rawAmount === "" || !Number.isFinite(Number(rawAmount)) || Number(rawAmount)<0){
+        alert("請負内訳の項目名と金額を入力してください");
+        row.querySelector(!itemName ? ".contract-item-name" : ".contract-item-amount").focus();
+        return;
+      }
+      contractItems.push({id:row.dataset.id||uid(),name:itemName,amount:Number(rawAmount)});
+    }
     const data = {
       name,
       clientId,
       contractType:isSelf ? "常用" : ($("siteContractType") ? ($("siteContractType").value || "常用") : "常用"),
       contractWorkContent:isSelf ? "" : ($("siteContractWorkContent")?.value.trim() || ""),
-      revenue:!isSelf && $("siteContractType")?.value === "請負" ? Number($("siteRevenue").value||0) : 0,
+      revenue:isContract ? (contractItems.length ? contractItems.reduce((sum,item)=>sum+item.amount,0) : Number($("siteRevenue").value||0)) : 0,
+      contractItems:contractItems,
       billRate:isSelf ? 0 : Number($("siteBillRate").value||0),
       earlyMultiplier:isSelf ? null : optionalClientMultiplier($("siteEarlyMultiplier")?.value),
       overtimeMultiplier:isSelf ? null : optionalClientMultiplier($("siteOvertimeMultiplier")?.value)
@@ -5532,10 +5605,12 @@
     $("siteName").value="";
     if($("siteContractType")) $("siteContractType").value="常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value="";
+    renderSiteContractItems();
     $("siteRevenue").value="";
     $("siteBillRate").value="";
     $("siteEarlyMultiplier").value="";
     $("siteOvertimeMultiplier").value="";
+    $("siteRateOverrides").open=false;
     updateSiteBillingFieldsVisibility();
     renderAll();
     finishRegistration(wasEdit ? "現場を更新しました" : "現場を追加しました");
@@ -5947,9 +6022,11 @@
     if($("siteContractType")) $("siteContractType").value = s.contractType || "常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value = s.contractWorkContent || "";
     $("siteRevenue").value = s.revenue || "";
+    renderSiteContractItems(normalizedContractItems(s.contractItems));
     $("siteBillRate").value = s.billRate || "";
     $("siteEarlyMultiplier").value = optionalClientMultiplier(s.earlyMultiplier) ?? "";
     $("siteOvertimeMultiplier").value = optionalClientMultiplier(s.overtimeMultiplier) ?? "";
+    $("siteRateOverrides").open = !!(s.billRate || optionalClientMultiplier(s.earlyMultiplier) !== null || optionalClientMultiplier(s.overtimeMultiplier) !== null);
     updateSiteBillingFieldsVisibility();
     $("addSiteBtn").textContent = "現場を更新";
     try{$("siteName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
@@ -6090,8 +6167,8 @@
     const chosen = [Number(early) > 0 ? `早出 ${early}h` : "", Number(overtime) > 0 ? `残業 ${overtime}h` : "",
       night ? "夜勤" : "", travel ? "出張" : "", ...customChecks.map(input=>input.dataset.allowanceName)].filter(Boolean);
     const button = details.closest(".member-row").querySelector(".member-extra-toggle");
-    button.textContent = bulkExtraSummary(chosen);
-    button.title = chosen.join("・");
+    button.textContent = details.hidden ? bulkExtraSummary(chosen) : "− タブを閉じる";
+    button.title = details.hidden ? chosen.join("・") : "タブを閉じる";
     button.classList.toggle("has-allowance", chosen.length > 0);
     bulkAllowanceDraft.set(details.dataset.workerId, {early,overtime,night,travel,customIds});
   }
@@ -6203,6 +6280,7 @@
     const panel = button.closest(".member-row").querySelector(".member-allowance-details");
     panel.hidden = !panel.hidden;
     button.setAttribute("aria-expanded", String(!panel.hidden));
+    updateBulkAllowanceSummary(panel);
   });
   $("bulkWorkerList").addEventListener("input", event=>{
     if(event.target.matches(".bulk-early,.bulk-overtime")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
@@ -6571,7 +6649,7 @@
           <div class="item-line">
             <div>
               <strong>${s.clientId && clientById(s.clientId) ? `<span class="client-dot" style="background:${clientColor(clientById(s.clientId))}"></span>` : ""}${escapeHtml(s.name)}</strong>
-              <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (s.revenue ? yen(s.revenue) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}${optionalClientMultiplier(s.earlyMultiplier) !== null ? " / 早出 ×" + optionalClientMultiplier(s.earlyMultiplier) : ""}${optionalClientMultiplier(s.overtimeMultiplier) !== null ? " / 残業 ×" + optionalClientMultiplier(s.overtimeMultiplier) : ""}</small>
+              <small>${s.clientId && clientById(s.clientId) ? "元請け " + escapeHtml(clientById(s.clientId).name) + " / " : ""}${escapeHtml(s.contractType || "常用")}${s.contractType==="請負" && s.contractWorkContent ? " / " + escapeHtml(s.contractWorkContent) : ""}${s.contractType==="請負" ? " / 請負 " + (contractSiteAmount(s) ? yen(contractSiteAmount(s)) : "未設定") : ""}${s.billRate ? " / 例外単価 " + yen(s.billRate) : ""}${optionalClientMultiplier(s.earlyMultiplier) !== null ? " / 早出 ×" + optionalClientMultiplier(s.earlyMultiplier) : ""}${optionalClientMultiplier(s.overtimeMultiplier) !== null ? " / 残業 ×" + optionalClientMultiplier(s.overtimeMultiplier) : ""}</small>
             </div>
             <div class="item-actions">
               <button class="edit-link" type="button" data-site-action="edit" data-site-id="${s.id}">編集</button>
@@ -6994,7 +7072,7 @@ function showDayDetail(date){
     const contractType = site.contractType || "常用";
     const client = site.clientId ? clientById(site.clientId) : null;
     const rate = Number(site.billRate || client?.billRate || 0);
-    const contractAmount = contractType === "請負" ? Number(site.revenue||0) : 0;
+    const contractAmount = contractType === "請負" ? contractSiteAmount(site) : 0;
 
     // 常用は人工請求＋請求対象の現場経費、請負は登録した請負金額を案件全体の売上として扱う。
     const revenue = contractType === "請負"
@@ -7157,7 +7235,7 @@ function showDayDetail(date){
         : new Set(entries.map(e=>e.siteId));
       const contractRevenue = state.sites.reduce((sum,site)=>{
         if(!contractSiteIds.has(site.id) || (site.contractType || "常用") !== "請負") return sum;
-        return sum + Number(site.revenue || 0);
+        return sum + contractSiteAmount(site);
       }, 0);
       const revenue = commonLaborRevenue + commonExpenseRevenue + contractRevenue;
       const gross = revenue - labor - expenses;
@@ -8049,7 +8127,7 @@ function getContractBillingIncluded(siteId, month){
               <span>今月の請求に入れる</span>
             </label>
             <div class="progress-site-name">${escapeHtml(s.name)}</div>
-            <div class="progress-contract">請負金額 ${s.revenue ? yen(s.revenue) : "未設定"}</div>
+            <div class="progress-contract">請負金額 ${contractSiteAmount(s) ? yen(contractSiteAmount(s)) : "未設定"}</div>
           </div>
           <div class="bulk-field">
             <div class="bulk-field-label">出来高 %</div>
@@ -8179,7 +8257,7 @@ function getContractBillingIncluded(siteId, month){
       if(contractType === "請負"){
         const included = getContractBillingIncluded(site.id, month);
         const percent = getProgressBilling(site.id, month);
-        const contractAmount = Number(site.revenue||0);
+        const contractAmount = contractSiteAmount(site);
         const progressAmount = Math.floor(contractAmount * percent / 100);
 
         return {
@@ -9053,17 +9131,28 @@ function getContractBillingIncluded(siteId, month){
 
       const pct = Number(r.percent || 0);
       const pctText = pct.toFixed(pct%1 ? 1 : 0);
-      detailRows.push(`
-        <tr>
-          <td class="date"></td>
-          <td class="desc">${escapeHtml(r.site?.contractWorkContent || "請負工事")}（出来高 ${pctText}%）</td>
-          <td class="qty">1</td>
-          <td class="unit">式</td>
-          <td class="price">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
-          <td class="amount">${Math.round(r.progressAmount).toLocaleString("ja-JP")}</td>
-          <td class="note"></td>
-        </tr>
-      `);
+      const items = normalizedContractItems(r.site?.contractItems);
+      const invoiceItems = items.length ? items : [{name:r.site?.contractWorkContent || "請負工事",amount:r.contractAmount}];
+      let cumulative = 0;
+      let billed = 0;
+      invoiceItems.forEach((item,index)=>{
+        cumulative += item.amount;
+        const nextBilled = index === invoiceItems.length-1
+          ? r.progressAmount : Math.floor(cumulative * pct / 100);
+        const lineAmount = nextBilled - billed;
+        billed = nextBilled;
+        detailRows.push(`
+          <tr>
+            <td class="date"></td>
+            <td class="desc">${escapeHtml(item.name)}（出来高 ${pctText}%）</td>
+            <td class="qty">1</td>
+            <td class="unit">式</td>
+            <td class="price">${lineAmount.toLocaleString("ja-JP")}</td>
+            <td class="amount">${lineAmount.toLocaleString("ja-JP")}</td>
+            <td class="note"></td>
+          </tr>
+        `);
+      });
 
       // 次にも請負現場がある時だけ、現場間の空欄を1行入れる。
       if(contractIndex < contractRows.length - 1){
@@ -10367,6 +10456,10 @@ function getContractBillingIncluded(siteId, month){
             earlyMultiplier:optionalClientMultiplier(site.earlyMultiplier),
             overtimeMultiplier:optionalClientMultiplier(site.overtimeMultiplier)
           }])
+        ),
+        __contractLineItemsV1:Object.fromEntries(
+          state.sites.filter(site=>normalizedContractItems(site.contractItems).length)
+            .map(site=>[String(site.id),normalizedContractItems(site.contractItems)])
         )
       };
       const settings = {
@@ -10459,6 +10552,9 @@ function getContractBillingIncluded(siteId, month){
       && typeof storedRecentSelects.__siteBillingMultipliersV1 === "object")
       ? storedRecentSelects.__siteBillingMultipliersV1
       : {};
+    const contractLineItems = (storedRecentSelects.__contractLineItemsV1
+      && typeof storedRecentSelects.__contractLineItemsV1 === "object")
+      ? storedRecentSelects.__contractLineItemsV1 : {};
     const siteExpenseBilling = (storedRecentSelects.__siteExpenseBillingV1
       && typeof storedRecentSelects.__siteExpenseBillingV1 === "object")
       ? storedRecentSelects.__siteExpenseBillingV1
@@ -10475,6 +10571,7 @@ function getContractBillingIncluded(siteId, month){
     delete recentSelects.__companyInfoCloudV1;
     delete recentSelects.__clientBillingMultipliersV1;
     delete recentSelects.__siteBillingMultipliersV1;
+    delete recentSelects.__contractLineItemsV1;
     delete recentSelects.__siteExpenseBillingV1;
     const companyValue = (column, key, fallback="") => {
       if(Object.prototype.hasOwnProperty.call(cloudCompanyInfo, key)){
@@ -10505,6 +10602,7 @@ function getContractBillingIncluded(siteId, month){
           name:x.name, contractType:x.contract_type || "常用",
           contractWorkContent:x.contract_work_content || "",
           revenue:Number(x.revenue||0), billRate:Number(x.bill_rate||0),
+          contractItems:normalizedContractItems(contractLineItems[String(x.id)]),
           earlyMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.earlyMultiplier),
           overtimeMultiplier:optionalClientMultiplier(siteBillingMultipliers[String(x.id)]?.overtimeMultiplier)
         })),
