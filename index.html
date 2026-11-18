@@ -136,10 +136,13 @@
     .summary-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
     .summary-calendar-head h2{margin-bottom:8px}
     .worker-detail-active{background:#eff6ff;border-color:#93c5fd}
-    .worker-detail-button,#summaryWorkerDetailBack{
+    .worker-detail-button,#summaryWorkerDetailBack,.recent-edit-button{
       border:1px solid #d1d5db;background:#eef0f3;color:#374151;
       border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;white-space:nowrap;
     }
+    .site-search-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
+    .site-search-heading h2,.site-search-heading label{margin:0}
+    .site-search-heading input{width:min(56%,340px);min-width:0;margin:0;font-size:14px}
     .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
     .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
@@ -4283,7 +4286,7 @@
         <button class="btn secondary" id="copyPreviousDayBtn" type="button" style="margin-top:8px">前日と同じ内容を入力</button>
         <div class="helper">前日の入力をコピーします。前日に入力がなければ、前々日の内容を使います。</div>
 
-        <label>現場</label>
+        <div class="site-search-heading"><label for="entrySite">現場</label><input id="entrySiteSearch" type="search" aria-label="現場を検索" placeholder="現場名・元請けで検索" autocomplete="off"></div>
         <select id="entrySite"></select>
         <div id="existingDaySummary" class="helper" role="status"></div>
 
@@ -4319,6 +4322,7 @@
         </div>
 
         <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業や手当を入力できます。</div>
+        <div id="entrySavePreview" class="helper" role="status" aria-live="polite" style="margin:10px 0;font-weight:600"></div>
         <button class="btn" id="addBulkEntryBtn">人工・経費を登録</button>
       </div>
 
@@ -4459,9 +4463,10 @@
         <div id="clientList" class="list"></div>
       </div>
       <div class="card">
-        <h2>現場一覧</h2>
+        <div class="site-search-heading"><h2>現場一覧</h2><input id="siteListSearch" type="search" aria-label="現場一覧を検索" placeholder="現場名・元請けで検索" autocomplete="off"></div>
         <div class="helper" style="margin-bottom:10px">よく使う現場は、最後に使用した順で選択ボックスの上に表示されます。</div>
         <div id="siteList" class="list"></div>
+        <button id="toggleMoreSitesBtn" class="btn secondary" type="button" style="display:none;margin-top:10px"></button>
 
         <button id="toggleHiddenSitesBtn" class="btn secondary" type="button" style="display:none;margin-top:12px">
           非表示の現場を表示
@@ -4560,7 +4565,7 @@
           </details>
         </div>
 
-        <label>現場</label>
+        <div class="site-search-heading"><label for="summarySite">現場</label><input id="summarySiteSearch" type="search" aria-label="集計する現場を検索" placeholder="現場名・元請けで検索" autocomplete="off" style="display:none"></div>
         <select id="summarySite"></select>
         <div id="summaryModeHint" class="helper">選択した月の人工・売上・人件費・経費・粗利を集計します。</div>
       </div>
@@ -5995,6 +6000,7 @@
       s.id,
       s.name || "",
       s.clientId || "",
+      clientById(s.clientId)?.name || "",
       s.contractType || "常用"
     ].join("\u001f")).join("\u001e");
   }
@@ -6004,22 +6010,38 @@
     if(!select) return;
 
     const sites = sortSitesForSelect(selectableSites());
-    const signature = summarySiteSignature(sites);
+    const query = summaryMode === "site" ? ($("summarySiteSearch")?.value.trim() || "") : "";
+    const matches = query ? sites.filter(s=>siteMatchesSearch(s,query)) : sites;
+    const matchingIds = new Set(matches.map(s=>s.id));
     const current = select.value || "";
+    const currentSite = sites.find(s=>s.id===current);
+    const fallbackSite = currentSite || matches[0] || sites[0];
+    const shownSites = query && fallbackSite && !matchingIds.has(fallbackSite.id)
+      ? [fallbackSite,...matches] : matches;
+    const signature = summarySiteSignature(shownSites) + "\u001d" + query;
 
     // 現場データ自体が変わった時だけ全optionを再生成する。
     if(signature !== summarySiteOptionsSignature){
       const fragment = document.createDocumentFragment();
 
-      sites.forEach(s=>{
+      shownSites.forEach(s=>{
         const c = s.clientId ? clientById(s.clientId) : null;
         const option = document.createElement("option");
         option.value = s.id;
         option.textContent = c
           ? `${s.name}｜${c.name}｜${s.contractType || "常用"}`
           : `${s.name}｜${s.contractType || "常用"}`;
+        if(query && !matchingIds.has(s.id)) option.textContent = `現在選択中：${option.textContent}`;
         fragment.appendChild(option);
       });
+
+      if(query && !matches.length){
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "一致する現場がありません";
+        emptyOption.disabled = true;
+        fragment.appendChild(emptyOption);
+      }
 
       select.replaceChildren(fragment);
       summarySiteOptionsSignature = signature;
@@ -6051,13 +6073,13 @@
     }
 
     // 空状態用optionが残っていれば除去。
-    select.querySelectorAll('option[value=""]').forEach(opt=>opt.remove());
+    select.querySelectorAll('option[value=""]').forEach(opt=>{if(!opt.disabled) opt.remove();});
 
     if(summaryMode === "site"){
       if(current && current !== "all" && sites.some(s=>s.id===current)){
         select.value = current;
       }else{
-        select.value = sites[0].id;
+        select.value = fallbackSite?.id || "";
       }
     }else{
       if(current === "all" || sites.some(s=>s.id===current)){
@@ -6077,6 +6099,7 @@
     if($("summaryMonthWrap")){
       $("summaryMonthWrap").style.display = summaryMode === "monthly" ? "" : "none";
     }
+    if($("summarySiteSearch")) $("summarySiteSearch").style.display = summaryMode === "site" ? "" : "none";
     if($("monthlySummaryDetails")){
       $("monthlySummaryDetails").style.display = "";
     }
@@ -6110,6 +6133,7 @@
 
   $("summaryModeMonthly")?.addEventListener("click", ()=>setSummaryMode("monthly"));
   $("summaryModeSite")?.addEventListener("click", ()=>setSummaryMode("site"));
+  $("summarySiteSearch").addEventListener("input",syncSummarySiteOptions);
   $("summaryMonth").addEventListener("change", renderSummary);
   $("summaryStartDay").addEventListener("change",()=>{
     state.recentSelects.summaryStartDay=Number($("summaryStartDay").value);
@@ -6441,6 +6465,55 @@
     bulkWorkerSelectionDraft = [...selected];
   }
 
+  function updateEntrySavePreview(){
+    const preview = $("entrySavePreview");
+    if(!preview) return;
+    const date = $("entryDate").value;
+    const siteId = $("entrySite").value;
+    if(!date || !siteId){
+      preview.textContent = "日付と現場を選ぶと、保存する金額を確認できます。";
+      return;
+    }
+    const visibleChecks = [...document.querySelectorAll("#bulkWorkerList .bulk-check")];
+    const visibleIds = new Set(visibleChecks.map(chk=>chk.dataset.workerId));
+    const selected = new Set(state.entries.filter(e=>e.date===date && e.siteId===siteId && !visibleIds.has(e.workerId))
+      .map(e=>e.workerId));
+    visibleChecks.forEach(chk=>{
+      if(chk.checked) selected.add(chk.dataset.workerId);
+      else selected.delete(chk.dataset.workerId);
+    });
+    let labor = 0;
+    selected.forEach(workerId=>{
+      const worker = workerById(workerId);
+      if(!worker) return;
+      const row = [...document.querySelectorAll("#bulkWorkerList .member-row")]
+        .find(item=>item.querySelector(".bulk-check")?.dataset.workerId===workerId);
+      const allowance = row ? {
+        early:row.querySelector(".bulk-early")?.value,
+        overtime:row.querySelector(".bulk-overtime")?.value,
+        night:row.querySelector(".bulk-night")?.checked,
+        travel:row.querySelector(".bulk-travel")?.checked,
+        customIds:[...row.querySelectorAll(".bulk-custom-allowance:checked")].map(x=>x.dataset.allowanceId)
+      } : (bulkAllowanceDraft.get(workerId) || {});
+      const saved = state.entries.find(e=>e.date===date && e.siteId===siteId && e.workerId===workerId);
+      const jinko = Number(row?.querySelector(".bulk-jinko")?.value ?? saved?.jinko ?? 1);
+      const customIds = new Set(allowance.customIds || []);
+      labor += row ? workerEntryCost({workerId,jinko,
+        early:Number(allowance.early||0),overtime:Number(allowance.overtime||0),
+        nightShift:!!allowance.night,nightMultiplier:workerNightMultiplier(worker),
+        businessTrip:!!allowance.travel,travelAllowance:Number(worker.travelAllowance||0),
+        customAllowances:normalizedCustomAllowances(worker.customAllowances).filter(x=>customIds.has(x.id))})
+        : workerEntryCost(saved);
+    });
+    const existingExpenses = state.siteExpenses.filter(x=>x.date===date && x.siteId===siteId);
+    const editingId = $("existingExpenseSelect").value;
+    const enteredExpense = Number($("siteDayExpense").value||0);
+    const expense = existingExpenses.reduce((sum,x)=>sum +
+      (String(x.id)===editingId ? (enteredExpense > 0 ? enteredExpense : Number(x.amount||0)) : Number(x.amount||0)),0)
+      + (!editingId ? enteredExpense : 0);
+    preview.textContent = `保存する内容：${selected.size}人・人件費 ${yen(labor)}・現場経費 ${yen(expense)}`;
+  }
+
   function renderBulkWorkers(){
     const box = $("bulkWorkerList");
     if(!box) return;
@@ -6460,6 +6533,7 @@
 
     if(!workers.length){
       box.innerHTML = `<div class="empty">この所属会社の作業員はまだ登録されていません。</div>`;
+      updateEntrySavePreview();
       return;
     }
 
@@ -6509,6 +6583,7 @@
         </div>
       </div>
     `;}).join("");
+    updateEntrySavePreview();
   }
 
 
@@ -6590,6 +6665,7 @@
     if(expenses.length) $("existingExpenseSelect").value=String(expenses[0].id);
     loadExpenseForEditing();
     $("siteExpenseDetails").open = expenses.length>0;
+    updateEntrySavePreview();
   }
 
   $("entryDate").addEventListener("change",()=>loadExistingDayForm(true));
@@ -6598,16 +6674,19 @@
     loadExistingDayForm(true);
   });
   $("existingExpenseSelect").addEventListener("change",loadExpenseForEditing);
+  ["input","change"].forEach(type=>$("view-input").addEventListener(type,()=>queueMicrotask(updateEntrySavePreview)));
 
 
   $("selectAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
     captureBulkWorkerSelection();
+    updateEntrySavePreview();
   });
 
   $("clearAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=false);
     captureBulkWorkerSelection();
+    updateEntrySavePreview();
   });
 
 
@@ -6921,6 +7000,32 @@
     `).join("");
   }
 
+  function siteMatchesSearch(site, query){
+    const text = `${site.name || ""} ${clientById(site.clientId)?.name || ""}`.toLocaleLowerCase("ja");
+    return text.includes(query.trim().toLocaleLowerCase("ja"));
+  }
+
+  function renderEntrySiteOptions(){
+    const select = $("entrySite");
+    if(!select) return;
+    const current = select.value;
+    const sites = sortSitesForSelect(selectableSites());
+    const query = $("entrySiteSearch")?.value.trim() || "";
+    const matches = query ? sites.filter(s=>siteMatchesSearch(s,query)) : sites;
+    const currentSite = sites.find(s=>s.id===current);
+    const options = matches.map(s=>{
+      const client = s.clientId ? clientById(s.clientId) : null;
+      const label = client ? `${s.name}｜${client.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
+      return `<option value="${escapeHtml(s.id)}">${escapeHtml(label)}</option>`;
+    });
+    if(query && currentSite && !matches.some(s=>s.id===current)){
+      options.unshift(`<option value="${escapeHtml(current)}">現在選択中：${escapeHtml(currentSite.name)}</option>`);
+    }
+    if(!matches.length && query) options.push(`<option value="" disabled>一致する現場がありません</option>`);
+    select.innerHTML = options.join("") || `<option value="">現場を登録してください</option>`;
+    if(current && [...select.options].some(opt=>opt.value===current)) select.value = current;
+  }
+
   function renderSelects(){
     const invoiceClient = $("invoiceClient");
     if(invoiceClient){
@@ -6932,25 +7037,20 @@
       if(current && clients.some(c=>c.id===current)) invoiceClient.value = current;
     }
 
-    const entrySites = sortSitesForSelect(selectableSites());
-    const entrySiteOptions = entrySites.map(s=>{
-      const c = s.clientId ? clientById(s.clientId) : null;
-      const label = c ? `${s.name}｜${c.name}｜${s.contractType || "常用"}` : `${s.name}｜${s.contractType || "常用"}`;
-      return `<option value="${s.id}">${escapeHtml(label)}</option>`;
-    }).join("");
-    const entrySite = $("entrySite");
-    if(entrySite){
-      const current = entrySite.value;
-      entrySite.innerHTML = entrySiteOptions || `<option value="">現場を登録してください</option>`;
-      if(current && entrySites.some(s=>s.id===current)) entrySite.value = current;
-    }
+    renderEntrySiteOptions();
 
     // 集計の現場選択はモード別の専用関数で生成する。
     syncSummarySiteOptions();
   }
 
+  $("entrySiteSearch").addEventListener("input",renderEntrySiteOptions);
+
+  let siteListExpanded = false;
   function renderSites(){
     const visibleSites = sortSitesForSelect(selectableSites());
+    const query = $("siteListSearch")?.value.trim() || "";
+    const matchingSites = query ? visibleSites.filter(s=>siteMatchesSearch(s,query)) : visibleSites;
+    const displayedSites = query || siteListExpanded ? matchingSites : matchingSites.slice(0,10);
     const hiddenSites = sortSitesForSelect(state.sites.filter(s=>isSiteHidden(s.id)));
 
     const visibleList = $("siteList");
@@ -6959,7 +7059,7 @@
     const toggleBtn = $("toggleHiddenSitesBtn");
 
     if(visibleList){
-      visibleList.innerHTML = visibleSites.length ? visibleSites.map(s=>`
+      visibleList.innerHTML = displayedSites.length ? displayedSites.map(s=>`
         <div class="item">
           <div class="item-line">
             <div>
@@ -6973,7 +7073,13 @@
             </div>
           </div>
         </div>
-      `).join("") : `<div class="empty">${state.sites.length ? "表示中の現場はありません。" : "まだ現場がありません。"}</div>`;
+      `).join("") : `<div class="empty">${query ? "一致する現場がありません。" : state.sites.length ? "表示中の現場はありません。" : "まだ現場がありません。"}</div>`;
+    }
+
+    const moreBtn = $("toggleMoreSitesBtn");
+    if(moreBtn){
+      moreBtn.style.display = !query && visibleSites.length > 10 ? "" : "none";
+      moreBtn.textContent = siteListExpanded ? "現場一覧を10件に戻す" : `残り${visibleSites.length-10}件を表示`;
     }
 
     if(toggleBtn){
@@ -7001,6 +7107,12 @@
       `).join("");
     }
   }
+
+  $("siteListSearch").addEventListener("input",renderSites);
+  $("toggleMoreSitesBtn").addEventListener("click",()=>{
+    siteListExpanded = !siteListExpanded;
+    renderSites();
+  });
 
   $("toggleHiddenSitesBtn")?.addEventListener("click", ()=>{
     const wrap = $("hiddenSiteListWrap");
@@ -7162,7 +7274,7 @@
   function renderRecent(){
     const compare=workerRecentRank();
     const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)||compare(a.workerId,b.workerId)).slice(0,30);
-    if(!list.length){
+    if(!list.length && !state.siteExpenses.length){
       $("recentEntries").innerHTML = `<div class="empty">まだ入力がありません。</div>`;
       return;
     }
@@ -7175,7 +7287,8 @@
             <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
             <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}${e.nightShift ? ` / 夜勤 ×${Number(e.nightMultiplier || workerNightMultiplier(w))}` : ""}${e.businessTrip ? ` / 出張 +${yen(e.travelAllowance ?? w?.travelAllowance)}` : ""}${customAllowanceDescription(e.customAllowances)}</small>
           </div>
-          <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button>
+          <div class="item-actions"><button class="recent-edit-button" type="button" data-edit-entry="${escapeHtml(String(e.id))}">編集</button>
+          <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button></div>
         </div>
       </div>`;
     }).join("");
@@ -7188,13 +7301,44 @@
             <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span> <span class="pill">${x.billable === false ? "請求しない" : "請求する"}</span></strong>
             <small>${x.date} / ${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
           </div>
-          <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button>
+          <div class="item-actions"><button class="recent-edit-button" type="button" data-edit-expense="${escapeHtml(String(x.id))}">編集</button>
+          <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button></div>
         </div>
       </div>`;
     }).join("");
 
     $("recentEntries").innerHTML = entryRows + recentShared;
   }
+
+  $("recentEntries").addEventListener("click",event=>{
+    const button = event.target.closest("[data-edit-entry],[data-edit-expense]");
+    if(!button) return;
+    const entry = button.dataset.editEntry ? state.entries.find(e=>String(e.id)===button.dataset.editEntry) : null;
+    const expense = button.dataset.editExpense ? state.siteExpenses.find(x=>String(x.id)===button.dataset.editExpense) : null;
+    const item = entry || expense;
+    if(!item) return;
+    $("entryDate").value = item.date;
+    $("entrySiteSearch").value = "";
+    renderEntrySiteOptions();
+    const siteSelect = $("entrySite");
+    if(![...siteSelect.options].some(opt=>opt.value===item.siteId)){
+      const site = siteById(item.siteId);
+      if(site) siteSelect.add(new Option(site.name + "（非表示）",site.id));
+    }
+    siteSelect.value = item.siteId;
+    if(entry && $("bulkCompanyFilter")?.value !== "all") $("bulkCompanyFilter").value = "all";
+    loadExistingDayForm(true);
+    if(expense){
+      $("existingExpenseSelect").value = String(expense.id);
+      loadExpenseForEditing();
+      $("siteExpenseDetails").open = true;
+    }
+    const target = entry
+      ? [...document.querySelectorAll("#bulkWorkerList .member-row")].find(row=>row.querySelector(".bulk-check")?.dataset.workerId===entry.workerId)
+      : $("siteExpenseDetails");
+    (target || $("view-input .card"))?.scrollIntoView({behavior:"smooth",block:"center"});
+    updateEntrySavePreview();
+  });
 
 
 
