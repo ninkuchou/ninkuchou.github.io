@@ -4533,6 +4533,8 @@
       </div>
       <div class="card">
         <h2>作業員一覧</h2>
+        <label for="workerListCompanyFilter">所属会社で絞り込み</label>
+        <select id="workerListCompanyFilter"></select>
         <div id="workerList" class="list"></div>
       </div>
     </section>
@@ -4590,6 +4592,8 @@
 
       <div class="card">
         <h2>作業員別人件費</h2>
+        <label for="summaryWorkerCompanyFilter">所属会社で絞り込み</label>
+        <select id="summaryWorkerCompanyFilter"></select>
         <div id="workerSummary" class="list"></div>
       </div>
       <div class="card">
@@ -5242,6 +5246,42 @@
     });
   }
 
+  function rememberWorkerUsage(ids){
+    const used = [...new Set(ids.filter(Boolean))];
+    if(!used.length) return;
+    const previous = Array.isArray(state.recentSelects?.workerUsage) ? state.recentSelects.workerUsage : [];
+    state.recentSelects.workerUsage = [...used,...previous.filter(id=>!used.includes(id))];
+  }
+
+  function workerRecentRank(){
+    const used = Array.isArray(state.recentSelects?.workerUsage) ? state.recentSelects.workerUsage : [];
+    const rank = new Map(used.map((id,index)=>[id,index]));
+    const lastEntry = new Map();
+    state.entries.forEach((entry,index)=>{
+      const current = lastEntry.get(entry.workerId);
+      if(!current || entry.date > current.date || (entry.date===current.date && index>current.index)){
+        lastEntry.set(entry.workerId,{date:entry.date,index});
+      }
+    });
+    return (a,b)=>{
+      const aRank=rank.has(a)?rank.get(a):Infinity;
+      const bRank=rank.has(b)?rank.get(b):Infinity;
+      if(aRank!==bRank) return aRank-bRank;
+      const aEntry=lastEntry.get(a), bEntry=lastEntry.get(b);
+      if(aEntry?.date!==bEntry?.date) return String(bEntry?.date||"").localeCompare(String(aEntry?.date||""));
+      return (bEntry?.index??-1)-(aEntry?.index??-1);
+    };
+  }
+
+  function sortWorkersByRecent(workers){
+    const compare=workerRecentRank();
+    return [...workers].sort((a,b)=>compare(a.id,b.id));
+  }
+
+  function matchesWorkerCompany(worker,filter){
+    return filter==="all" || (filter==="none" ? !worker?.companyId : worker?.companyId===filter);
+  }
+
   function hiddenSiteIds(){
     const list = state.recentSelects?.hiddenSiteIds;
     return Array.isArray(list) ? list : [];
@@ -5406,6 +5446,7 @@
         }
         renderSummary();
       }
+      if(target==="workers") renderWorkers();
       if(target==="invoice"){
         renderProgressBillingInputs();
         renderInvoice();
@@ -6376,7 +6417,7 @@
     const selected = bulkWorkerSelection();
 
     const filter = $("bulkCompanyFilter")?.value || state.bulkCompanyFilter || "all";
-    let workers = [...state.workers];
+    let workers = sortWorkersByRecent(state.workers);
 
     if(filter !== "all"){
       if(filter === "none"){
@@ -6645,6 +6686,7 @@
       }
     });
 
+    rememberWorkerUsage(sourceEntries.map(entry=>entry.workerId));
     save();
     renderAll();
     loadExistingDayForm(true);
@@ -6776,6 +6818,7 @@
 
     captureBulkWorkerSelection();
     state.recentSelects.__lastBulkWorkerIds = [...bulkWorkerSelection()];
+    rememberWorkerUsage(checked.map(chk=>chk.dataset.workerId));
     save();
     loadExistingDayForm(true);
     renderRecent();
@@ -7014,6 +7057,17 @@
       state.bulkCompanyFilter = bulkFilter.value;
     }
 
+    ["workerListCompanyFilter","summaryWorkerCompanyFilter"].forEach(id=>{
+      const filter=$(id);
+      if(!filter) return;
+      const current=state.recentSelects?.[id] || filter.value || "all";
+      const companies=sortByRecent(state.workerCompanies,"bulkCompanyFilter",x=>x.id);
+      filter.innerHTML = `<option value="all">すべて</option><option value="none">所属未設定</option>` +
+        companies.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+      filter.value=[...filter.options].some(option=>option.value===current) ? current : "all";
+      state.recentSelects[id]=filter.value;
+    });
+
     const list = $("workerCompanyList");
     if(!list) return;
     if(!state.workerCompanies.length){
@@ -7036,11 +7090,13 @@
   }
 
   function renderWorkers(){
-    if(!state.workers.length){
-      $("workerList").innerHTML = `<div class="empty">まだ作業員がありません。</div>`;
+    const filter=$("workerListCompanyFilter").value || "all";
+    const workers=sortWorkersByRecent(state.workers).filter(w=>matchesWorkerCompany(w,filter));
+    if(!workers.length){
+      $("workerList").innerHTML = `<div class="empty">${state.workers.length ? "この所属会社の作業員はいません。" : "まだ作業員がありません。"}</div>`;
       return;
     }
-    $("workerList").innerHTML = state.workers.map(w=>`
+    $("workerList").innerHTML = workers.map(w=>`
       <div class="item">
         <div class="item-line">
           <div>
@@ -7055,8 +7111,23 @@
       </div>`).join("");
   }
 
+  $("workerListCompanyFilter").addEventListener("change",()=>{
+    state.recentSelects.workerListCompanyFilter=$("workerListCompanyFilter").value;
+    save();
+    renderWorkers();
+  });
+  $("summaryWorkerCompanyFilter").addEventListener("change",()=>{
+    state.recentSelects.summaryWorkerCompanyFilter=$("summaryWorkerCompanyFilter").value;
+    summaryWorkerDetailId="";
+    $("dayDetail").className="empty";
+    $("dayDetail").textContent="カレンダーの日付を押してください。";
+    save();
+    renderSummary();
+  });
+
   function renderRecent(){
-    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+    const compare=workerRecentRank();
+    const list = [...state.entries].sort((a,b)=>b.date.localeCompare(a.date)||compare(a.workerId,b.workerId)).slice(0,30);
     if(!list.length){
       $("recentEntries").innerHTML = `<div class="empty">まだ入力がありません。</div>`;
       return;
@@ -7263,7 +7334,8 @@ function showDayDetail(date){
     const siteBlocks = siteIds.map(siteId=>{
       const s = siteById(siteId);
       const client = s?.clientId ? clientById(s.clientId) : null;
-      const siteEntries = entries.filter(e=>e.siteId===siteId);
+      const compare=workerRecentRank();
+      const siteEntries = entries.filter(e=>e.siteId===siteId).sort((a,b)=>compare(a.workerId,b.workerId));
       const siteExpenseRows = daySiteExpenses.filter(x=>x.siteId===siteId);
 
       const workersHtml = siteEntries.length
@@ -7526,7 +7598,12 @@ function showDayDetail(date){
       byWorker[e.workerId].cost += workerEntryCost(e);
     });
 
-    const rows = Object.entries(byWorker).map(([wid,v])=>{
+    const workerCompanyFilter=$("summaryWorkerCompanyFilter").value || "all";
+    const compareWorkers=workerRecentRank();
+    const rows = Object.entries(byWorker)
+      .filter(([wid])=>matchesWorkerCompany(workerById(wid),workerCompanyFilter))
+      .sort((a,b)=>compareWorkers(a[0],b[0]))
+      .map(([wid,v])=>{
       const w = workerById(wid);
       return `<div class="item ${summaryWorkerDetailId===wid ? "worker-detail-active" : ""}">
         <div class="item-line">
