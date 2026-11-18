@@ -4459,7 +4459,7 @@
 
         <label>現場</label>
         <select id="summarySite"></select>
-        <div id="summaryModeHint" class="helper">選択した月の人工・経費・粗利を集計します。</div>
+        <div id="summaryModeHint" class="helper">選択した月の人工・売上・人件費・経費・粗利を集計します。</div>
       </div>
 
       <div class="summary-grid" id="metrics"></div>
@@ -5649,7 +5649,7 @@
     }
     if($("summaryModeHint")){
       $("summaryModeHint").textContent = summaryMode === "monthly"
-        ? "選択した月の人工・経費・粗利を集計します。"
+        ? "選択した月の人工・売上・人件費・経費・粗利を集計します。"
         : "選択した現場を月をまたいで集計します。下のカレンダーをスクロールして、日付を押すとその日の詳細を確認できます。";
     }
 
@@ -6865,13 +6865,26 @@ function showDayDetail(date){
       const sharedExpenses = siteExpenses.reduce((a,e)=>a+Number(e.amount||0),0);
       const expenses = sharedExpenses;
 
-      let revenue = 0;
-      if(siteFilter!=="all"){
-        revenue = Number(siteById(siteFilter)?.revenue||0);
-      }else{
-        const used = new Set(entries.map(e=>e.siteId));
-        revenue = state.sites.filter(s=>used.has(s.id)).reduce((a,s)=>a+Number(s.revenue||0),0);
-      }
+      // 常用は請求と同じ人工・早出・残業単価で売上を計算する。
+      // 現場経費は常用の請求書で売上にも加算されるため、売上と経費の両方へ計上する。
+      const commonLaborRevenue = entries.reduce((sum,e)=>sum + workerEntryRevenue(e), 0);
+      const commonExpenseRevenue = siteExpenses.reduce((sum,expense)=>{
+        const site = siteById(expense.siteId);
+        if(!site || isSelfCompanyClientId(site.clientId) || (site.contractType || "常用") === "請負"){
+          return sum;
+        }
+        return sum + Number(expense.amount || 0);
+      }, 0);
+
+      // 請負は作業員別へ配分せず、現場の請負金額を月別集計の売上として扱う。
+      const contractSiteIds = siteFilter !== "all"
+        ? new Set([siteFilter])
+        : new Set(entries.map(e=>e.siteId));
+      const contractRevenue = state.sites.reduce((sum,site)=>{
+        if(!contractSiteIds.has(site.id) || (site.contractType || "常用") !== "請負") return sum;
+        return sum + Number(site.revenue || 0);
+      }, 0);
+      const revenue = commonLaborRevenue + commonExpenseRevenue + contractRevenue;
       const gross = revenue - labor - expenses;
 
       $("metrics").innerHTML = `
@@ -6880,6 +6893,7 @@ function showDayDetail(date){
         <div class="metric"><span>残業</span><b>${totalOvertime.toFixed(1)}h</b></div>
         <div class="metric"><span>人件費</span><b>${yen(labor)}</b></div>
         <div class="metric"><span>経費</span><b>${yen(expenses)}</b></div>
+        <div class="metric"><span>売上</span><b>${yen(revenue)}</b></div>
         <div class="metric"><span>粗利</span><b>${yen(gross)}</b></div>
       `;
 
@@ -9494,7 +9508,7 @@ function getContractBillingIncluded(siteId, month){
       view:"summary",
       target:"#summaryModeToggle",
       title:"⑥ 集計を確認",
-      html:`<p><strong>「月別」</strong>では、選択した月の人工・人件費・経費・粗利を確認できます。</p><p><strong>「現場別」</strong>では、1つの現場を月をまたいで集計し、人工・人件費・現場経費・売上・粗利・粗利率を確認できます。請負現場では請負金額も表示されます。</p><p>現場別のカレンダーは上下にスクロールでき、日付を押すとその日の人工・経費などの詳細を確認できます。</p>`
+      html:`<p><strong>「月別」</strong>では、選択した月の人工・売上・人件費・経費・粗利を確認できます。</p><p><strong>「現場別」</strong>では、1つの現場を月をまたいで集計し、人工・人件費・現場経費・売上・粗利・粗利率を確認できます。請負現場では請負金額も表示されます。</p><p>現場別のカレンダーは上下にスクロールでき、日付を押すとその日の人工・経費などの詳細を確認できます。</p>`
     },
     {
       view:"invoice",
