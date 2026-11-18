@@ -179,8 +179,11 @@
     .worker-custom-allowance-row{display:grid;grid-template-columns:minmax(0,1fr) 105px 38px;gap:7px;align-items:center;margin-top:8px}
     .worker-custom-allowance-row input{min-width:0}
     .worker-custom-allowance-row button{border:0;background:#fee2e2;color:var(--danger);border-radius:8px;min-height:42px;cursor:pointer}
-    .contract-item-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 38px;gap:7px;align-items:center;margin-top:8px}
-    .contract-item-row input{min-width:0}
+    .contract-item-row{border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:8px}
+    .contract-item-row input{min-width:0;margin:0}
+    .contract-item-fields{display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,.7fr) minmax(0,1fr) minmax(0,1fr) 38px;gap:6px;align-items:end;margin-top:7px}
+    .contract-item-fields label{display:block;margin:0 0 4px;font-size:11px}
+    .contract-item-fields>div{min-width:0}
     .contract-item-row button{border:0;background:#fee2e2;color:var(--danger);border-radius:8px;min-height:42px;cursor:pointer}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
     .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
@@ -4324,7 +4327,7 @@
             <div id="siteContractItemsList"></div>
             <datalist id="siteContractItemHistory"></datalist>
             <button id="addSiteContractItemBtn" type="button" class="btn secondary">項目を追加</button>
-            <div class="helper">項目名は履歴から選択でき、金額も読み込めます。請負金額の合計と請求書の明細に反映します。</div>
+            <div class="helper">項目名は履歴から選択できます。数量・単位・単価を入力すると金額を計算し、請求書の明細に反映します。</div>
           </div>
         </div>
 
@@ -5470,9 +5473,18 @@
   }
 
   function normalizedContractItems(items){
-    return Array.isArray(items) ? items.filter(item=>item && String(item.name||"").trim() && Number.isFinite(Number(item.amount)) && Number(item.amount)>=0).map(item=>({
-      id:String(item.id||uid()), name:String(item.name).trim(), amount:Number(item.amount)
-    })) : [];
+    return Array.isArray(items) ? items.filter(item=>item && String(item.name||"").trim()).map(item=>{
+      const configured = item.pricingConfigured !== false && item.quantity !== undefined && item.unitPrice !== undefined;
+      const quantity = configured ? Number(item.quantity) : 1;
+      const unitPrice = configured ? Number(item.unitPrice) : Number(item.amount);
+      if(!Number.isFinite(quantity) || quantity<=0 || !Number.isFinite(unitPrice) || unitPrice<0) return null;
+      return {
+        id:String(item.id||uid()),name:String(item.name).trim(),
+        quantity,unit:String(item.unit||"式").trim()||"式",unitPrice,
+        amount:configured ? Math.round(quantity*unitPrice) : Number(item.amount),
+        pricingConfigured:configured
+      };
+    }).filter(Boolean) : [];
   }
 
   function contractSiteAmount(site){
@@ -5498,7 +5510,7 @@
     const history = new Map();
     contractTemplates().forEach(template=>{
       normalizedContractItems(template.items).forEach(item=>{
-        if(!history.has(item.name)) history.set(item.name,item.amount);
+        if(!history.has(item.name)) history.set(item.name,item);
       });
     });
     return history;
@@ -5510,19 +5522,28 @@
     $("siteContractWorkHistory").innerHTML = contents.map(content=>
       `<option value="${escapeHtml(content)}"></option>`
     ).join("");
-    $("siteContractItemHistory").innerHTML = [...contractItemHistory()].map(([name,amount])=>
-      `<option value="${escapeHtml(name)}" label="${escapeHtml(yen(amount))}"></option>`
+    $("siteContractItemHistory").innerHTML = [...contractItemHistory()].map(([name,item])=>
+      `<option value="${escapeHtml(name)}" label="${escapeHtml(`${item.quantity}${item.unit} × ${yen(item.unitPrice)}`)}"></option>`
     ).join("");
+  }
+
+  function contractItemRowHtml(item){
+    return `<div class="contract-item-row" data-id="${escapeHtml(String(item.id||uid()))}">
+      <input class="contract-item-name" list="siteContractItemHistory" placeholder="項目名を入力・履歴から選択" value="${escapeHtml(String(item.name||""))}" aria-label="項目名">
+      <div class="contract-item-fields">
+        <div><label>数量</label><input class="contract-item-quantity" type="number" min="0.001" step="any" inputmode="decimal" value="${item.quantity ?? 1}"></div>
+        <div><label>単位</label><input class="contract-item-unit" type="text" value="${escapeHtml(String(item.unit||"式"))}"></div>
+        <div><label>単価</label><input class="contract-item-price" type="number" min="0" step="1" inputmode="numeric" placeholder="円" value="${item.unitPrice ?? ""}"></div>
+        <div><label>金額</label><input class="contract-item-amount" type="number" readonly tabindex="-1" value="${item.unitPrice === undefined ? "" : Math.round(Number(item.quantity??1)*Number(item.unitPrice))}"></div>
+        <button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>
+      </div>
+    </div>`;
   }
 
   function renderSiteContractItems(items=[]){
     const list = $("siteContractItemsList");
     if(!list) return;
-    list.innerHTML = items.map(item=>`<div class="contract-item-row" data-id="${escapeHtml(String(item.id||uid()))}">
-      <input class="contract-item-name" list="siteContractItemHistory" placeholder="項目名を入力・履歴から選択" value="${escapeHtml(String(item.name||""))}">
-      <input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額" value="${item.amount ?? ""}">
-      <button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>
-    </div>`).join("");
+    list.innerHTML = items.map(item=>contractItemRowHtml(item)).join("");
     updateSiteContractTotal();
   }
 
@@ -5532,25 +5553,31 @@
     if(!amount) return;
     amount.readOnly = rows.length > 0;
     if(rows.length){
-      amount.value = rows.reduce((sum,row)=>sum+Number(row.querySelector(".contract-item-amount")?.value||0),0);
+      amount.value = rows.reduce((sum,row)=>{
+        const quantity = row.querySelector(".contract-item-quantity").value;
+        const price = row.querySelector(".contract-item-price").value;
+        const lineAmount = quantity !== "" && price !== "" ? Math.round(Number(quantity)*Number(price)) : null;
+        row.querySelector(".contract-item-amount").value = lineAmount === null ? "" : lineAmount;
+        return sum + (Number.isFinite(lineAmount) ? lineAmount : 0);
+      },0);
     }
   }
 
   $("addSiteContractItemBtn")?.addEventListener("click",()=>{
     const list = $("siteContractItemsList");
-    const row = document.createElement("div");
-    row.className = "contract-item-row";
-    row.dataset.id = uid();
-    row.innerHTML = `<input class="contract-item-name" list="siteContractItemHistory" placeholder="項目名を入力・履歴から選択"><input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額"><button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>`;
-    list.appendChild(row);
+    list.insertAdjacentHTML("beforeend",contractItemRowHtml({id:uid(),name:"",quantity:1,unit:"式"}));
+    const row = list.lastElementChild;
     updateSiteContractTotal();
     row.querySelector(".contract-item-name").focus();
   });
   $("siteContractItemsList")?.addEventListener("input",event=>{
     if(event.target.matches(".contract-item-name")){
-      const amount = contractItemHistory().get(event.target.value.trim());
-      if(amount !== undefined){
-        event.target.closest(".contract-item-row").querySelector(".contract-item-amount").value = amount;
+      const item = contractItemHistory().get(event.target.value.trim());
+      if(item){
+        const row = event.target.closest(".contract-item-row");
+        row.querySelector(".contract-item-quantity").value=item.quantity;
+        row.querySelector(".contract-item-unit").value=item.unit;
+        row.querySelector(".contract-item-price").value=item.unitPrice;
       }
     }
     updateSiteContractTotal();
@@ -5610,13 +5637,21 @@
     const contractItems = [];
     for(const row of itemRows){
       const itemName = row.querySelector(".contract-item-name").value.trim();
-      const rawAmount = row.querySelector(".contract-item-amount").value;
-      if(!itemName || rawAmount === "" || !Number.isFinite(Number(rawAmount)) || Number(rawAmount)<0){
-        alert("請負内訳の項目名と金額を入力してください");
-        row.querySelector(!itemName ? ".contract-item-name" : ".contract-item-amount").focus();
+      const quantityEl = row.querySelector(".contract-item-quantity");
+      const unitEl = row.querySelector(".contract-item-unit");
+      const priceEl = row.querySelector(".contract-item-price");
+      const quantity = Number(quantityEl.value);
+      const unit = unitEl.value.trim();
+      const unitPrice = Number(priceEl.value);
+      if(!itemName || quantityEl.value==="" || !Number.isFinite(quantity) || quantity<=0 || !unit || priceEl.value==="" || !Number.isFinite(unitPrice) || unitPrice<0){
+        alert("請負内訳の項目名・数量・単位・単価を入力してください");
+        (!itemName ? row.querySelector(".contract-item-name") :
+          quantityEl.value==="" || !Number.isFinite(quantity) || quantity<=0 ? quantityEl :
+          !unit ? unitEl : priceEl).focus();
         return;
       }
-      contractItems.push({id:row.dataset.id||uid(),name:itemName,amount:Number(rawAmount)});
+      contractItems.push({id:row.dataset.id||uid(),name:itemName,quantity,unit,unitPrice,
+        amount:Math.round(quantity*unitPrice),pricingConfigured:true});
     }
     const data = {
       name,
@@ -9231,7 +9266,7 @@ function getContractBillingIncluded(siteId, month){
       const pct = Number(r.percent || 0);
       const pctText = pct.toFixed(pct%1 ? 1 : 0);
       const items = normalizedContractItems(r.site?.contractItems);
-      const invoiceItems = items.length ? items : [{name:r.site?.contractWorkContent || "請負工事",amount:r.contractAmount}];
+      const invoiceItems = items.length ? items : [{name:r.site?.contractWorkContent || "請負工事",amount:r.contractAmount,pricingConfigured:false}];
       let cumulative = 0;
       let billed = 0;
       invoiceItems.forEach((item,index)=>{
@@ -9240,13 +9275,17 @@ function getContractBillingIncluded(siteId, month){
           ? r.progressAmount : Math.floor(cumulative * pct / 100);
         const lineAmount = nextBilled - billed;
         billed = nextBilled;
+        const quantity = item.pricingConfigured
+          ? Number((item.quantity*pct/100).toFixed(6)).toLocaleString("ja-JP",{maximumFractionDigits:6}) : "1";
+        const unit = item.pricingConfigured ? item.unit : "式";
+        const price = item.pricingConfigured ? Number(item.unitPrice) : lineAmount;
         detailRows.push(`
           <tr>
             <td class="date"></td>
             <td class="desc">${escapeHtml(item.name)}（出来高 ${pctText}%）</td>
-            <td class="qty">1</td>
-            <td class="unit">式</td>
-            <td class="price">${lineAmount.toLocaleString("ja-JP")}</td>
+            <td class="qty">${quantity}</td>
+            <td class="unit">${escapeHtml(unit)}</td>
+            <td class="price">${price.toLocaleString("ja-JP")}</td>
             <td class="amount">${lineAmount.toLocaleString("ja-JP")}</td>
             <td class="note"></td>
           </tr>
