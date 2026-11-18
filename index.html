@@ -4316,17 +4316,15 @@
         <div id="siteContractTypeHelp" class="helper">常用＝人工単価で請求 / 請負＝工事金額・出来高率で請求</div>
 
         <div id="siteContractWorkContentWrap" style="display:none">
-          <div id="siteContractTemplateWrap" style="display:none">
-            <label for="siteContractTemplate">保存済みの工事内容・項目を呼び出す</label>
-            <select id="siteContractTemplate"><option value="">選択してください</option></select>
-          </div>
           <label>工事内容（任意）</label>
-          <input id="siteContractWorkContent" type="text" placeholder="例：足場工事">
+          <input id="siteContractWorkContent" type="text" list="siteContractWorkHistory" placeholder="入力するか、履歴から選択">
+          <datalist id="siteContractWorkHistory"></datalist>
           <div id="siteContractItemsWrap">
             <label>請負内訳（任意）</label>
             <div id="siteContractItemsList"></div>
+            <datalist id="siteContractItemHistory"></datalist>
             <button id="addSiteContractItemBtn" type="button" class="btn secondary">項目を追加</button>
-            <div class="helper">項目名と金額を入力すると、請負金額の合計と請求書の明細に反映します。人工入力時にも項目を選択できます。</div>
+            <div class="helper">項目名は履歴から選択でき、金額も読み込めます。請負金額の合計と請求書の明細に反映します。</div>
           </div>
         </div>
 
@@ -5493,31 +5491,32 @@
     return templates;
   }
 
-  function renderContractTemplateOptions(){
-    const select = $("siteContractTemplate");
-    if(!select) return;
-    const templates = contractTemplates();
-    const current = select.value;
-    $("siteContractTemplateWrap").style.display = templates.length ? "" : "none";
-    select.innerHTML = `<option value="">選択してください</option>` + templates.map(t=>
-      `<option value="${escapeHtml(String(t.id))}">${escapeHtml(String(t.name||t.workContent||"請負工事"))}${t.workContent && t.workContent!==t.name ? " / " + escapeHtml(String(t.workContent)) : ""}</option>`
-    ).join("");
-    if(templates.some(t=>String(t.id)===current)) select.value=current;
+  function contractItemHistory(){
+    const history = new Map();
+    contractTemplates().forEach(template=>{
+      normalizedContractItems(template.items).forEach(item=>{
+        if(!history.has(item.name)) history.set(item.name,item.amount);
+      });
+    });
+    return history;
   }
 
-  $("siteContractTemplate")?.addEventListener("change",()=>{
-    const template = contractTemplates().find(t=>String(t.id)===$("siteContractTemplate").value);
-    if(!template) return;
-    $("siteContractWorkContent").value = String(template.workContent||"");
-    $("siteRevenue").value = Number(template.revenue||0) || "";
-    renderSiteContractItems(normalizedContractItems(template.items).map(item=>({...item,id:uid()})));
-  });
+  function renderContractHistory(){
+    const templates = contractTemplates();
+    const contents = [...new Set(templates.map(t=>String(t.workContent||"").trim()).filter(Boolean))];
+    $("siteContractWorkHistory").innerHTML = contents.map(content=>
+      `<option value="${escapeHtml(content)}"></option>`
+    ).join("");
+    $("siteContractItemHistory").innerHTML = [...contractItemHistory()].map(([name,amount])=>
+      `<option value="${escapeHtml(name)}" label="${escapeHtml(yen(amount))}"></option>`
+    ).join("");
+  }
 
   function renderSiteContractItems(items=[]){
     const list = $("siteContractItemsList");
     if(!list) return;
     list.innerHTML = items.map(item=>`<div class="contract-item-row" data-id="${escapeHtml(String(item.id||uid()))}">
-      <input class="contract-item-name" placeholder="項目名（例：建方工事）" value="${escapeHtml(String(item.name||""))}">
+      <input class="contract-item-name" list="siteContractItemHistory" placeholder="項目名を入力・履歴から選択" value="${escapeHtml(String(item.name||""))}">
       <input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額" value="${item.amount ?? ""}">
       <button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>
     </div>`).join("");
@@ -5539,12 +5538,20 @@
     const row = document.createElement("div");
     row.className = "contract-item-row";
     row.dataset.id = uid();
-    row.innerHTML = `<input class="contract-item-name" placeholder="項目名（例：建方工事）"><input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額"><button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>`;
+    row.innerHTML = `<input class="contract-item-name" list="siteContractItemHistory" placeholder="項目名を入力・履歴から選択"><input class="contract-item-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="金額"><button type="button" class="contract-item-remove" aria-label="項目を削除">×</button>`;
     list.appendChild(row);
     updateSiteContractTotal();
     row.querySelector(".contract-item-name").focus();
   });
-  $("siteContractItemsList")?.addEventListener("input",updateSiteContractTotal);
+  $("siteContractItemsList")?.addEventListener("input",event=>{
+    if(event.target.matches(".contract-item-name")){
+      const amount = contractItemHistory().get(event.target.value.trim());
+      if(amount !== undefined){
+        event.target.closest(".contract-item-row").querySelector(".contract-item-amount").value = amount;
+      }
+    }
+    updateSiteContractTotal();
+  });
   $("siteContractItemsList")?.addEventListener("click",event=>{
     if(!event.target.closest(".contract-item-remove")) return;
     event.target.closest(".contract-item-row").remove();
@@ -5651,7 +5658,6 @@
     $("siteName").value="";
     if($("siteContractType")) $("siteContractType").value="常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value="";
-    $("siteContractTemplate").value="";
     renderSiteContractItems();
     $("siteRevenue").value="";
     $("siteBillRate").value="";
@@ -6068,7 +6074,6 @@
     $("siteClient").value = s.clientId || "";
     if($("siteContractType")) $("siteContractType").value = s.contractType || "常用";
     if($("siteContractWorkContent")) $("siteContractWorkContent").value = s.contractWorkContent || "";
-    $("siteContractTemplate").value = "";
     $("siteRevenue").value = s.revenue || "";
     renderSiteContractItems(normalizedContractItems(s.contractItems));
     $("siteBillRate").value = s.billRate || "";
@@ -12240,7 +12245,7 @@ function getContractBillingIncluded(siteId, month){
     renderSelects();
     renderBulkWorkers();
     renderSites();
-    renderContractTemplateOptions();
+    renderContractHistory();
     renderWorkers();
     renderRecent();
     renderSummary();
