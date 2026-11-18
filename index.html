@@ -1491,6 +1491,8 @@
       align-items:center;
     }
     .expense-input-row > *{min-width:0}
+    .expense-billing-toggle{display:flex;align-items:center;gap:8px;margin:8px 0 0;cursor:pointer}
+    .expense-billing-toggle input{width:20px;height:20px;min-height:20px;margin:0;flex:none}
 
   
     /* 請求書：備考欄を少し広げて「税抜表示」を1行に */
@@ -4242,6 +4244,7 @@
           </select>
         </div>
         <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
+        <label class="expense-billing-toggle"><input id="siteDayExpenseBillable" type="checkbox" checked>この経費を請求する</label>
 
         <label>所属会社で絞り込み</label>
         <select id="bulkCompanyFilter"></select>
@@ -4914,7 +4917,10 @@
   if(!Array.isArray(state.clients)) state.clients = [];
   if(!Array.isArray(state.workerCompanies)) state.workerCompanies = [];
   if(!Array.isArray(state.siteExpenses)) state.siteExpenses = [];
-  state.siteExpenses.forEach(x=>{ if(!x.taxType) x.taxType="excluded"; });
+  state.siteExpenses.forEach(x=>{
+    if(!x.taxType) x.taxType="excluded";
+    if(x.billable === undefined) x.billable = true;
+  });
   if(!state.recentSelects || typeof state.recentSelects !== "object") state.recentSelects = {};
   state.bulkCompanyFilter = state.bulkCompanyFilter || "all";
   if(!Array.isArray(state.invoiceNumbers)) state.invoiceNumbers = [];
@@ -5097,7 +5103,7 @@
   const yen = n => "¥" + Math.round(Number(n||0)).toLocaleString("ja-JP");
 
 
-  function hasDuplicateSiteExpense({date, siteId, amount, memo, taxType, excludeId=""}){
+  function hasDuplicateSiteExpense({date, siteId, amount, memo, taxType, billable=true, excludeId=""}){
     const normalizedMemo = (memo || "").trim();
     const normalizedTaxType = taxType || "excluded";
     const normalizedAmount = Number(amount || 0);
@@ -5108,7 +5114,8 @@
       x.siteId === siteId &&
       Number(x.amount || 0) === normalizedAmount &&
       (x.memo || "").trim() === normalizedMemo &&
-      (x.taxType || "excluded") === normalizedTaxType
+      (x.taxType || "excluded") === normalizedTaxType &&
+      (x.billable !== false) === billable
     );
   }
 
@@ -6074,7 +6081,8 @@
         x.siteId===src.siteId &&
         Number(x.amount||0)===Number(src.amount||0) &&
         String(x.memo||"")===String(src.memo||"") &&
-        String(x.taxType||"excluded")===String(src.taxType||"excluded")
+        String(x.taxType||"excluded")===String(src.taxType||"excluded") &&
+        (x.billable !== false)===(src.billable !== false)
       );
 
       if(!sameAlreadyExists){
@@ -6083,7 +6091,8 @@
         siteId:src.siteId,
         amount:Number(src.amount||0),
         memo:src.memo || "",
-        taxType:src.taxType || "excluded"
+        taxType:src.taxType || "excluded",
+        billable:src.billable !== false
       })){
         alert("同じ現場経費がすでに登録されています。");
       }else{
@@ -6093,6 +6102,7 @@
           siteId:src.siteId,
           amount:Number(src.amount||0),
           taxType:src.taxType || "excluded",
+          billable:src.billable !== false,
           memo:src.memo || ""
         });
       }
@@ -6128,6 +6138,7 @@
     const siteExpense = Number($("siteDayExpense").value||0);
     const siteExpenseTaxType = $("siteDayExpenseTaxType")?.value || "excluded";
     const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
+    const siteExpenseBillable = $("siteDayExpenseBillable").checked;
 
     if(!checked.length && siteExpense <= 0 && !siteExpenseMemo){
       alert("メンバーまたは現場経費のどちらかを入力してください");
@@ -6175,6 +6186,7 @@
         siteId,
         amount:siteExpense,
         taxType:siteExpenseTaxType,
+        billable:siteExpenseBillable,
         memo:siteExpenseMemo
       });
     }
@@ -6189,6 +6201,7 @@
     $("siteDayExpense").value="";
     if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
     $("siteDayExpenseMemo").value="";
+    $("siteDayExpenseBillable").checked=true;
     renderRecent();
     renderSummary();
 
@@ -6489,7 +6502,7 @@
       return `<div class="item">
         <div class="item-line">
           <div>
-            <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span></strong>
+            <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span> <span class="pill">${x.billable === false ? "請求しない" : "請求する"}</span></strong>
             <small>${x.date} / ${escapeHtml(s?.name||"不明")}${x.memo ? " / " + escapeHtml(x.memo) : ""}</small>
           </div>
           <button class="danger-link" onclick="removeSiteExpense('${x.id}')">削除</button>
@@ -6674,7 +6687,7 @@ function showDayDetail(date){
         ? `<div style="margin-top:8px">${siteExpenseRows.map(x=>`
             <div class="item-line" style="padding:5px 0">
               <div>
-                <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span></strong>
+                <strong>現場経費 ${yen(x.amount)} <span class="pill">${x.taxType==="included" ? "税込" : "税抜"}</span> <span class="pill">${x.billable === false ? "請求しない" : "請求する"}</span></strong>
                 <small>${x.memo ? escapeHtml(x.memo) : "メモなし"}</small>
               </div>
               <button class="danger-link" onclick="removeSiteExpenseFromDay('${x.id}','${date}')">削除</button>
@@ -6721,10 +6734,10 @@ function showDayDetail(date){
     const rate = Number(site.billRate || client?.billRate || 0);
     const contractAmount = contractType === "請負" ? Number(site.revenue||0) : 0;
 
-    // 常用は人工請求＋現場経費、請負は登録した請負金額を案件全体の売上として扱う。
+    // 常用は人工請求＋請求対象の現場経費、請負は登録した請負金額を案件全体の売上として扱う。
     const revenue = contractType === "請負"
       ? contractAmount
-      : (totalJinko * rate) + expenses;
+      : (totalJinko * rate) + siteExpenses.reduce((a,e)=>a+(e.billable === false ? 0 : Number(e.amount||0)),0);
 
     const gross = revenue - labor - expenses;
     const grossRate = revenue > 0 ? (gross / revenue * 100) : 0;
@@ -6870,7 +6883,7 @@ function showDayDetail(date){
       const commonLaborRevenue = entries.reduce((sum,e)=>sum + workerEntryRevenue(e), 0);
       const commonExpenseRevenue = siteExpenses.reduce((sum,expense)=>{
         const site = siteById(expense.siteId);
-        if(!site || isSelfCompanyClientId(site.clientId) || (site.contractType || "常用") === "請負"){
+        if(!site || expense.billable === false || isSelfCompanyClientId(site.clientId) || (site.contractType || "常用") === "請負"){
           return sum;
         }
         return sum + Number(expense.amount || 0);
@@ -7862,7 +7875,7 @@ function getContractBillingIncluded(siteId, month){
         }));
 
       const siteExpenseItems = state.siteExpenses.filter(
-        x=>x.siteId===site.id && dateInRange(x.date, period.start, period.end)
+        x=>x.siteId===site.id && x.billable !== false && dateInRange(x.date, period.start, period.end)
       );
       const expenses = siteExpenseItems.reduce(
         (a,x)=>a+expensePretaxAmount(x, taxRate),0
@@ -10062,6 +10075,9 @@ function getContractBillingIncluded(siteId, month){
       const ci = state.companyInfo || {};
       const recentSelectsForCloud = {
         ...(state.recentSelects || {}),
+        __siteExpenseBillingV1:Object.fromEntries(
+          state.siteExpenses.filter(x=>x.billable === false).map(x=>[String(x.id), false])
+        ),
         __companyInfoCloudV1:companyInfoCloudSnapshot(ci),
         __clientBillingMultipliersV1:Object.fromEntries(
           state.clients.map(client=>[String(client.id), {
@@ -10166,10 +10182,15 @@ function getContractBillingIncluded(siteId, month){
       && typeof storedRecentSelects.__siteBillingMultipliersV1 === "object")
       ? storedRecentSelects.__siteBillingMultipliersV1
       : {};
+    const siteExpenseBilling = (storedRecentSelects.__siteExpenseBillingV1
+      && typeof storedRecentSelects.__siteExpenseBillingV1 === "object")
+      ? storedRecentSelects.__siteExpenseBillingV1
+      : {};
     const recentSelects = {...storedRecentSelects};
     delete recentSelects.__companyInfoCloudV1;
     delete recentSelects.__clientBillingMultipliersV1;
     delete recentSelects.__siteBillingMultipliersV1;
+    delete recentSelects.__siteExpenseBillingV1;
     const companyValue = (column, key, fallback="") => {
       if(Object.prototype.hasOwnProperty.call(cloudCompanyInfo, key)){
         return cloudCompanyInfo[key];
@@ -10213,7 +10234,8 @@ function getContractBillingIncluded(siteId, month){
         })),
         siteExpenses:map.site_expenses.map(x=>({
           id:x.id, date:x.expense_date, siteId:x.site_id, amount:Number(x.amount||0),
-          memo:x.memo || "", taxType:x.tax_type || "excluded"
+          memo:x.memo || "", taxType:x.tax_type || "excluded",
+          billable:siteExpenseBilling[String(x.id)] !== false
         })),
         progressBillings:map.progress_billings.map(x=>({
           id:x.id, siteId:x.site_id, month:x.billing_month, percent:Number(x.percent||0)
