@@ -132,6 +132,11 @@
     .cal-day.empty{background:transparent;border-color:transparent;cursor:default}
     .cal-date{font-size:11px;font-weight:800;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:clip}
     .cal-chip{display:block;width:100%;max-width:100%;min-width:0;font-size:9px;line-height:1.1;background:#eef0f3;border-radius:5px;padding:2px 2px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cal-worker-cost{display:block;font-size:11px;font-weight:800;color:#1d4ed8;white-space:nowrap;letter-spacing:-.05em}
+    .summary-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .summary-calendar-head h2{margin-bottom:8px}
+    .worker-detail-active{background:#eff6ff;border-color:#93c5fd}
+    .worker-detail-button{font-size:12px;white-space:nowrap}
     .cal-more{font-size:10px;color:var(--sub);margin-top:4px}
     .client-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .color-choice{width:38px;height:38px;border-radius:10px;border:3px solid transparent;padding:0;cursor:pointer}
@@ -148,6 +153,7 @@
       .cal-day{min-width:0;min-height:64px;padding:4px 3px;border-radius:9px}
       .cal-date{font-size:10px;margin-bottom:2px}
       .cal-chip{font-size:8px;padding:2px 1px;margin-top:1px;border-radius:4px}
+      .cal-worker-cost{font-size:9px}
       .cal-client-tag{width:9px;height:9px;border-radius:3px}
     }
     @media print{
@@ -4129,6 +4135,14 @@
     }
   }
 
+  /* カラー請求書の口座情報は改行位置を固定する。 */
+  .excel-template.invoice-format-color .bank-body{
+    display:block !important;
+    white-space:nowrap !important;
+    font-size:10px !important;
+    line-height:1.3 !important;
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -4548,8 +4562,11 @@
       </div>
 
       <div id="monthlySummaryDetails">
-        <div class="card">
-          <h2 id="summaryCalendarTitle">月間カレンダー</h2>
+        <div class="card" id="summaryCalendarCard">
+          <div class="summary-calendar-head">
+            <h2 id="summaryCalendarTitle">月間カレンダー</h2>
+            <button id="summaryWorkerDetailBack" class="edit-link" type="button" hidden>元の表示に戻る</button>
+          </div>
           <div id="summaryCalendar"></div>
         </div>
 
@@ -5368,7 +5385,14 @@
       document.documentElement.style.setProperty("--accent", pair[0]);
       document.querySelector("header").style.background = `linear-gradient(135deg,#ffffff 0%,${pair[1]} 100%)`;
 
-      if(target==="summary") renderSummary();
+      if(target==="summary"){
+        if(summaryWorkerDetailId){
+          summaryWorkerDetailId = "";
+          $("dayDetail").className = "empty";
+          $("dayDetail").textContent = "カレンダーの日付を押してください。";
+        }
+        renderSummary();
+      }
       if(target==="invoice"){
         renderProgressBillingInputs();
         renderInvoice();
@@ -5846,6 +5870,7 @@
   });
 
   let summaryMode = "monthly";
+  let summaryWorkerDetailId = "";
 
   function summaryStartDay(){
     const day = Number(state.recentSelects?.summaryStartDay || 1);
@@ -7053,7 +7078,8 @@
   }
 
 
-  function calendarHtmlForMonth(entries, month, siteFilter, period){
+
+  function calendarHtmlForMonth(entries, month, siteFilter, period, workerId=""){
     siteFilter = siteFilter || "all";
 
     const [year, mon] = month.split("-").map(Number);
@@ -7075,6 +7101,17 @@
       const day = current.getDate();
       const date = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
       const dayEntries = entries.filter(e=>e.date===date);
+
+      if(workerId){
+        const workerEntries = dayEntries.filter(e=>e.workerId===workerId);
+        const dailyCost = workerEntries.reduce((sum,e)=>sum+workerEntryCost(e),0);
+        const dailyJinko = workerEntries.reduce((sum,e)=>sum+Number(e.jinko||0),0);
+        cells += `<div class="cal-day" onclick="showDayDetail('${date}')">
+          <div class="cal-date">${period ? `${current.getMonth()+1}/${day}` : `${day}日`}</div>
+          ${workerEntries.length ? `<span class="cal-worker-cost">${yen(dailyCost)}</span><span class="cal-chip">${dailyJinko.toFixed(2)}人工</span>` : ""}
+        </div>`;
+        continue;
+      }
 
       const bySite = {};
       dayEntries.forEach(e=>{
@@ -7119,11 +7156,11 @@
     return `<div class="calendar">${heads}${cells}</div>`;
   }
 
-  function renderSiteScrollableCalendar(entries, siteFilter){
+  function renderSiteScrollableCalendar(entries, siteFilter, workerId=""){
     const box = $("summaryCalendar");
     if(!box) return;
 
-    let expenses = state.siteExpenses;
+    let expenses = workerId ? [] : state.siteExpenses;
     if(siteFilter!=="all"){
       expenses = expenses.filter(x=>x.siteId===siteFilter);
     }
@@ -7144,17 +7181,17 @@
         const [y,m] = month.split("-").map(Number);
         return `<section class="site-calendar-month">
           <div class="site-calendar-month-title">${y}年${m}月</div>
-          ${calendarHtmlForMonth(monthEntries, month, siteFilter)}
+          ${calendarHtmlForMonth(monthEntries, month, siteFilter, null, workerId)}
         </section>`;
       }).join("")
     }</div>`;
   }
 
-  function renderCalendar(entries, month, siteFilter, period){
+  function renderCalendar(entries, month, siteFilter, period, workerId=""){
     siteFilter = siteFilter || "all";
     const box = $("summaryCalendar");
     if(!box) return;
-    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter, period);
+    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter, period, workerId);
   }
 
   
@@ -7189,9 +7226,10 @@ function showDayDetail(date){
     const siteFilter = $("summarySite").value || "all";
     let entries = state.entries.filter(e=>e.date===date);
     if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
+    if(summaryWorkerDetailId) entries = entries.filter(e=>e.workerId===summaryWorkerDetailId);
 
     const detail = $("dayDetail");
-    let daySiteExpenses = state.siteExpenses.filter(x=>x.date===date);
+    let daySiteExpenses = summaryWorkerDetailId ? [] : state.siteExpenses.filter(x=>x.date===date);
     if(siteFilter!=="all") daySiteExpenses = daySiteExpenses.filter(x=>x.siteId===siteFilter);
 
     if(!entries.length && !daySiteExpenses.length){
@@ -7218,7 +7256,7 @@ function showDayDetail(date){
             return `<div class="item-line" style="padding:6px 0;border-bottom:1px solid var(--line)">
               <div>
                 <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}${customAllowanceDescription(e.customAllowances)}</small>
+                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}${customAllowanceDescription(e.customAllowances)}${summaryWorkerDetailId ? " / 人件費 " + yen(workerEntryCost(e)) : ""}</small>
               </div>
               <button class="danger-link" onclick="removeEntryFromDay('${e.id}','${date}')">削除</button>
             </div>`;
@@ -7250,8 +7288,8 @@ function showDayDetail(date){
     detail.className = "list";
     detail.innerHTML = `
       <div class="day-detail-title-row">
-        <div class="day-detail-title">${date}</div>
-        <button class="day-delete-all-btn" type="button" onclick="removeAllFromDay('${date}')">この日の内容をまとめて削除</button>
+        <div class="day-detail-title">${date}${summaryWorkerDetailId ? " / 人件費 " + yen(entries.reduce((sum,e)=>sum+workerEntryCost(e),0)) : ""}</div>
+        ${summaryWorkerDetailId ? "" : `<button class="day-delete-all-btn" type="button" onclick="removeAllFromDay('${date}')">この日の内容をまとめて削除</button>`}
       </div>
       ${siteBlocks}
     `;
@@ -7473,7 +7511,7 @@ function showDayDetail(date){
 
     const rows = Object.entries(byWorker).map(([wid,v])=>{
       const w = workerById(wid);
-      return `<div class="item">
+      return `<div class="item ${summaryWorkerDetailId===wid ? "worker-detail-active" : ""}">
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w?.name||"不明")}</strong>
@@ -7481,11 +7519,28 @@ function showDayDetail(date){
           </div>
           <div style="text-align:right;display:grid;gap:3px;flex:0 0 auto">
             <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
+            <button class="edit-link worker-detail-button" type="button" data-summary-worker="${escapeHtml(wid)}">${summaryWorkerDetailId===wid ? "詳細を閉じる" : "詳細表示"}</button>
           </div>
         </div>
       </div>`;
     }).join("");
     $("workerSummary").innerHTML = rows || `<div class="empty">この条件の入力はありません。</div>`;
+
+    if(summaryWorkerDetailId && byWorker[summaryWorkerDetailId]){
+      const workerName = workerById(summaryWorkerDetailId)?.name || "不明";
+      if(summaryMode === "site"){
+        $("summaryCalendarTitle").textContent = `${workerName}の人件費カレンダー`;
+        renderSiteScrollableCalendar(entries.filter(e=>e.workerId===summaryWorkerDetailId),siteFilter,summaryWorkerDetailId);
+      }else{
+        const month = $("summaryMonth").value || monthLocal();
+        const period = summaryPeriodFor(month);
+        $("summaryCalendarTitle").textContent = `${workerName}の人件費カレンダー（${period.start.replaceAll("-","/")}〜${period.end.replaceAll("-","/")}）`;
+        renderCalendar(entries.filter(e=>e.workerId===summaryWorkerDetailId),month,siteFilter,period,summaryWorkerDetailId);
+      }
+    }else{
+      summaryWorkerDetailId = "";
+    }
+    $("summaryWorkerDetailBack").hidden = !summaryWorkerDetailId;
 
     const byCompany = {};
     entries.forEach(e=>{
@@ -7510,6 +7565,23 @@ function showDayDetail(date){
     }).join("");
     $("companySummary").innerHTML = companyRows || `<div class="empty">この条件の入力はありません。</div>`;
   }
+
+  $("workerSummary").addEventListener("click",event=>{
+    const button = event.target.closest("[data-summary-worker]");
+    if(!button) return;
+    summaryWorkerDetailId = summaryWorkerDetailId===button.dataset.summaryWorker ? "" : button.dataset.summaryWorker;
+    $("dayDetail").className = "empty";
+    $("dayDetail").textContent = "カレンダーの日付を押してください。";
+    renderSummary();
+    requestAnimationFrame(()=>$("summaryCalendarCard").scrollIntoView({behavior:"smooth",block:"start"}));
+  });
+
+  $("summaryWorkerDetailBack").addEventListener("click",()=>{
+    summaryWorkerDetailId = "";
+    $("dayDetail").className = "empty";
+    $("dayDetail").textContent = "カレンダーの日付を押してください。";
+    renderSummary();
+  });
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c=>({
@@ -9470,6 +9542,12 @@ function getContractBillingIncluded(siteId, month){
       .map(line=>line.trim())
       .filter(Boolean)
       .join("\n");
+    const bankFirstLine = [invoiceCompanyInfo.bankName,invoiceCompanyInfo.bankBranch]
+      .map(value=>String(value || "").trim()).filter(Boolean).join("　");
+    const bankSecondLine = [invoiceCompanyInfo.bankAccountType,invoiceCompanyInfo.bankAccountNumber,invoiceCompanyInfo.bankAccountHolder]
+      .map(value=>String(value || "").trim()).filter(Boolean).join("　");
+    const colorBankText = bankFirstLine || bankSecondLine
+      ? [bankFirstLine,bankSecondLine].filter(Boolean).join("\n") : bankText;
 
     const blankDetailRow = () => `
       <tr>
@@ -9677,7 +9755,7 @@ function getContractBillingIncluded(siteId, month){
             ${bankText ? `
               <div class="invoice-bank">
                 <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                <div class="bank-body">${escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
+                <div class="bank-body">${escapeHtml(($('invoiceFormat')?.value || state.companyInfo?.invoiceFormat || 'color') === 'color' ? colorBankText : bankText).replace(/\n/g,"<br>")}</div>
               </div>
             ` : ""}
           </div>
