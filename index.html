@@ -6473,6 +6473,16 @@
     bulkWorkerSelectionDraft = [...selected];
   }
 
+  function entryCustomAllowanceOptions(worker, date=$("entryDate").value, siteId=$("entrySite").value){
+    const current = normalizedCustomAllowances(worker?.customAllowances);
+    const savedEntry = state.entries.find(e=>e.date===date && e.siteId===siteId && e.workerId===worker?.id);
+    const saved = normalizedCustomAllowances(savedEntry?.customAllowances);
+    const options = new Map(current.map(item=>[item.id,item]));
+    // 既に入力した手当は、作業員登録の設定を後で変えても当時の名称・金額を残す。
+    saved.forEach(item=>options.set(item.id,item));
+    return [...options.values()];
+  }
+
   function updateEntrySavePreview(){
     const preview = $("entrySavePreview");
     if(!preview) return;
@@ -6510,7 +6520,7 @@
         early:Number(allowance.early||0),overtime:Number(allowance.overtime||0),
         nightShift:!!allowance.night,nightMultiplier:workerNightMultiplier(worker),
         businessTrip:!!allowance.travel,travelAllowance:Number(worker.travelAllowance||0),
-        customAllowances:normalizedCustomAllowances(worker.customAllowances).filter(x=>customIds.has(x.id))})
+        customAllowances:entryCustomAllowanceOptions(worker,date,siteId).filter(x=>customIds.has(x.id))})
         : workerEntryCost(saved);
     });
     const existingExpenses = state.siteExpenses.filter(x=>x.date===date && x.siteId===siteId);
@@ -6548,7 +6558,7 @@
     box.innerHTML = workers.map(w=>{
       const allowance = bulkAllowanceDraft.get(w.id) || {};
       const jinko = String(bulkJinkoDraft.get(w.id) ?? "1");
-      const customAllowances = normalizedCustomAllowances(w.customAllowances);
+      const customAllowances = entryCustomAllowanceOptions(w);
       const chosen = [Number(allowance.early) > 0 ? `早出 ${allowance.early}h` : "",
         Number(allowance.overtime) > 0 ? `残業 ${allowance.overtime}h` : "",
         allowance.night ? "夜勤" : "", allowance.travel ? "出張" : "",
@@ -6844,6 +6854,7 @@
 
     const date = $("entryDate").value;
     const siteId = $("entrySite").value;
+    captureBulkAllowances();
     rememberRecent("entrySite", siteId);
     rememberSiteUsage(siteId);
     const checked = [...document.querySelectorAll(".bulk-check:checked")];
@@ -6858,6 +6869,21 @@
     const existingExpense = state.siteExpenses.find(x=>String(x.id)===$("existingExpenseSelect").value && x.date===date && x.siteId===siteId);
     const visibleUncheckedIds = new Set([...document.querySelectorAll("#bulkWorkerList .bulk-check:not(:checked)")].map(chk=>chk.dataset.workerId));
     const removedEntries = state.entries.filter(e=>e.date===date && e.siteId===siteId && visibleUncheckedIds.has(e.workerId));
+
+    const uncheckedAllowances = [...document.querySelectorAll("#bulkWorkerList .member-row")].filter(row=>{
+      if(row.querySelector(".bulk-check")?.checked) return false;
+      const workerId = row.querySelector(".bulk-check")?.dataset.workerId;
+      if(state.entries.some(e=>e.date===date && e.siteId===siteId && e.workerId===workerId)) return false;
+      return Number(row.querySelector(".bulk-early")?.value||0)>0 ||
+        Number(row.querySelector(".bulk-overtime")?.value||0)>0 ||
+        !!row.querySelector(".bulk-night")?.checked || !!row.querySelector(".bulk-travel")?.checked ||
+        !!row.querySelector(".bulk-custom-allowance:checked");
+    });
+    if(uncheckedAllowances.length){
+      alert("手当を入力した作業員にチェックが入っていません。人工と一緒に登録する場合は、作業員にもチェックを入れてください。");
+      uncheckedAllowances[0].scrollIntoView({behavior:"smooth",block:"center"});
+      return;
+    }
 
     if(!checked.length && siteExpense <= 0 && !siteExpenseMemo && !removedEntries.length){
       alert("メンバーまたは現場経費のどちらかを入力してください");
@@ -6885,7 +6911,7 @@
       const travelAllowance = businessTrip ? Number(worker?.travelAllowance||0) : 0;
       const selectedCustomIds = new Set([...chk.closest(".member-row").querySelectorAll(".bulk-custom-allowance:checked")]
         .map(input=>input.dataset.allowanceId));
-      const customAllowances = normalizedCustomAllowances(worker?.customAllowances)
+      const customAllowances = entryCustomAllowanceOptions(worker,date,siteId)
         .filter(x=>selectedCustomIds.has(x.id));
 
       const existing = state.entries.find(e =>
