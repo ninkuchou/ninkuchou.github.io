@@ -4503,7 +4503,7 @@
       </div>
 
       <div class="card">
-        <h2>作業員別</h2>
+        <h2>作業員別人件費</h2>
         <div id="workerSummary" class="list"></div>
       </div>
       <div class="card">
@@ -5959,9 +5959,29 @@
   window.removeEntry = removeEntry;
 
 
+  let bulkWorkerSelectionDraft = null;
+
+  function bulkWorkerSelection(){
+    const saved = state.recentSelects?.__lastBulkWorkerIds;
+    return new Set(bulkWorkerSelectionDraft ?? (Array.isArray(saved) ? saved : state.workers.map(w=>w.id)));
+  }
+
+  function captureBulkWorkerSelection(){
+    const checks = document.querySelectorAll("#bulkWorkerList .bulk-check");
+    if(!checks.length) return;
+    const selected = bulkWorkerSelection();
+    checks.forEach(chk=>{
+      if(chk.checked) selected.add(chk.dataset.workerId);
+      else selected.delete(chk.dataset.workerId);
+    });
+    bulkWorkerSelectionDraft = [...selected];
+  }
+
   function renderBulkWorkers(){
     const box = $("bulkWorkerList");
     if(!box) return;
+
+    const selected = bulkWorkerSelection();
 
     const filter = $("bulkCompanyFilter")?.value || state.bulkCompanyFilter || "all";
     let workers = [...state.workers];
@@ -5981,7 +6001,7 @@
 
     box.innerHTML = workers.map(w=>`
       <div class="member-row">
-        <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" checked>
+        <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" ${selected.has(w.id) ? "checked" : ""}>
         <div>
           <div class="member-name">${escapeHtml(w.name)}</div>
           <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</div>
@@ -6010,9 +6030,14 @@
 
 
   $("bulkCompanyFilter").addEventListener("change", ()=>{
+    captureBulkWorkerSelection();
     state.bulkCompanyFilter = $("bulkCompanyFilter").value || "all";
     save();
     renderBulkWorkers();
+  });
+
+  $("bulkWorkerList").addEventListener("change", event=>{
+    if(event.target.matches(".bulk-check")) captureBulkWorkerSelection();
   });
 
   ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
@@ -6025,10 +6050,12 @@
 
   $("selectAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=true);
+    captureBulkWorkerSelection();
   });
 
   $("clearAllBtn").addEventListener("click", ()=>{
     document.querySelectorAll(".bulk-check").forEach(x=>x.checked=false);
+    captureBulkWorkerSelection();
   });
 
 
@@ -6221,6 +6248,8 @@
     // 先に確実にフォーカスを外してから完了メッセージを表示する。
     dismissKeyboard();
 
+    state.recentSelects.__lastBulkWorkerIds = checked.map(chk=>chk.dataset.workerId);
+    bulkWorkerSelectionDraft = null;
     save();
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
     $("siteDayExpense").value="";
@@ -6943,16 +6972,11 @@ function showDayDetail(date){
 
     const byWorker = {};
     entries.forEach(e=>{
-      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,revenue:0,hasRevenue:false,early:0,overtime:0};
+      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0};
       byWorker[e.workerId].jinko += Number(e.jinko||0);
       byWorker[e.workerId].early += Number(e.early||0);
       byWorker[e.workerId].overtime += Number(e.overtime||0);
       byWorker[e.workerId].cost += workerEntryCost(e);
-      const site = siteById(e.siteId);
-      if(site && !isSelfCompanyClientId(site.clientId) && (site.contractType || "常用") !== "請負"){
-        byWorker[e.workerId].hasRevenue = true;
-        byWorker[e.workerId].revenue += workerEntryRevenue(e);
-      }
     });
 
     const rows = Object.entries(byWorker).map(([wid,v])=>{
@@ -6964,7 +6988,6 @@ function showDayDetail(date){
             <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""}</small>
           </div>
           <div style="text-align:right;display:grid;gap:3px;flex:0 0 auto">
-            ${v.hasRevenue ? `<span><small style="display:inline">売上</small> <b>${yen(v.revenue)}</b></span>` : ""}
             <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
           </div>
         </div>
@@ -10838,6 +10861,7 @@ function getContractBillingIncluded(siteId, month){
       setCloudStatus("クラウド保存済み", "ok");
     }
 
+    bulkWorkerSelectionDraft = null;
     renderAll();
     if(pendingLocalState) scheduleCloudSync();
     refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
@@ -11614,6 +11638,7 @@ function getContractBillingIncluded(siteId, month){
       }
 
       state = normalized;
+      bulkWorkerSelectionDraft = null;
       save();
       renderAll();
       dismissKeyboard();
