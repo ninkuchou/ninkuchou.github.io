@@ -4138,13 +4138,15 @@
     }
   }
 
-  /* カラー請求書の口座情報は改行位置を固定する。 */
-  .excel-template.invoice-format-color .bank-body{
+  /* カラー・シンプル請求書の口座情報は改行位置を固定する。 */
+  .excel-template.invoice-format-color .bank-body,
+  .excel-template.invoice-format-simple .bank-body{
     display:block !important;
     font-size:10px !important;
     line-height:1.3 !important;
   }
-  .excel-template.invoice-format-color .bank-body .bank-line{
+  .excel-template.invoice-format-color .bank-body .bank-line,
+  .excel-template.invoice-format-simple .bank-body .bank-line{
     display:block;
     white-space:nowrap;
   }
@@ -4544,15 +4546,17 @@
           <button id="summaryModeSite" class="summary-mode-btn" type="button">現場別</button>
         </div>
 
-        <details id="summaryMonthWrap" class="expense-details">
-          <summary id="summaryPeriodLabel">集計期間を設定</summary>
-          <div class="expense-details-body">
-            <label>集計月（締め日の月）</label>
-            <div class="date-wrap"><input id="summaryMonth" type="month"></div>
-            <label for="summaryStartDay">集計期間の開始日</label>
-            <select id="summaryStartDay"></select>
-          </div>
-        </details>
+        <div id="summaryMonthWrap">
+          <label for="summaryMonth">集計月（締め日の月）</label>
+          <div class="date-wrap"><input id="summaryMonth" type="month"></div>
+          <details id="summaryPeriodSettings" class="expense-details">
+            <summary id="summaryPeriodLabel">集計期間を設定</summary>
+            <div class="expense-details-body">
+              <label for="summaryStartDay">集計期間の開始日</label>
+              <select id="summaryStartDay"></select>
+            </div>
+          </details>
+        </div>
 
         <label>現場</label>
         <select id="summarySite"></select>
@@ -5394,8 +5398,9 @@
       document.querySelector("header").style.background = `linear-gradient(135deg,#ffffff 0%,${pair[1]} 100%)`;
 
       if(target==="summary"){
-        if(summaryWorkerDetailId){
+        if(summaryWorkerDetailId || summaryCompanyDetailId){
           summaryWorkerDetailId = "";
+          summaryCompanyDetailId = "";
           $("dayDetail").className = "empty";
           $("dayDetail").textContent = "カレンダーの日付を押してください。";
         }
@@ -5879,6 +5884,7 @@
 
   let summaryMode = "monthly";
   let summaryWorkerDetailId = "";
+  let summaryCompanyDetailId = "";
 
   function summaryStartDay(){
     const day = Number(state.recentSelects?.summaryStartDay || 1);
@@ -7087,7 +7093,7 @@
 
 
 
-  function calendarHtmlForMonth(entries, month, siteFilter, period, workerId=""){
+  function calendarHtmlForMonth(entries, month, siteFilter, period, workerId="", companyId=""){
     siteFilter = siteFilter || "all";
 
     const [year, mon] = month.split("-").map(Number);
@@ -7110,13 +7116,14 @@
       const date = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
       const dayEntries = entries.filter(e=>e.date===date);
 
-      if(workerId){
-        const workerEntries = dayEntries.filter(e=>e.workerId===workerId);
-        const dailyCost = workerEntries.reduce((sum,e)=>sum+workerEntryCost(e),0);
-        const dailyJinko = workerEntries.reduce((sum,e)=>sum+Number(e.jinko||0),0);
+      if(workerId || companyId){
+        const detailEntries = dayEntries.filter(e=>workerId
+          ? e.workerId===workerId : (workerById(e.workerId)?.companyId || "none")===companyId);
+        const dailyCost = detailEntries.reduce((sum,e)=>sum+workerEntryCost(e),0);
+        const dailyJinko = detailEntries.reduce((sum,e)=>sum+Number(e.jinko||0),0);
         cells += `<div class="cal-day" onclick="showDayDetail('${date}')">
           <div class="cal-date">${period ? `${current.getMonth()+1}/${day}` : `${day}日`}</div>
-          ${workerEntries.length ? `<span class="cal-worker-cost">${yen(dailyCost)}</span><span class="cal-chip">${dailyJinko.toFixed(2)}人工</span>` : ""}
+          ${detailEntries.length ? `<span class="cal-worker-cost">${yen(dailyCost)}</span><span class="cal-chip">${dailyJinko.toFixed(2)}人工</span>` : ""}
         </div>`;
         continue;
       }
@@ -7164,11 +7171,11 @@
     return `<div class="calendar">${heads}${cells}</div>`;
   }
 
-  function renderSiteScrollableCalendar(entries, siteFilter, workerId=""){
+  function renderSiteScrollableCalendar(entries, siteFilter, workerId="", companyId=""){
     const box = $("summaryCalendar");
     if(!box) return;
 
-    let expenses = workerId ? [] : state.siteExpenses;
+    let expenses = workerId || companyId ? [] : state.siteExpenses;
     if(siteFilter!=="all"){
       expenses = expenses.filter(x=>x.siteId===siteFilter);
     }
@@ -7189,17 +7196,17 @@
         const [y,m] = month.split("-").map(Number);
         return `<section class="site-calendar-month">
           <div class="site-calendar-month-title">${y}年${m}月</div>
-          ${calendarHtmlForMonth(monthEntries, month, siteFilter, null, workerId)}
+          ${calendarHtmlForMonth(monthEntries, month, siteFilter, null, workerId, companyId)}
         </section>`;
       }).join("")
     }</div>`;
   }
 
-  function renderCalendar(entries, month, siteFilter, period, workerId=""){
+  function renderCalendar(entries, month, siteFilter, period, workerId="", companyId=""){
     siteFilter = siteFilter || "all";
     const box = $("summaryCalendar");
     if(!box) return;
-    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter, period, workerId);
+    box.innerHTML = calendarHtmlForMonth(entries, month, siteFilter, period, workerId, companyId);
   }
 
   
@@ -7235,9 +7242,11 @@ function showDayDetail(date){
     let entries = state.entries.filter(e=>e.date===date);
     if(siteFilter!=="all") entries = entries.filter(e=>e.siteId===siteFilter);
     if(summaryWorkerDetailId) entries = entries.filter(e=>e.workerId===summaryWorkerDetailId);
+    if(summaryCompanyDetailId) entries = entries.filter(e=>(workerById(e.workerId)?.companyId || "none")===summaryCompanyDetailId);
 
     const detail = $("dayDetail");
-    let daySiteExpenses = summaryWorkerDetailId ? [] : state.siteExpenses.filter(x=>x.date===date);
+    const showingLaborDetail = !!(summaryWorkerDetailId || summaryCompanyDetailId);
+    let daySiteExpenses = showingLaborDetail ? [] : state.siteExpenses.filter(x=>x.date===date);
     if(siteFilter!=="all") daySiteExpenses = daySiteExpenses.filter(x=>x.siteId===siteFilter);
 
     if(!entries.length && !daySiteExpenses.length){
@@ -7264,7 +7273,7 @@ function showDayDetail(date){
             return `<div class="item-line" style="padding:6px 0;border-bottom:1px solid var(--line)">
               <div>
                 <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}${customAllowanceDescription(e.customAllowances)}${summaryWorkerDetailId ? " / 人件費 " + yen(workerEntryCost(e)) : ""}</small>
+                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}${customAllowanceDescription(e.customAllowances)}${showingLaborDetail ? " / 人件費 " + yen(workerEntryCost(e)) : ""}</small>
               </div>
               <button class="danger-link" onclick="removeEntryFromDay('${e.id}','${date}')">削除</button>
             </div>`;
@@ -7296,8 +7305,8 @@ function showDayDetail(date){
     detail.className = "list";
     detail.innerHTML = `
       <div class="day-detail-title-row">
-        <div class="day-detail-title">${date}${summaryWorkerDetailId ? " / 人件費 " + yen(entries.reduce((sum,e)=>sum+workerEntryCost(e),0)) : ""}</div>
-        ${summaryWorkerDetailId ? "" : `<button class="day-delete-all-btn" type="button" onclick="removeAllFromDay('${date}')">この日の内容をまとめて削除</button>`}
+        <div class="day-detail-title">${date}${showingLaborDetail ? " / 人件費 " + yen(entries.reduce((sum,e)=>sum+workerEntryCost(e),0)) : ""}</div>
+        ${showingLaborDetail ? "" : `<button class="day-delete-all-btn" type="button" onclick="removeAllFromDay('${date}')">この日の内容をまとめて削除</button>`}
       </div>
       ${siteBlocks}
     `;
@@ -7548,8 +7557,6 @@ function showDayDetail(date){
     }else{
       summaryWorkerDetailId = "";
     }
-    $("summaryWorkerDetailBack").hidden = !summaryWorkerDetailId;
-
     const byCompany = {};
     entries.forEach(e=>{
       const w = workerById(e.workerId);
@@ -7561,23 +7568,58 @@ function showDayDetail(date){
 
     const companyRows = Object.entries(byCompany).map(([cid,v])=>{
       const c = cid==="none" ? null : workerCompanyById(cid);
-      return `<div class="item">
+      const companyName = String(c?.name || "").replace(/[ 　]/g,"");
+      const ownName = String(state.companyInfo?.name || "").replace(/[ 　]/g,"");
+      const canShowDetails = !!c && companyName!=="自社" && (!ownName || companyName!==ownName);
+      return `<div class="item ${summaryCompanyDetailId===cid ? "worker-detail-active" : ""}">
         <div class="item-line">
           <div>
             <strong>${escapeHtml(c?.name || "未設定")}</strong>
             <small>${v.jinko.toFixed(2)}人工</small>
           </div>
-          <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
+          <div style="text-align:right;display:grid;gap:3px;flex:0 0 auto">
+            <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
+            ${canShowDetails ? `<button class="edit-link worker-detail-button" type="button" data-summary-company="${escapeHtml(cid)}">${summaryCompanyDetailId===cid ? "詳細を閉じる" : "詳細表示"}</button>` : ""}
+          </div>
         </div>
       </div>`;
     }).join("");
     $("companySummary").innerHTML = companyRows || `<div class="empty">この条件の入力はありません。</div>`;
+
+    if(summaryCompanyDetailId && byCompany[summaryCompanyDetailId]){
+      const companyName = workerCompanyById(summaryCompanyDetailId)?.name || "未設定";
+      const companyEntries = entries.filter(e=>(workerById(e.workerId)?.companyId || "none")===summaryCompanyDetailId);
+      if(summaryMode === "site"){
+        $("summaryCalendarTitle").textContent = `${companyName}の人件費カレンダー`;
+        renderSiteScrollableCalendar(companyEntries,siteFilter,"",summaryCompanyDetailId);
+      }else{
+        const month = $("summaryMonth").value || monthLocal();
+        const period = summaryPeriodFor(month);
+        $("summaryCalendarTitle").textContent = `${companyName}の人件費カレンダー（${period.start.replaceAll("-","/")}〜${period.end.replaceAll("-","/")}）`;
+        renderCalendar(companyEntries,month,siteFilter,period,"",summaryCompanyDetailId);
+      }
+    }else{
+      summaryCompanyDetailId = "";
+    }
+    $("summaryWorkerDetailBack").hidden = !(summaryWorkerDetailId || summaryCompanyDetailId);
   }
 
   $("workerSummary").addEventListener("click",event=>{
     const button = event.target.closest("[data-summary-worker]");
     if(!button) return;
     summaryWorkerDetailId = summaryWorkerDetailId===button.dataset.summaryWorker ? "" : button.dataset.summaryWorker;
+    summaryCompanyDetailId = "";
+    $("dayDetail").className = "empty";
+    $("dayDetail").textContent = "カレンダーの日付を押してください。";
+    renderSummary();
+    requestAnimationFrame(()=>$("summaryCalendarCard").scrollIntoView({behavior:"smooth",block:"start"}));
+  });
+
+  $("companySummary").addEventListener("click",event=>{
+    const button = event.target.closest("[data-summary-company]");
+    if(!button) return;
+    summaryCompanyDetailId = summaryCompanyDetailId===button.dataset.summaryCompany ? "" : button.dataset.summaryCompany;
+    summaryWorkerDetailId = "";
     $("dayDetail").className = "empty";
     $("dayDetail").textContent = "カレンダーの日付を押してください。";
     renderSummary();
@@ -7586,6 +7628,7 @@ function showDayDetail(date){
 
   $("summaryWorkerDetailBack").addEventListener("click",()=>{
     summaryWorkerDetailId = "";
+    summaryCompanyDetailId = "";
     $("dayDetail").className = "empty";
     $("dayDetail").textContent = "カレンダーの日付を押してください。";
     renderSummary();
@@ -9779,7 +9822,7 @@ function getContractBillingIncluded(siteId, month){
             ${bankText ? `
               <div class="invoice-bank">
                 <div class="bank-title">＊　お振込みの際は、下記口座までお願いいたします。</div>
-                <div class="bank-body">${selectedFormat === "color" ? colorBankHtml : escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
+                <div class="bank-body">${selectedFormat === "color" || selectedFormat === "simple" ? colorBankHtml : escapeHtml(bankText).replace(/\n/g,"<br>")}</div>
               </div>
             ` : ""}
           </div>
