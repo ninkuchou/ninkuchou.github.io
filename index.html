@@ -167,7 +167,7 @@
     .bulk-field-label{font-size:10px;font-weight:700;color:var(--sub);text-align:center}
     .bulk-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px}
     .member-allowance-details{grid-column:2/-1;margin-top:2px;min-width:0}
-    .member-allowance-details summary{display:inline-flex;align-items:center;gap:5px;min-height:32px;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;list-style:none;padding:3px 0}
+    .member-allowance-details summary{display:inline-flex;align-items:center;gap:5px;min-height:32px;max-width:100%;overflow-wrap:anywhere;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;list-style:none;padding:3px 0}
     .member-allowance-details summary::-webkit-details-marker{display:none}
     .member-allowance-details summary::before{content:"＋";font-size:15px}
     .member-allowance-details[open] summary::before{content:"−"}
@@ -175,6 +175,9 @@
     .bulk-allowances{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:7px}
     .bulk-allowances label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;cursor:pointer}
     .bulk-allowances input[type="checkbox"]{width:19px;height:19px;min-height:19px;margin:0}
+    .worker-custom-allowance-row{display:grid;grid-template-columns:minmax(0,1fr) 105px 38px;gap:7px;align-items:center;margin-top:8px}
+    .worker-custom-allowance-row input{min-width:0}
+    .worker-custom-allowance-row button{border:0;background:#fee2e2;color:var(--danger);border-radius:8px;min-height:42px;cursor:pointer}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
     .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
     @media(max-width:430px){
@@ -4249,7 +4252,7 @@
         <label>日付</label>
         <div class="date-wrap"><input id="entryDate" type="date"></div>
         <button class="btn secondary" id="copyPreviousDayBtn" type="button" style="margin-top:8px">前日と同じ内容を入力</button>
-        <div class="helper">前日の現場・作業員・人工・早出・残業・夜勤・出張・現場経費を、選択した日付へコピーします。</div>
+        <div class="helper">前日の現場・作業員・人工・早出・残業・手当・現場経費を、選択した日付へコピーします。</div>
 
         <label>現場</label>
         <select id="entrySite"></select>
@@ -4281,7 +4284,7 @@
           <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
         </div>
 
-        <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業、夜勤・出張を入力できます。</div>
+        <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業や手当を入力できます。</div>
         <button class="btn" id="addBulkEntryBtn">人工・経費を登録</button>
       </div>
 
@@ -4463,7 +4466,7 @@
         </div>
 
         <details id="workerAllowanceDetails" class="expense-details">
-          <summary>夜勤・出張の手当設定</summary>
+          <summary>夜勤・出張・その他の手当設定</summary>
           <div class="expense-details-body">
             <div class="row">
               <div>
@@ -4476,6 +4479,10 @@
               </div>
             </div>
             <div class="helper">夜勤はその日の人工代に倍率を掛け、出張手当は1日あたりの金額を加算します。</div>
+            <label>その他の手当（任意）</label>
+            <div id="workerCustomAllowanceList"></div>
+            <button id="addWorkerCustomAllowanceBtn" type="button" class="btn secondary">手当を追加</button>
+            <div class="helper">例：交通費 1,000円、運転手当 2,000円。必要な日に作業員ごとに選べます。</div>
           </div>
         </details>
 
@@ -4507,7 +4514,7 @@
       </div>
 
       <div class="summary-grid" id="metrics"></div>
-      <div class="helper">人件費には、人工代＋早出代＋残業代＋夜勤割増＋出張手当を含みます。</div>
+      <div class="helper">人件費には、人工代＋早出代＋残業代＋夜勤割増＋出張・その他の手当を含みます。</div>
 
       <div id="siteLifetimeSummary" class="site-lifetime-summary">
         <div class="card">
@@ -5570,11 +5577,62 @@
     finishRegistration(editId ? "所属会社を更新しました" : "所属会社を追加しました");
   });
 
+  function normalizedCustomAllowances(items){
+    return Array.isArray(items) ? items.filter(x=>x && typeof x === "object").map(x=>({
+      id:String(x.id || ""), name:String(x.name || ""), amount:Number(x.amount || 0)
+    })).filter(x=>x.id && x.name && Number.isFinite(x.amount) && x.amount >= 0) : [];
+  }
+
+  function customAllowanceDescription(items){
+    return normalizedCustomAllowances(items).map(x=>` / ${escapeHtml(x.name)} +${yen(x.amount)}`).join("");
+  }
+
+  function addWorkerCustomAllowanceRow(item={}){
+    const row = document.createElement("div");
+    row.className = "worker-custom-allowance-row";
+    row.dataset.allowanceId = item.id || uid();
+    row.innerHTML = `<input class="custom-allowance-name" aria-label="手当名" placeholder="手当名（例：交通費）" value="${escapeHtml(item.name || "")}">
+      <input class="custom-allowance-amount" aria-label="手当の日額" type="number" inputmode="numeric" min="0" step="1" placeholder="円 / 日" value="${item.amount ?? ""}">
+      <button type="button" aria-label="この手当を削除">×</button>`;
+    $("workerCustomAllowanceList").appendChild(row);
+  }
+
+  $("addWorkerCustomAllowanceBtn").addEventListener("click", ()=>addWorkerCustomAllowanceRow());
+  $("workerCustomAllowanceList").addEventListener("click", event=>{
+    if(event.target.closest("button")) event.target.closest(".worker-custom-allowance-row")?.remove();
+  });
+
+  function collectWorkerCustomAllowances(){
+    const items = [];
+    const names = new Set();
+    for(const row of $("workerCustomAllowanceList").querySelectorAll(".worker-custom-allowance-row")){
+      const name = row.querySelector(".custom-allowance-name").value.trim();
+      const rawAmount = row.querySelector(".custom-allowance-amount").value.trim();
+      if(!name && !rawAmount) continue;
+      const amount = Number(rawAmount);
+      if(!name || !rawAmount || !Number.isFinite(amount) || amount < 0){
+        alert("手当は名称と0円以上の金額を入力してください");
+        $("workerAllowanceDetails").open = true;
+        return null;
+      }
+      if(names.has(name)){
+        alert("同じ名前の手当が重複しています");
+        $("workerAllowanceDetails").open = true;
+        return null;
+      }
+      names.add(name);
+      items.push({id:row.dataset.allowanceId, name, amount});
+    }
+    return items;
+  }
+
   $("addWorkerBtn").addEventListener("click", ()=>{
     const name = $("workerName").value.trim();
     const rate = Number($("workerRate").value||0);
     const nightMultiplier = Number($("workerNightMultiplier").value);
     const travelAllowance = Number($("workerTravelAllowance").value||0);
+    const customAllowances = collectWorkerCustomAllowances();
+    if(!customAllowances) return;
     if(!name){ alert("名前を入力してください"); return; }
     if(!Number.isFinite(nightMultiplier) || nightMultiplier < 1){ alert("夜勤の支払倍率は1以上で入力してください"); return; }
     if(!Number.isFinite(travelAllowance) || travelAllowance < 0){ alert("出張手当は0以上で入力してください"); return; }
@@ -5585,7 +5643,8 @@
       earlyRate:Number($("workerEarlyRate").value||0),
       overtimeRate:Number($("workerOvertimeRate").value||0),
       nightMultiplier,
-      travelAllowance
+      travelAllowance,
+      customAllowances
     };
     if(editingWorkerId){
       const w = workerById(editingWorkerId);
@@ -5603,6 +5662,7 @@
     $("workerOvertimeRate").value="";
     $("workerNightMultiplier").value="1.25";
     $("workerTravelAllowance").value="";
+    $("workerCustomAllowanceList").innerHTML="";
     $("workerAllowanceDetails").open=false;
     renderAll();
     finishRegistration(wasEdit ? "作業員を更新しました" : "作業員を追加しました");
@@ -5802,7 +5862,8 @@
       ? Math.round(base * (Number.isFinite(nightMultiplier) && nightMultiplier >= 1 ? nightMultiplier : workerNightMultiplier(w)))
       : base;
     const travelCost = entry.businessTrip ? Number(entry.travelAllowance ?? w?.travelAllowance ?? 0) : 0;
-    return nightCost + earlyCost + overtimeCost + travelCost;
+    const customCost = normalizedCustomAllowances(entry.customAllowances).reduce((sum,x)=>sum+x.amount,0);
+    return nightCost + earlyCost + overtimeCost + travelCost + customCost;
   }
   function workerEntryRevenue(entry){
     const site = siteById(entry.siteId);
@@ -5920,6 +5981,8 @@
     $("workerOvertimeRate").value = w.overtimeRate || "";
     $("workerNightMultiplier").value = workerNightMultiplier(w);
     $("workerTravelAllowance").value = w.travelAllowance || "";
+    $("workerCustomAllowanceList").innerHTML="";
+    normalizedCustomAllowances(w.customAllowances).forEach(addWorkerCustomAllowanceRow);
     $("addWorkerBtn").textContent = "作業員を更新";
     try{$("workerName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
     $("workerName").focus();
@@ -6015,10 +6078,12 @@
   function updateBulkAllowanceSummary(details){
     const night = details.querySelector(".bulk-night")?.checked || false;
     const travel = details.querySelector(".bulk-travel")?.checked || false;
-    const chosen = [night ? "夜勤" : "", travel ? "出張" : ""].filter(Boolean);
+    const customChecks = [...details.querySelectorAll(".bulk-custom-allowance:checked")];
+    const customIds = customChecks.map(input=>input.dataset.allowanceId);
+    const chosen = [night ? "夜勤" : "", travel ? "出張" : "", ...customChecks.map(input=>input.dataset.allowanceName)].filter(Boolean);
     details.querySelector("summary").textContent = chosen.length ? `手当：${chosen.join("・")}` : "手当を追加";
     details.classList.toggle("has-allowance", chosen.length > 0);
-    bulkAllowanceDraft.set(details.dataset.workerId, {night,travel});
+    bulkAllowanceDraft.set(details.dataset.workerId, {night,travel,customIds});
   }
 
   function captureBulkAllowances(){
@@ -6065,7 +6130,9 @@
 
     box.innerHTML = workers.map(w=>{
       const allowance = bulkAllowanceDraft.get(w.id) || {};
-      const chosen = [allowance.night ? "夜勤" : "", allowance.travel ? "出張" : ""].filter(Boolean);
+      const customAllowances = normalizedCustomAllowances(w.customAllowances);
+      const chosen = [allowance.night ? "夜勤" : "", allowance.travel ? "出張" : "",
+        ...customAllowances.filter(x=>allowance.customIds?.includes(x.id)).map(x=>x.name)].filter(Boolean);
       return `
       <div class="member-row">
         <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" ${selected.has(w.id) ? "checked" : ""}>
@@ -6092,10 +6159,11 @@
           </div>
         </div>
         <details class="member-allowance-details ${chosen.length ? "has-allowance" : ""}" data-worker-id="${w.id}">
-          <summary>${chosen.length ? `手当：${chosen.join("・")}` : "手当を追加"}</summary>
+          <summary>${chosen.length ? `手当：${escapeHtml(chosen.join("・"))}` : "手当を追加"}</summary>
           <div class="bulk-allowances">
             <label><input class="bulk-night" type="checkbox" data-worker-id="${w.id}" ${allowance.night ? "checked" : ""}>夜勤 ×${workerNightMultiplier(w)}</label>
             <label><input class="bulk-travel" type="checkbox" data-worker-id="${w.id}" ${allowance.travel ? "checked" : ""}>出張 +${yen(w.travelAllowance)}</label>
+            ${customAllowances.map(x=>`<label><input class="bulk-custom-allowance" type="checkbox" data-worker-id="${w.id}" data-allowance-id="${escapeHtml(x.id)}" data-allowance-name="${escapeHtml(x.name)}" ${allowance.customIds?.includes(x.id) ? "checked" : ""}>${escapeHtml(x.name)} +${yen(x.amount)}</label>`).join("")}
           </div>
         </details>
       </div>
@@ -6113,7 +6181,7 @@
 
   $("bulkWorkerList").addEventListener("change", event=>{
     if(event.target.matches(".bulk-check")) captureBulkWorkerSelection();
-    if(event.target.matches(".bulk-night,.bulk-travel")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
+    if(event.target.matches(".bulk-night,.bulk-travel,.bulk-custom-allowance")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
   });
 
   ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
@@ -6180,6 +6248,7 @@
         existing.nightMultiplier = src.nightMultiplier;
         existing.businessTrip = src.businessTrip === true;
         existing.travelAllowance = src.travelAllowance;
+        existing.customAllowances = normalizedCustomAllowances(src.customAllowances);
         existing.expense = 0;
       }else{
         state.entries.push({
@@ -6194,6 +6263,7 @@
           nightMultiplier:src.nightMultiplier,
           businessTrip:src.businessTrip === true,
           travelAllowance:src.travelAllowance,
+          customAllowances:normalizedCustomAllowances(src.customAllowances),
           expense:0
         });
       }
@@ -6296,6 +6366,10 @@
       const businessTrip = !!travelEl?.checked;
       const nightMultiplier = nightShift ? workerNightMultiplier(worker) : null;
       const travelAllowance = businessTrip ? Number(worker?.travelAllowance||0) : 0;
+      const selectedCustomIds = new Set([...chk.closest(".member-row").querySelectorAll(".bulk-custom-allowance:checked")]
+        .map(input=>input.dataset.allowanceId));
+      const customAllowances = normalizedCustomAllowances(worker?.customAllowances)
+        .filter(x=>selectedCustomIds.has(x.id));
 
       const existing = state.entries.find(e =>
         e.date === date &&
@@ -6311,6 +6385,7 @@
         existing.nightMultiplier = nightMultiplier;
         existing.businessTrip = businessTrip;
         existing.travelAllowance = travelAllowance;
+        existing.customAllowances = customAllowances;
         existing.expense = 0;
       }else{
         state.entries.push({
@@ -6325,6 +6400,7 @@
           nightMultiplier,
           businessTrip,
           travelAllowance,
+          customAllowances,
           expense:0
         });
       }
@@ -6351,7 +6427,7 @@
     bulkWorkerSelectionDraft = null;
     save();
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
-    document.querySelectorAll(".bulk-night,.bulk-travel").forEach(x=>x.checked=false);
+    document.querySelectorAll(".bulk-night,.bulk-travel,.bulk-custom-allowance").forEach(x=>x.checked=false);
     document.querySelectorAll(".member-allowance-details").forEach(details=>{
       details.open = false;
       updateBulkAllowanceSummary(details);
@@ -6628,7 +6704,7 @@
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w.name)}</strong>
-            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}${w.earlyRate ? " / 早出 " + yen(w.earlyRate) + "/h" : ""}${w.overtimeRate ? " / 残業 " + yen(w.overtimeRate) + "/h" : ""} / 夜勤 ×${workerNightMultiplier(w)}${Number(w.travelAllowance||0) ? " / 出張 +" + yen(w.travelAllowance) : ""}</small>
+            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}${w.earlyRate ? " / 早出 " + yen(w.earlyRate) + "/h" : ""}${w.overtimeRate ? " / 残業 " + yen(w.overtimeRate) + "/h" : ""} / 夜勤 ×${workerNightMultiplier(w)}${Number(w.travelAllowance||0) ? " / 出張 +" + yen(w.travelAllowance) : ""}${customAllowanceDescription(w.customAllowances)}</small>
           </div>
           <div class="item-actions">
             <button class="edit-link" onclick="editWorker('${w.id}')">編集</button>
@@ -6651,7 +6727,7 @@
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}${e.nightShift ? ` / 夜勤 ×${Number(e.nightMultiplier || workerNightMultiplier(w))}` : ""}${e.businessTrip ? ` / 出張 +${yen(e.travelAllowance ?? w?.travelAllowance)}` : ""}</small>
+            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}${e.nightShift ? ` / 夜勤 ×${Number(e.nightMultiplier || workerNightMultiplier(w))}` : ""}${e.businessTrip ? ` / 出張 +${yen(e.travelAllowance ?? w?.travelAllowance)}` : ""}${customAllowanceDescription(e.customAllowances)}</small>
           </div>
           <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button>
         </div>
@@ -6837,7 +6913,7 @@ function showDayDetail(date){
             return `<div class="item-line" style="padding:6px 0;border-bottom:1px solid var(--line)">
               <div>
                 <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}</small>
+                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}${customAllowanceDescription(e.customAllowances)}</small>
               </div>
               <button class="danger-link" onclick="removeEntryFromDay('${e.id}','${date}')">削除</button>
             </div>`;
@@ -10241,13 +10317,15 @@ function getContractBillingIncluded(siteId, month){
         ...(state.recentSelects || {}),
         __workerAllowancesV1:Object.fromEntries(state.workers.map(w=>[String(w.id), {
           nightMultiplier:workerNightMultiplier(w),
-          travelAllowance:Number(w.travelAllowance||0)
+          travelAllowance:Number(w.travelAllowance||0),
+          customAllowances:normalizedCustomAllowances(w.customAllowances)
         }])),
-        __entryAllowancesV1:Object.fromEntries(state.entries.filter(e=>e.nightShift || e.businessTrip).map(e=>[String(e.id), {
+        __entryAllowancesV1:Object.fromEntries(state.entries.filter(e=>e.nightShift || e.businessTrip || normalizedCustomAllowances(e.customAllowances).length).map(e=>[String(e.id), {
           nightShift:e.nightShift === true,
           nightMultiplier:e.nightMultiplier ?? null,
           businessTrip:e.businessTrip === true,
-          travelAllowance:Number(e.travelAllowance||0)
+          travelAllowance:Number(e.travelAllowance||0),
+          customAllowances:normalizedCustomAllowances(e.customAllowances)
         }])),
         __siteExpenseBillingV1:Object.fromEntries(
           state.siteExpenses.filter(x=>x.billable === false).map(x=>[String(x.id), false])
@@ -10409,7 +10487,8 @@ function getContractBillingIncluded(siteId, month){
           id:x.id, companyId:x.company_ref_id || "", name:x.name, rate:Number(x.rate||0),
           earlyRate:Number(x.early_rate||0), overtimeRate:Number(x.overtime_rate||0),
           nightMultiplier:workerAllowances[String(x.id)]?.nightMultiplier ?? 1.25,
-          travelAllowance:Number(workerAllowances[String(x.id)]?.travelAllowance||0)
+          travelAllowance:Number(workerAllowances[String(x.id)]?.travelAllowance||0),
+          customAllowances:normalizedCustomAllowances(workerAllowances[String(x.id)]?.customAllowances)
         })),
         entries:map.entries.map(x=>({
           id:x.id, date:x.work_date, siteId:x.site_id, workerId:x.worker_id,
@@ -10418,7 +10497,8 @@ function getContractBillingIncluded(siteId, month){
           nightShift:entryAllowances[String(x.id)]?.nightShift === true,
           nightMultiplier:entryAllowances[String(x.id)]?.nightMultiplier ?? null,
           businessTrip:entryAllowances[String(x.id)]?.businessTrip === true,
-          travelAllowance:Number(entryAllowances[String(x.id)]?.travelAllowance||0)
+          travelAllowance:Number(entryAllowances[String(x.id)]?.travelAllowance||0),
+          customAllowances:normalizedCustomAllowances(entryAllowances[String(x.id)]?.customAllowances)
         })),
         siteExpenses:map.site_expenses.map(x=>({
           id:x.id, date:x.expense_date, siteId:x.site_id, amount:Number(x.amount||0),
