@@ -1491,6 +1491,16 @@
       align-items:center;
     }
     .expense-input-row > *{min-width:0}
+    .expense-details{margin-top:12px}
+    .expense-details summary{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+      color:var(--text);font-weight:700;cursor:pointer;list-style:none;
+    }
+    .expense-details summary::-webkit-details-marker{display:none}
+    .expense-details summary::after{content:"＋";font-size:20px;line-height:1}
+    .expense-details[open] summary::after{content:"−"}
+    .expense-details-body{padding:2px 2px 0}
     .expense-billing-toggle{display:flex;align-items:center;gap:8px;margin:8px 0 0;cursor:pointer}
     .expense-billing-toggle input{width:20px;height:20px;min-height:20px;margin:0;flex:none}
 
@@ -4235,16 +4245,21 @@
         <label>現場</label>
         <select id="entrySite"></select>
 
-        <label>その日の現場経費</label>
-        <div class="expense-input-row">
-          <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
-          <select id="siteDayExpenseTaxType" aria-label="現場経費の税区分">
-            <option value="excluded">税抜</option>
-            <option value="included">税込</option>
-          </select>
-        </div>
-        <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
-        <label class="expense-billing-toggle"><input id="siteDayExpenseBillable" type="checkbox" checked>この経費を請求する</label>
+        <details id="siteExpenseDetails" class="expense-details">
+          <summary id="siteExpenseSummary">現場経費を追加</summary>
+          <div class="expense-details-body">
+            <label for="siteDayExpense">その日の現場経費</label>
+            <div class="expense-input-row">
+              <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
+              <select id="siteDayExpenseTaxType" aria-label="現場経費の税区分">
+                <option value="excluded">税抜</option>
+                <option value="included">税込</option>
+              </select>
+            </div>
+            <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
+            <label class="expense-billing-toggle"><input id="siteDayExpenseBillable" type="checkbox" checked>この経費を請求する</label>
+          </div>
+        </details>
 
         <label>所属会社で絞り込み</label>
         <select id="bulkCompanyFilter"></select>
@@ -6122,6 +6137,16 @@
 
   $("copyPreviousDayBtn")?.addEventListener("click", copyPreviousDayEntries);
 
+  function updateSiteExpenseSummary(){
+    const amount = $("siteDayExpense").value;
+    const memo = $("siteDayExpenseMemo").value.trim();
+    $("siteExpenseSummary").textContent = amount || memo
+      ? `現場経費 入力中${amount ? " " + yen(amount) : ""}${memo ? " / " + memo : ""}`
+      : "現場経費を追加";
+  }
+  $("siteDayExpense").addEventListener("input", updateSiteExpenseSummary);
+  $("siteDayExpenseMemo").addEventListener("input", updateSiteExpenseSummary);
+
   $("addBulkEntryBtn").addEventListener("click", ()=>{
     if(!state.sites.length){ alert("先に現場を登録してください"); return; }
     if(!state.workers.length){ alert("先に作業員を登録してください"); return; }
@@ -6202,6 +6227,8 @@
     if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
     $("siteDayExpenseMemo").value="";
     $("siteDayExpenseBillable").checked=true;
+    if(siteExpense > 0 || siteExpenseMemo) $("siteExpenseDetails").open=false;
+    updateSiteExpenseSummary();
     renderRecent();
     renderSummary();
 
