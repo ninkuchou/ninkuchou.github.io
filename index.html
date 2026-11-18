@@ -166,6 +166,9 @@
     .bulk-field{display:flex;flex-direction:column;gap:3px}
     .bulk-field-label{font-size:10px;font-weight:700;color:var(--sub);text-align:center}
     .bulk-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+    .bulk-allowances{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:2px}
+    .bulk-allowances label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;cursor:pointer}
+    .bulk-allowances input[type="checkbox"]{width:19px;height:19px;min-height:19px;margin:0}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
     .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
     @media(max-width:430px){
@@ -4240,7 +4243,7 @@
         <label>日付</label>
         <div class="date-wrap"><input id="entryDate" type="date"></div>
         <button class="btn secondary" id="copyPreviousDayBtn" type="button" style="margin-top:8px">前日と同じ内容を入力</button>
-        <div class="helper">前日の現場・作業員・人工・早出・残業・現場経費を、選択した日付へコピーします。</div>
+        <div class="helper">前日の現場・作業員・人工・早出・残業・夜勤・出張・現場経費を、選択した日付へコピーします。</div>
 
         <label>現場</label>
         <select id="entrySite"></select>
@@ -4272,7 +4275,7 @@
           <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
         </div>
 
-        <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業を時間単位で入力できます。</div>
+        <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業、夜勤・出張を入力できます。</div>
         <button class="btn" id="addBulkEntryBtn">人工・経費を登録</button>
       </div>
 
@@ -4305,8 +4308,8 @@
           <div class="helper">請負工事の請求書に表示する工事内容です。</div>
         </div>
 
-        <label id="siteRevenueLabel">請負金額（任意）</label>
-        <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000">
+        <label id="siteRevenueLabel" style="display:none">請負金額（任意）</label>
+        <input id="siteRevenue" inputmode="numeric" type="number" min="0" placeholder="例：1200000" style="display:none">
         <label id="siteBillRateLabel">現場別の例外単価 / 1人工（任意）</label>
         <input id="siteBillRate" inputmode="numeric" type="number" min="0" placeholder="未入力なら元請けの基本単価">
         <div id="siteMultiplierWrap">
@@ -4453,6 +4456,18 @@
           </div>
         </div>
 
+        <div class="row">
+          <div>
+            <label>夜勤の支払倍率</label>
+            <input id="workerNightMultiplier" inputmode="decimal" type="number" min="1" step="0.01" value="1.25" placeholder="例：1.25">
+          </div>
+          <div>
+            <label>出張手当 / 日</label>
+            <input id="workerTravelAllowance" inputmode="numeric" type="number" min="0" step="1" placeholder="例：3000">
+          </div>
+        </div>
+        <div class="helper">夜勤はその日の人工代に倍率を掛け、出張手当は1日あたりの金額を加算します。</div>
+
         <button class="btn" id="addWorkerBtn">作業員を追加</button>
       </div>
       <div class="card">
@@ -4481,7 +4496,7 @@
       </div>
 
       <div class="summary-grid" id="metrics"></div>
-      <div class="helper">人件費には、人工代＋早出代＋残業代を含みます。</div>
+      <div class="helper">人件費には、人工代＋早出代＋残業代＋夜勤割増＋出張手当を含みます。</div>
 
       <div id="siteLifetimeSummary" class="site-lifetime-summary">
         <div class="card">
@@ -5444,6 +5459,9 @@
   function updateSiteContractFields(){
     const isSelf = isSelfCompanyClientId($("siteClient")?.value || "");
     const isContract = !isSelf && ($("siteContractType")?.value || "常用") === "請負";
+    ["siteRevenueLabel","siteRevenue"].forEach(id=>{
+      if($(id)) $(id).style.display = isContract ? "" : "none";
+    });
     if($("siteContractWorkContentWrap")){
       $("siteContractWorkContentWrap").style.display = isContract ? "block" : "none";
     }
@@ -5466,7 +5484,7 @@
       clientId,
       contractType:isSelf ? "常用" : ($("siteContractType") ? ($("siteContractType").value || "常用") : "常用"),
       contractWorkContent:isSelf ? "" : ($("siteContractWorkContent")?.value.trim() || ""),
-      revenue:isSelf ? 0 : Number($("siteRevenue").value||0),
+      revenue:!isSelf && $("siteContractType")?.value === "請負" ? Number($("siteRevenue").value||0) : 0,
       billRate:isSelf ? 0 : Number($("siteBillRate").value||0),
       earlyMultiplier:isSelf ? null : optionalClientMultiplier($("siteEarlyMultiplier")?.value),
       overtimeMultiplier:isSelf ? null : optionalClientMultiplier($("siteOvertimeMultiplier")?.value)
@@ -5544,13 +5562,19 @@
   $("addWorkerBtn").addEventListener("click", ()=>{
     const name = $("workerName").value.trim();
     const rate = Number($("workerRate").value||0);
+    const nightMultiplier = Number($("workerNightMultiplier").value);
+    const travelAllowance = Number($("workerTravelAllowance").value||0);
     if(!name){ alert("名前を入力してください"); return; }
+    if(!Number.isFinite(nightMultiplier) || nightMultiplier < 1){ alert("夜勤の支払倍率は1以上で入力してください"); return; }
+    if(!Number.isFinite(travelAllowance) || travelAllowance < 0){ alert("出張手当は0以上で入力してください"); return; }
     const data = {
       name,
       companyId:$("workerCompany").value || "",
       rate,
       earlyRate:Number($("workerEarlyRate").value||0),
-      overtimeRate:Number($("workerOvertimeRate").value||0)
+      overtimeRate:Number($("workerOvertimeRate").value||0),
+      nightMultiplier,
+      travelAllowance
     };
     if(editingWorkerId){
       const w = workerById(editingWorkerId);
@@ -5566,6 +5590,8 @@
     $("workerRate").value="";
     $("workerEarlyRate").value="";
     $("workerOvertimeRate").value="";
+    $("workerNightMultiplier").value="1.25";
+    $("workerTravelAllowance").value="";
     renderAll();
     finishRegistration(wasEdit ? "作業員を更新しました" : "作業員を追加しました");
   });
@@ -5749,12 +5775,22 @@
     return Number(company?.rate||0);
   }
 
+  function workerNightMultiplier(worker){
+    const multiplier = Number(worker?.nightMultiplier);
+    return Number.isFinite(multiplier) && multiplier >= 1 ? multiplier : 1.25;
+  }
+
   function workerEntryCost(entry){
     const w = workerById(entry.workerId);
     const base = Number(entry.jinko||0) * effectiveWorkerRate(w);
     const earlyCost = Number(entry.early||0) * Number(w?.earlyRate||0);
     const overtimeCost = Number(entry.overtime||0) * Number(w?.overtimeRate||0);
-    return base + earlyCost + overtimeCost;
+    const nightMultiplier = Number(entry.nightMultiplier);
+    const nightCost = entry.nightShift
+      ? Math.round(base * (Number.isFinite(nightMultiplier) && nightMultiplier >= 1 ? nightMultiplier : workerNightMultiplier(w)))
+      : base;
+    const travelCost = entry.businessTrip ? Number(entry.travelAllowance ?? w?.travelAllowance ?? 0) : 0;
+    return nightCost + earlyCost + overtimeCost + travelCost;
   }
   function workerEntryRevenue(entry){
     const site = siteById(entry.siteId);
@@ -5870,6 +5906,8 @@
     $("workerRate").value = w.rate || "";
     $("workerEarlyRate").value = w.earlyRate || "";
     $("workerOvertimeRate").value = w.overtimeRate || "";
+    $("workerNightMultiplier").value = workerNightMultiplier(w);
+    $("workerTravelAllowance").value = w.travelAllowance || "";
     $("addWorkerBtn").textContent = "作業員を更新";
     try{$("workerName").scrollIntoView({behavior:"smooth",block:"center"});}catch(e){}
     $("workerName").focus();
@@ -6024,6 +6062,10 @@
             <input class="bulk-overtime" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" placeholder="時間">
           </div>
         </div>
+        <div class="bulk-allowances">
+          <label><input class="bulk-night" type="checkbox" data-worker-id="${w.id}">夜勤 ×${workerNightMultiplier(w)}</label>
+          <label><input class="bulk-travel" type="checkbox" data-worker-id="${w.id}">出張 +${yen(w.travelAllowance)}</label>
+        </div>
       </div>
     `).join("");
   }
@@ -6100,6 +6142,10 @@
         existing.jinko = Number(src.jinko||0);
         existing.early = Number(src.early||0);
         existing.overtime = Number(src.overtime||0);
+        existing.nightShift = src.nightShift === true;
+        existing.nightMultiplier = src.nightMultiplier;
+        existing.businessTrip = src.businessTrip === true;
+        existing.travelAllowance = src.travelAllowance;
         existing.expense = 0;
       }else{
         state.entries.push({
@@ -6110,6 +6156,10 @@
           jinko:Number(src.jinko||0),
           early:Number(src.early||0),
           overtime:Number(src.overtime||0),
+          nightShift:src.nightShift === true,
+          nightMultiplier:src.nightMultiplier,
+          businessTrip:src.businessTrip === true,
+          travelAllowance:src.travelAllowance,
           expense:0
         });
       }
@@ -6202,9 +6252,16 @@
       const jinkoEl = document.querySelector(`.bulk-jinko[data-worker-id="${workerId}"]`);
       const earlyEl = document.querySelector(`.bulk-early[data-worker-id="${workerId}"]`);
       const overtimeEl = document.querySelector(`.bulk-overtime[data-worker-id="${workerId}"]`);
+      const nightEl = document.querySelector(`.bulk-night[data-worker-id="${workerId}"]`);
+      const travelEl = document.querySelector(`.bulk-travel[data-worker-id="${workerId}"]`);
+      const worker = workerById(workerId);
       const jinko = Number(jinkoEl?.value||1);
       const early = Number(earlyEl?.value||0);
       const overtime = Number(overtimeEl?.value||0);
+      const nightShift = !!nightEl?.checked;
+      const businessTrip = !!travelEl?.checked;
+      const nightMultiplier = nightShift ? workerNightMultiplier(worker) : null;
+      const travelAllowance = businessTrip ? Number(worker?.travelAllowance||0) : 0;
 
       const existing = state.entries.find(e =>
         e.date === date &&
@@ -6216,6 +6273,10 @@
         existing.jinko = jinko;
         existing.early = early;
         existing.overtime = overtime;
+        existing.nightShift = nightShift;
+        existing.nightMultiplier = nightMultiplier;
+        existing.businessTrip = businessTrip;
+        existing.travelAllowance = travelAllowance;
         existing.expense = 0;
       }else{
         state.entries.push({
@@ -6226,6 +6287,10 @@
           jinko,
           early,
           overtime,
+          nightShift,
+          nightMultiplier,
+          businessTrip,
+          travelAllowance,
           expense:0
         });
       }
@@ -6252,6 +6317,7 @@
     bulkWorkerSelectionDraft = null;
     save();
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
+    document.querySelectorAll(".bulk-night,.bulk-travel").forEach(x=>x.checked=false);
     $("siteDayExpense").value="";
     if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
     $("siteDayExpenseMemo").value="";
@@ -6523,7 +6589,7 @@
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w.name)}</strong>
-            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}${w.earlyRate ? " / 早出 " + yen(w.earlyRate) + "/h" : ""}${w.overtimeRate ? " / 残業 " + yen(w.overtimeRate) + "/h" : ""}</small>
+            <small>${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}${w.earlyRate ? " / 早出 " + yen(w.earlyRate) + "/h" : ""}${w.overtimeRate ? " / 残業 " + yen(w.overtimeRate) + "/h" : ""} / 夜勤 ×${workerNightMultiplier(w)}${Number(w.travelAllowance||0) ? " / 出張 +" + yen(w.travelAllowance) : ""}</small>
           </div>
           <div class="item-actions">
             <button class="edit-link" onclick="editWorker('${w.id}')">編集</button>
@@ -6546,7 +6612,7 @@
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}</small>
+            <small>${e.date} / ${escapeHtml(s?.name||"不明")}${Number(e.early||0)?` / 早出 ${Number(e.early)}h`:""}${Number(e.overtime||0)?` / 残業 ${Number(e.overtime)}h`:""}${e.nightShift ? ` / 夜勤 ×${Number(e.nightMultiplier || workerNightMultiplier(w))}` : ""}${e.businessTrip ? ` / 出張 +${yen(e.travelAllowance ?? w?.travelAllowance)}` : ""}</small>
           </div>
           <button class="danger-link" onclick="removeEntry('${e.id}')">削除</button>
         </div>
@@ -6732,7 +6798,7 @@ function showDayDetail(date){
             return `<div class="item-line" style="padding:6px 0;border-bottom:1px solid var(--line)">
               <div>
                 <strong>${escapeHtml(w?.name||"不明")} <span class="pill">${e.jinko}人工</span></strong>
-                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}</small>
+                <small>${company ? escapeHtml(company.name) : "所属未設定"}${Number(e.early||0) ? " / 早出 " + Number(e.early) + "h " + yen(Number(e.early||0)*Number(w?.earlyRate||0)) : ""}${Number(e.overtime||0) ? " / 残業 " + Number(e.overtime) + "h " + yen(Number(e.overtime||0)*Number(w?.overtimeRate||0)) : ""}${e.nightShift ? " / 夜勤 ×" + Number(e.nightMultiplier || workerNightMultiplier(w)) : ""}${e.businessTrip ? " / 出張 +" + yen(e.travelAllowance ?? w?.travelAllowance) : ""}</small>
               </div>
               <button class="danger-link" onclick="removeEntryFromDay('${e.id}','${date}')">削除</button>
             </div>`;
@@ -10134,6 +10200,16 @@ function getContractBillingIncluded(siteId, month){
       const ci = state.companyInfo || {};
       const recentSelectsForCloud = {
         ...(state.recentSelects || {}),
+        __workerAllowancesV1:Object.fromEntries(state.workers.map(w=>[String(w.id), {
+          nightMultiplier:workerNightMultiplier(w),
+          travelAllowance:Number(w.travelAllowance||0)
+        }])),
+        __entryAllowancesV1:Object.fromEntries(state.entries.filter(e=>e.nightShift || e.businessTrip).map(e=>[String(e.id), {
+          nightShift:e.nightShift === true,
+          nightMultiplier:e.nightMultiplier ?? null,
+          businessTrip:e.businessTrip === true,
+          travelAllowance:Number(e.travelAllowance||0)
+        }])),
         __siteExpenseBillingV1:Object.fromEntries(
           state.siteExpenses.filter(x=>x.billable === false).map(x=>[String(x.id), false])
         ),
@@ -10245,7 +10321,15 @@ function getContractBillingIncluded(siteId, month){
       && typeof storedRecentSelects.__siteExpenseBillingV1 === "object")
       ? storedRecentSelects.__siteExpenseBillingV1
       : {};
+    const workerAllowances = (storedRecentSelects.__workerAllowancesV1
+      && typeof storedRecentSelects.__workerAllowancesV1 === "object")
+      ? storedRecentSelects.__workerAllowancesV1 : {};
+    const entryAllowances = (storedRecentSelects.__entryAllowancesV1
+      && typeof storedRecentSelects.__entryAllowancesV1 === "object")
+      ? storedRecentSelects.__entryAllowancesV1 : {};
     const recentSelects = {...storedRecentSelects};
+    delete recentSelects.__workerAllowancesV1;
+    delete recentSelects.__entryAllowancesV1;
     delete recentSelects.__companyInfoCloudV1;
     delete recentSelects.__clientBillingMultipliersV1;
     delete recentSelects.__siteBillingMultipliersV1;
@@ -10284,12 +10368,18 @@ function getContractBillingIncluded(siteId, month){
         })),
         workers:map.workers.map(x=>({
           id:x.id, companyId:x.company_ref_id || "", name:x.name, rate:Number(x.rate||0),
-          earlyRate:Number(x.early_rate||0), overtimeRate:Number(x.overtime_rate||0)
+          earlyRate:Number(x.early_rate||0), overtimeRate:Number(x.overtime_rate||0),
+          nightMultiplier:workerAllowances[String(x.id)]?.nightMultiplier ?? 1.25,
+          travelAllowance:Number(workerAllowances[String(x.id)]?.travelAllowance||0)
         })),
         entries:map.entries.map(x=>({
           id:x.id, date:x.work_date, siteId:x.site_id, workerId:x.worker_id,
           jinko:Number(x.jinko||0), early:Number(x.early||0), overtime:Number(x.overtime||0),
-          expense:Number(x.expense||0)
+          expense:Number(x.expense||0),
+          nightShift:entryAllowances[String(x.id)]?.nightShift === true,
+          nightMultiplier:entryAllowances[String(x.id)]?.nightMultiplier ?? null,
+          businessTrip:entryAllowances[String(x.id)]?.businessTrip === true,
+          travelAllowance:Number(entryAllowances[String(x.id)]?.travelAllowance||0)
         })),
         siteExpenses:map.site_expenses.map(x=>({
           id:x.id, date:x.expense_date, siteId:x.site_id, amount:Number(x.amount||0),
