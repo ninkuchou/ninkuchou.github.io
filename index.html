@@ -7590,17 +7590,26 @@ function concretePaymentDate(client, period){
     const raw = String(client?.payment || "").trim();
     if(!raw) return "";
 
-    const end = new Date(period.end + "T00:00:00");
-    const y = end.getFullYear();
-    const m = end.getMonth();
+    // 請求月の締め日を基準に、登録した支払条件を実際の年月日に変換する。
+    const normalized = raw.replace(/[０-９]/g, c=>String(c.charCodeAt(0)-65296)).replace(/\s+/g, "");
+    const [year, month] = String(period.end || "").split("-").map(Number);
     const fmt = d => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    if(!year || !month) return raw;
 
-    if(raw === "翌月末") return fmt(new Date(y, m + 2, 0));
+    const fixed = normalized.match(/^(\d{4})[年/.-](\d{1,2})[月/.-](\d{1,2})日?$/);
+    if(fixed){
+      const date = new Date(Number(fixed[1]), Number(fixed[2])-1, Number(fixed[3]));
+      if(date.getFullYear()===Number(fixed[1]) && date.getMonth()+1===Number(fixed[2]) && date.getDate()===Number(fixed[3])) return fmt(date);
+    }
 
-    const md = raw.match(/^翌月(5|10|15|20|25)日$/);
-    if(md) return fmt(new Date(y, m + 1, Number(md[1])));
-
-    if(raw === "当月末" || raw === "末日") return fmt(new Date(y, m + 1, 0));
+    const relative = normalized.match(/^(当月|今月|翌月|翌々月|翌翌月)?(末|末日|\d{1,2}日)$/);
+    if(relative){
+      const offset = relative[1]==="翌月" ? 1 : (relative[1]==="翌々月" || relative[1]==="翌翌月" ? 2 : 0);
+      const target = new Date(year, month-1+offset, 1);
+      const lastDay = new Date(target.getFullYear(), target.getMonth()+1, 0).getDate();
+      const day = relative[2].startsWith("末") ? lastDay : Math.min(Number(relative[2].replace("日", "")), lastDay);
+      if(day >= 1) return fmt(new Date(target.getFullYear(), target.getMonth(), day));
+    }
 
     return raw;
   }
