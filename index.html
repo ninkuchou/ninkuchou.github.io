@@ -4259,14 +4259,19 @@
         <label>日付</label>
         <div class="date-wrap"><input id="entryDate" type="date"></div>
         <button class="btn secondary" id="copyPreviousDayBtn" type="button" style="margin-top:8px">前日と同じ内容を入力</button>
-        <div class="helper">前日の現場・作業員・人工・早出・残業・手当・現場経費を、選択した日付へコピーします。</div>
+        <div class="helper">前日の入力をコピーします。前日に入力がなければ、前々日の内容を使います。</div>
 
         <label>現場</label>
         <select id="entrySite"></select>
+        <div id="existingDaySummary" class="helper" role="status"></div>
 
         <details id="siteExpenseDetails" class="expense-details">
           <summary id="siteExpenseSummary">現場経費を追加</summary>
           <div class="expense-details-body">
+            <div id="existingExpenseEditWrap" style="display:none">
+              <label for="existingExpenseSelect">登録済みの経費</label>
+              <select id="existingExpenseSelect"></select>
+            </div>
             <label for="siteDayExpense">その日の現場経費</label>
             <div class="expense-input-row">
               <input id="siteDayExpense" inputmode="numeric" type="number" min="0" placeholder="金額">
@@ -4276,7 +4281,7 @@
               </select>
             </div>
             <input id="siteDayExpenseMemo" type="text" placeholder="経費メモ（任意）">
-            <label class="expense-billing-toggle"><input id="siteDayExpenseBillable" type="checkbox" checked>この経費を請求する</label>
+            <label class="expense-billing-toggle"><input id="siteDayExpenseBillable" type="checkbox">この経費を請求する</label>
           </div>
         </details>
 
@@ -4594,6 +4599,9 @@
           <div class="helper">その請求月に入力実績がある請負現場だけ表示します。出来高30なら請負金額の30%を請求します。</div>
         </div>
 
+        <details id="invoiceDesignSettings" class="expense-details">
+          <summary>請求書のデザイン設定</summary>
+          <div class="expense-details-body">
         <label>請求書フォーマット</label>
         <select id="invoiceFormat">
           <option value="color">カラー</option>
@@ -4626,6 +4634,8 @@
             <option value="wine">えんじ</option>
           </select>
         </div>
+          </div>
+        </details>
 
         <label>請求書番号</label>
         <input id="invoiceNumber" placeholder="例：2026-08-001">
@@ -6276,6 +6286,9 @@
 
   let bulkWorkerSelectionDraft = null;
   const bulkAllowanceDraft = new Map();
+  const bulkJinkoDraft = new Map();
+  let loadedEntryContext = "";
+  let loadedEntryState = null;
 
   function bulkExtraSummary(chosen){
     return chosen.length ? `＋ ${chosen[0]}${chosen.length > 1 ? `ほか${chosen.length-1}件` : ""}` : "＋ 手当を追加";
@@ -6341,6 +6354,7 @@
 
     box.innerHTML = workers.map(w=>{
       const allowance = bulkAllowanceDraft.get(w.id) || {};
+      const jinko = String(bulkJinkoDraft.get(w.id) ?? "1");
       const customAllowances = normalizedCustomAllowances(w.customAllowances);
       const chosen = [Number(allowance.early) > 0 ? `早出 ${allowance.early}h` : "",
         Number(allowance.overtime) > 0 ? `残業 ${allowance.overtime}h` : "",
@@ -6359,9 +6373,10 @@
         <div class="bulk-field">
           <div class="bulk-field-label">人工</div>
           <select class="bulk-jinko" data-worker-id="${w.id}">
-            <option value="1" selected>1.0</option>
-            <option value="0.5">0.5</option>
-            <option value="0.25">0.25</option>
+            <option value="1" ${jinko==="1" ? "selected" : ""}>1.0</option>
+            <option value="0.5" ${jinko==="0.5" ? "selected" : ""}>0.5</option>
+            <option value="0.25" ${jinko==="0.25" ? "selected" : ""}>0.25</option>
+            ${!["1","0.5","0.25"].includes(jinko) ? `<option value="${escapeHtml(jinko)}" selected>${escapeHtml(jinko)}</option>` : ""}
           </select>
         </div>
         <div class="member-allowance-details" data-worker-id="${w.id}" hidden>
@@ -6396,6 +6411,7 @@
 
   $("bulkWorkerList").addEventListener("change", event=>{
     if(event.target.matches(".bulk-check")) captureBulkWorkerSelection();
+    if(event.target.matches(".bulk-jinko")) bulkJinkoDraft.set(event.target.dataset.workerId,event.target.value);
     if(event.target.matches(".bulk-early,.bulk-overtime,.bulk-night,.bulk-travel,.bulk-custom-allowance")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
   });
   $("bulkWorkerList").addEventListener("click", event=>{
@@ -6417,6 +6433,57 @@
       rememberRecent(id, el.value);
     });
   });
+
+  function loadExpenseForEditing(){
+    const id = $("existingExpenseSelect").value;
+    const expense = state.siteExpenses.find(x=>String(x.id)===id && x.date===$("entryDate").value && x.siteId===$("entrySite").value);
+    $("siteDayExpense").value = expense ? expense.amount : "";
+    $("siteDayExpenseTaxType").value = expense?.taxType || "excluded";
+    $("siteDayExpenseMemo").value = expense?.memo || "";
+    $("siteDayExpenseBillable").checked = expense ? expense.billable !== false : state.recentSelects?.siteExpenseBillablePref === true;
+    updateSiteExpenseSummary();
+  }
+
+  function loadExistingDayForm(force=false){
+    const date = $("entryDate").value;
+    const siteId = $("entrySite").value;
+    const context = `${date}|${siteId}`;
+    if(!force && context===loadedEntryContext && state===loadedEntryState) return;
+    loadedEntryContext = context;
+    loadedEntryState = state;
+
+    const entries = state.entries.filter(e=>e.date===date && e.siteId===siteId);
+    const expenses = state.siteExpenses.filter(x=>x.date===date && x.siteId===siteId);
+    bulkWorkerSelectionDraft = entries.length ? entries.map(e=>e.workerId) : null;
+    bulkAllowanceDraft.clear();
+    bulkJinkoDraft.clear();
+    entries.forEach(e=>{
+      bulkJinkoDraft.set(e.workerId,String(e.jinko ?? 1));
+      bulkAllowanceDraft.set(e.workerId,{
+        early:e.early ? String(e.early) : "",
+        overtime:e.overtime ? String(e.overtime) : "",
+        night:e.nightShift===true,
+        travel:e.businessTrip===true,
+        customIds:normalizedCustomAllowances(e.customAllowances).map(item=>item.id)
+      });
+    });
+    renderBulkWorkers();
+
+    $("existingDaySummary").textContent = entries.length || expenses.length
+      ? `この日の登録済み：${entries.length}人・現場経費${expenses.length}件。内容を修正して保存できます。`
+      : "";
+    $("existingExpenseEditWrap").style.display = expenses.length ? "" : "none";
+    $("existingExpenseSelect").innerHTML = `<option value="">新しい経費を追加</option>` + expenses.map((expense,index)=>
+      `<option value="${escapeHtml(String(expense.id))}">${index+1}件目：${yen(expense.amount)}${expense.memo ? " / " + escapeHtml(expense.memo) : ""}</option>`
+    ).join("");
+    if(expenses.length) $("existingExpenseSelect").value=String(expenses[0].id);
+    loadExpenseForEditing();
+    $("siteExpenseDetails").open = expenses.length>0;
+  }
+
+  $("entryDate").addEventListener("change",()=>loadExistingDayForm(true));
+  $("entrySite").addEventListener("change",()=>loadExistingDayForm(true));
+  $("existingExpenseSelect").addEventListener("change",loadExpenseForEditing);
 
 
   $("selectAllBtn").addEventListener("click", ()=>{
@@ -6445,17 +6512,23 @@
       return;
     }
 
-    const sourceDate = previousDateString(targetDate);
+    let sourceDate = previousDateString(targetDate);
     if(!sourceDate){
       alert("日付を確認してください");
       return;
     }
 
-    const sourceEntries = state.entries.filter(e=>e.date===sourceDate);
-    const sourceExpenses = state.siteExpenses.filter(x=>x.date===sourceDate);
+    let sourceEntries = state.entries.filter(e=>e.date===sourceDate);
+    let sourceExpenses = state.siteExpenses.filter(x=>x.date===sourceDate);
 
     if(!sourceEntries.length && !sourceExpenses.length){
-      alert(`${sourceDate} の入力データがありません`);
+      sourceDate = previousDateString(sourceDate);
+      sourceEntries = state.entries.filter(e=>e.date===sourceDate);
+      sourceExpenses = state.siteExpenses.filter(x=>x.date===sourceDate);
+    }
+
+    if(!sourceEntries.length && !sourceExpenses.length){
+      alert("前日・前々日の入力データがありません");
       return;
     }
 
@@ -6535,6 +6608,7 @@
 
     save();
     renderAll();
+    loadExistingDayForm(true);
     dismissKeyboard();
 
     const parts = [];
@@ -6545,11 +6619,18 @@
 
   $("copyPreviousDayBtn")?.addEventListener("click", copyPreviousDayEntries);
 
+  $("siteDayExpenseBillable").checked = state.recentSelects.siteExpenseBillablePref === true;
+  $("siteDayExpenseBillable").addEventListener("change",()=>{
+    state.recentSelects.siteExpenseBillablePref = $("siteDayExpenseBillable").checked;
+    save();
+  });
+
   function updateSiteExpenseSummary(){
     const amount = $("siteDayExpense").value;
     const memo = $("siteDayExpenseMemo").value.trim();
+    const editing = !!$("existingExpenseSelect").value;
     $("siteExpenseSummary").textContent = amount || memo
-      ? `現場経費 入力中${amount ? " " + yen(amount) : ""}${memo ? " / " + memo : ""}`
+      ? `現場経費 ${editing ? "編集中" : "入力中"}${amount ? " " + yen(amount) : ""}${memo ? " / " + memo : ""}`
       : "現場経費を追加";
   }
   $("siteDayExpense").addEventListener("input", updateSiteExpenseSummary);
@@ -6572,10 +6653,17 @@
     const siteExpenseTaxType = $("siteDayExpenseTaxType")?.value || "excluded";
     const siteExpenseMemo = $("siteDayExpenseMemo").value.trim();
     const siteExpenseBillable = $("siteDayExpenseBillable").checked;
+    const existingExpense = state.siteExpenses.find(x=>String(x.id)===$("existingExpenseSelect").value && x.date===date && x.siteId===siteId);
+    const visibleUncheckedIds = new Set([...document.querySelectorAll("#bulkWorkerList .bulk-check:not(:checked)")].map(chk=>chk.dataset.workerId));
+    const removedEntries = state.entries.filter(e=>e.date===date && e.siteId===siteId && visibleUncheckedIds.has(e.workerId));
 
-    if(!checked.length && siteExpense <= 0 && !siteExpenseMemo){
+    if(!checked.length && siteExpense <= 0 && !siteExpenseMemo && !removedEntries.length){
       alert("メンバーまたは現場経費のどちらかを入力してください");
       return;
+    }
+
+    if(removedEntries.length){
+      state.entries = state.entries.filter(e=>!(e.date===date && e.siteId===siteId && visibleUncheckedIds.has(e.workerId)));
     }
 
     checked.forEach(chk=>{
@@ -6634,15 +6722,12 @@
     });
 
     if(siteExpense > 0 || siteExpenseMemo){
-      state.siteExpenses.push({
-        id:uid(),
-        date,
-        siteId,
-        amount:siteExpense,
-        taxType:siteExpenseTaxType,
-        billable:siteExpenseBillable,
-        memo:siteExpenseMemo
-      });
+      if(existingExpense){
+        Object.assign(existingExpense,{amount:siteExpense,taxType:siteExpenseTaxType,billable:siteExpenseBillable,memo:siteExpenseMemo});
+      }else{
+        state.siteExpenses.push({id:uid(),date,siteId,amount:siteExpense,
+          taxType:siteExpenseTaxType,billable:siteExpenseBillable,memo:siteExpenseMemo});
+      }
     }
 
     // iPhone Safariでは、入力欄にフォーカスが残ったままalertを出すと
@@ -6650,23 +6735,10 @@
     // 先に確実にフォーカスを外してから完了メッセージを表示する。
     dismissKeyboard();
 
-    state.recentSelects.__lastBulkWorkerIds = checked.map(chk=>chk.dataset.workerId);
-    bulkWorkerSelectionDraft = null;
+    captureBulkWorkerSelection();
+    state.recentSelects.__lastBulkWorkerIds = [...bulkWorkerSelection()];
     save();
-    document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
-    document.querySelectorAll(".bulk-night,.bulk-travel,.bulk-custom-allowance").forEach(x=>x.checked=false);
-    document.querySelectorAll(".member-allowance-details").forEach(details=>{
-      details.hidden = true;
-      details.closest(".member-row").querySelector(".member-extra-toggle").setAttribute("aria-expanded", "false");
-      updateBulkAllowanceSummary(details);
-    });
-    bulkAllowanceDraft.clear();
-    $("siteDayExpense").value="";
-    if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
-    $("siteDayExpenseMemo").value="";
-    $("siteDayExpenseBillable").checked=true;
-    if(siteExpense > 0 || siteExpenseMemo) $("siteExpenseDetails").open=false;
-    updateSiteExpenseSummary();
+    loadExistingDayForm(true);
     renderRecent();
     renderSummary();
 
@@ -6675,8 +6747,10 @@
       completeMessage = checked.length + "人分＋現場経費を登録・更新しました";
     }else if(checked.length){
       completeMessage = checked.length + "人分を登録・更新しました";
+    }else if(siteExpense > 0 || siteExpenseMemo){
+      completeMessage = existingExpense ? "現場経費を更新しました" : "現場経費を登録しました";
     }else{
-      completeMessage = "現場経費を登録しました";
+      completeMessage = `${removedEntries.length}人分の入力を削除しました`;
     }
 
     // visualViewport/キーボードが閉じる時間を確保してから表示。
@@ -10007,7 +10081,7 @@ function getContractBillingIncluded(siteId, month){
       view:"input",
       target:"#addBulkEntryBtn",
       title:"⑤ 毎日の人工を入力",
-      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。前日と同じ内容なら「前日と同じ内容を入力」ボタンで、前日の現場・作業員・人工・早出・残業・現場経費を選択した日付へコピーできます。"
+      text:"現場とメンバーを選んで人工を登録します。現場経費や早出・残業も一緒に入力できます。「前日と同じ内容を入力」では、前日の内容をコピーし、前日に入力がなければ前々日の内容を使います。"
     },
     {
       view:"summary",
@@ -12328,6 +12402,7 @@ function getContractBillingIncluded(siteId, month){
     renderWorkerCompanies();
     renderSelects();
     renderBulkWorkers();
+    loadExistingDayForm();
     renderSites();
     renderContractHistory();
     renderWorkers();
