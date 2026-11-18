@@ -166,7 +166,13 @@
     .bulk-field{display:flex;flex-direction:column;gap:3px}
     .bulk-field-label{font-size:10px;font-weight:700;color:var(--sub);text-align:center}
     .bulk-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-    .bulk-allowances{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:2px}
+    .member-allowance-details{grid-column:2/-1;margin-top:2px;min-width:0}
+    .member-allowance-details summary{display:inline-flex;align-items:center;gap:5px;min-height:32px;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;list-style:none;padding:3px 0}
+    .member-allowance-details summary::-webkit-details-marker{display:none}
+    .member-allowance-details summary::before{content:"＋";font-size:15px}
+    .member-allowance-details[open] summary::before{content:"−"}
+    .member-allowance-details.has-allowance summary{color:var(--accent)}
+    .bulk-allowances{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:7px}
     .bulk-allowances label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;cursor:pointer}
     .bulk-allowances input[type="checkbox"]{width:19px;height:19px;min-height:19px;margin:0}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
@@ -4456,17 +4462,22 @@
           </div>
         </div>
 
-        <div class="row">
-          <div>
-            <label>夜勤の支払倍率</label>
-            <input id="workerNightMultiplier" inputmode="decimal" type="number" min="1" step="0.01" value="1.25" placeholder="例：1.25">
+        <details id="workerAllowanceDetails" class="expense-details">
+          <summary>夜勤・出張の手当設定</summary>
+          <div class="expense-details-body">
+            <div class="row">
+              <div>
+                <label>夜勤の支払倍率</label>
+                <input id="workerNightMultiplier" inputmode="decimal" type="number" min="1" step="0.01" value="1.25" placeholder="例：1.25">
+              </div>
+              <div>
+                <label>出張手当 / 日</label>
+                <input id="workerTravelAllowance" inputmode="numeric" type="number" min="0" step="1" placeholder="例：3000">
+              </div>
+            </div>
+            <div class="helper">夜勤はその日の人工代に倍率を掛け、出張手当は1日あたりの金額を加算します。</div>
           </div>
-          <div>
-            <label>出張手当 / 日</label>
-            <input id="workerTravelAllowance" inputmode="numeric" type="number" min="0" step="1" placeholder="例：3000">
-          </div>
-        </div>
-        <div class="helper">夜勤はその日の人工代に倍率を掛け、出張手当は1日あたりの金額を加算します。</div>
+        </details>
 
         <button class="btn" id="addWorkerBtn">作業員を追加</button>
       </div>
@@ -5592,6 +5603,7 @@
     $("workerOvertimeRate").value="";
     $("workerNightMultiplier").value="1.25";
     $("workerTravelAllowance").value="";
+    $("workerAllowanceDetails").open=false;
     renderAll();
     finishRegistration(wasEdit ? "作業員を更新しました" : "作業員を追加しました");
   });
@@ -5998,6 +6010,20 @@
 
 
   let bulkWorkerSelectionDraft = null;
+  const bulkAllowanceDraft = new Map();
+
+  function updateBulkAllowanceSummary(details){
+    const night = details.querySelector(".bulk-night")?.checked || false;
+    const travel = details.querySelector(".bulk-travel")?.checked || false;
+    const chosen = [night ? "夜勤" : "", travel ? "出張" : ""].filter(Boolean);
+    details.querySelector("summary").textContent = chosen.length ? `手当：${chosen.join("・")}` : "手当を追加";
+    details.classList.toggle("has-allowance", chosen.length > 0);
+    bulkAllowanceDraft.set(details.dataset.workerId, {night,travel});
+  }
+
+  function captureBulkAllowances(){
+    document.querySelectorAll("#bulkWorkerList .member-allowance-details").forEach(updateBulkAllowanceSummary);
+  }
 
   function bulkWorkerSelection(){
     const saved = state.recentSelects?.__lastBulkWorkerIds;
@@ -6037,7 +6063,10 @@
       return;
     }
 
-    box.innerHTML = workers.map(w=>`
+    box.innerHTML = workers.map(w=>{
+      const allowance = bulkAllowanceDraft.get(w.id) || {};
+      const chosen = [allowance.night ? "夜勤" : "", allowance.travel ? "出張" : ""].filter(Boolean);
+      return `
       <div class="member-row">
         <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" ${selected.has(w.id) ? "checked" : ""}>
         <div>
@@ -6062,17 +6091,21 @@
             <input class="bulk-overtime" data-worker-id="${w.id}" type="number" min="0" step="0.5" inputmode="decimal" placeholder="時間">
           </div>
         </div>
-        <div class="bulk-allowances">
-          <label><input class="bulk-night" type="checkbox" data-worker-id="${w.id}">夜勤 ×${workerNightMultiplier(w)}</label>
-          <label><input class="bulk-travel" type="checkbox" data-worker-id="${w.id}">出張 +${yen(w.travelAllowance)}</label>
-        </div>
+        <details class="member-allowance-details ${chosen.length ? "has-allowance" : ""}" data-worker-id="${w.id}">
+          <summary>${chosen.length ? `手当：${chosen.join("・")}` : "手当を追加"}</summary>
+          <div class="bulk-allowances">
+            <label><input class="bulk-night" type="checkbox" data-worker-id="${w.id}" ${allowance.night ? "checked" : ""}>夜勤 ×${workerNightMultiplier(w)}</label>
+            <label><input class="bulk-travel" type="checkbox" data-worker-id="${w.id}" ${allowance.travel ? "checked" : ""}>出張 +${yen(w.travelAllowance)}</label>
+          </div>
+        </details>
       </div>
-    `).join("");
+    `;}).join("");
   }
 
 
   $("bulkCompanyFilter").addEventListener("change", ()=>{
     captureBulkWorkerSelection();
+    captureBulkAllowances();
     state.bulkCompanyFilter = $("bulkCompanyFilter").value || "all";
     save();
     renderBulkWorkers();
@@ -6080,6 +6113,7 @@
 
   $("bulkWorkerList").addEventListener("change", event=>{
     if(event.target.matches(".bulk-check")) captureBulkWorkerSelection();
+    if(event.target.matches(".bulk-night,.bulk-travel")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
   });
 
   ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
@@ -6318,6 +6352,11 @@
     save();
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
     document.querySelectorAll(".bulk-night,.bulk-travel").forEach(x=>x.checked=false);
+    document.querySelectorAll(".member-allowance-details").forEach(details=>{
+      details.open = false;
+      updateBulkAllowanceSummary(details);
+    });
+    bulkAllowanceDraft.clear();
     $("siteDayExpense").value="";
     if($("siteDayExpenseTaxType")) $("siteDayExpenseTaxType").value="excluded";
     $("siteDayExpenseMemo").value="";
@@ -10952,6 +10991,7 @@ function getContractBillingIncluded(siteId, month){
     }
 
     bulkWorkerSelectionDraft = null;
+    bulkAllowanceDraft.clear();
     renderAll();
     if(pendingLocalState) scheduleCloudSync();
     refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
@@ -11729,6 +11769,7 @@ function getContractBillingIncluded(siteId, month){
 
       state = normalized;
       bulkWorkerSelectionDraft = null;
+      bulkAllowanceDraft.clear();
       save();
       renderAll();
       dismissKeyboard();
