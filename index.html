@@ -161,18 +161,18 @@
     .member-row{display:grid;grid-template-columns:42px minmax(0,1fr) 78px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
     .member-row input[type="checkbox"]{width:24px;height:24px;min-height:24px}
     .member-row select,.member-row input[type="number"]{min-height:40px;padding:7px 8px}
+    .member-main{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+    .member-identity{min-width:0;flex:1}
+    .member-extra-toggle{flex:0 0 auto;max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;color:var(--accent);font-size:12px;font-weight:700;padding:8px 0;cursor:pointer}
+    .member-extra-toggle.has-allowance{color:#1d4ed8}
     .member-name{font-weight:700;font-size:14px}
     .member-rate{font-size:11px;color:var(--sub);margin-top:2px}
     .bulk-field{display:flex;flex-direction:column;gap:3px}
     .bulk-field-label{font-size:10px;font-weight:700;color:var(--sub);text-align:center}
     .bulk-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px}
     .member-allowance-details .bulk-time-fields{max-width:260px;margin:8px 0}
-    .member-allowance-details{grid-column:2/-1;margin-top:2px;min-width:0}
-    .member-allowance-details summary{display:inline-flex;align-items:center;gap:5px;min-height:32px;max-width:100%;overflow-wrap:anywhere;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;list-style:none;padding:3px 0}
-    .member-allowance-details summary::-webkit-details-marker{display:none}
-    .member-allowance-details summary::before{content:"＋";font-size:15px}
-    .member-allowance-details[open] summary::before{content:"−"}
-    .member-allowance-details.has-allowance summary{color:var(--accent)}
+    .member-allowance-details{grid-column:2/-1;min-width:0}
+    .member-allowance-details[hidden]{display:none}
     .bulk-allowances{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:7px}
     .bulk-allowances label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;cursor:pointer}
     .bulk-allowances input[type="checkbox"]{width:19px;height:19px;min-height:19px;margin:0}
@@ -6077,7 +6077,7 @@
   const bulkAllowanceDraft = new Map();
 
   function bulkExtraSummary(chosen){
-    return chosen.length ? `追加：${chosen.join("・")}` : "早出・残業・手当を追加";
+    return chosen.length ? `＋ ${chosen[0]}${chosen.length > 1 ? `ほか${chosen.length-1}件` : ""}` : "＋ 手当を追加";
   }
 
   function updateBulkAllowanceSummary(details){
@@ -6089,8 +6089,10 @@
     const customIds = customChecks.map(input=>input.dataset.allowanceId);
     const chosen = [Number(early) > 0 ? `早出 ${early}h` : "", Number(overtime) > 0 ? `残業 ${overtime}h` : "",
       night ? "夜勤" : "", travel ? "出張" : "", ...customChecks.map(input=>input.dataset.allowanceName)].filter(Boolean);
-    details.querySelector("summary").textContent = bulkExtraSummary(chosen);
-    details.classList.toggle("has-allowance", chosen.length > 0);
+    const button = details.closest(".member-row").querySelector(".member-extra-toggle");
+    button.textContent = bulkExtraSummary(chosen);
+    button.title = chosen.join("・");
+    button.classList.toggle("has-allowance", chosen.length > 0);
     bulkAllowanceDraft.set(details.dataset.workerId, {early,overtime,night,travel,customIds});
   }
 
@@ -6146,9 +6148,12 @@
       return `
       <div class="member-row">
         <input class="bulk-check" type="checkbox" data-worker-id="${w.id}" ${selected.has(w.id) ? "checked" : ""}>
-        <div>
-          <div class="member-name">${escapeHtml(w.name)}</div>
-          <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</div>
+        <div class="member-main">
+          <div class="member-identity">
+            <div class="member-name">${escapeHtml(w.name)}</div>
+            <div class="member-rate">${w.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${yen(effectiveWorkerRate(w))} / 1人工${Number(w.rate||0)>0 ? "（個別）" : ""}</div>
+          </div>
+          <button type="button" class="member-extra-toggle ${chosen.length ? "has-allowance" : ""}" aria-expanded="false" title="${escapeHtml(chosen.join("・"))}">${escapeHtml(bulkExtraSummary(chosen))}</button>
         </div>
         <div class="bulk-field">
           <div class="bulk-field-label">人工</div>
@@ -6158,8 +6163,7 @@
             <option value="0.25">0.25</option>
           </select>
         </div>
-        <details class="member-allowance-details ${chosen.length ? "has-allowance" : ""}" data-worker-id="${w.id}">
-          <summary>${escapeHtml(bulkExtraSummary(chosen))}</summary>
+        <div class="member-allowance-details" data-worker-id="${w.id}" hidden>
           <div class="bulk-time-fields">
             <div class="bulk-field">
               <div class="bulk-field-label">早出（時間）</div>
@@ -6175,7 +6179,7 @@
             <label><input class="bulk-travel" type="checkbox" data-worker-id="${w.id}" ${allowance.travel ? "checked" : ""}>出張 +${yen(w.travelAllowance)}</label>
             ${customAllowances.map(x=>`<label><input class="bulk-custom-allowance" type="checkbox" data-worker-id="${w.id}" data-allowance-id="${escapeHtml(x.id)}" data-allowance-name="${escapeHtml(x.name)}" ${allowance.customIds?.includes(x.id) ? "checked" : ""}>${escapeHtml(x.name)} +${yen(x.amount)}</label>`).join("")}
           </div>
-        </details>
+        </div>
       </div>
     `;}).join("");
   }
@@ -6192,6 +6196,13 @@
   $("bulkWorkerList").addEventListener("change", event=>{
     if(event.target.matches(".bulk-check")) captureBulkWorkerSelection();
     if(event.target.matches(".bulk-early,.bulk-overtime,.bulk-night,.bulk-travel,.bulk-custom-allowance")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
+  });
+  $("bulkWorkerList").addEventListener("click", event=>{
+    const button = event.target.closest(".member-extra-toggle");
+    if(!button) return;
+    const panel = button.closest(".member-row").querySelector(".member-allowance-details");
+    panel.hidden = !panel.hidden;
+    button.setAttribute("aria-expanded", String(!panel.hidden));
   });
   $("bulkWorkerList").addEventListener("input", event=>{
     if(event.target.matches(".bulk-early,.bulk-overtime")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
@@ -6442,7 +6453,8 @@
     document.querySelectorAll(".bulk-early,.bulk-overtime").forEach(x=>x.value="");
     document.querySelectorAll(".bulk-night,.bulk-travel,.bulk-custom-allowance").forEach(x=>x.checked=false);
     document.querySelectorAll(".member-allowance-details").forEach(details=>{
-      details.open = false;
+      details.hidden = true;
+      details.closest(".member-row").querySelector(".member-extra-toggle").setAttribute("aria-expanded", "false");
       updateBulkAllowanceSummary(details);
     });
     bulkAllowanceDraft.clear();
