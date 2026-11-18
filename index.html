@@ -207,6 +207,10 @@
     .contract-item-row button{border:0;background:#fee2e2;color:var(--danger);border-radius:8px;min-height:42px;cursor:pointer}
     .helper{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
     .bulk-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .bulk-allowance-switches{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .bulk-allowance-switches>span{font-size:13px;font-weight:700;margin-right:auto}
+    .bulk-allowance-switches label{display:flex;align-items:center;gap:5px;margin:0;font-size:13px;cursor:pointer}
+    .bulk-allowance-switches input[type="checkbox"]{width:20px;height:20px;min-height:20px;margin:0}
     @media(max-width:430px){
       .member-row{grid-template-columns:34px minmax(0,1fr) 70px;gap:6px;padding:9px 8px}
       .member-name{font-size:13px}
@@ -4328,16 +4332,11 @@
           <button class="btn secondary" id="selectAllBtn" type="button">全員チェック</button>
           <button class="btn secondary" id="clearAllBtn" type="button">全員外す</button>
         </div>
-        <details id="bulkAllowanceDetails" class="expense-details">
-          <summary>チェック中の作業員に手当を一括設定</summary>
-          <div class="expense-details-body">
-            <div class="helper">表示中でチェックが入っている作業員に適用します。あとから個別に変更できます。</div>
-            <div class="bulk-actions">
-              <button class="btn secondary" id="bulkNightBtn" type="button" data-bulk-allowance="night">夜勤を一括追加</button>
-              <button class="btn secondary" id="bulkTravelBtn" type="button" data-bulk-allowance="travel">出張を一括追加</button>
-            </div>
-          </div>
-        </details>
+        <div class="bulk-allowance-switches" role="group" aria-label="チェック中の作業員に手当を一括設定">
+          <span>一括手当</span>
+          <label><input id="bulkNightCheck" type="checkbox">夜勤</label>
+          <label><input id="bulkTravelCheck" type="checkbox">出張</label>
+        </div>
 
         <div class="helper">メンバーなしでも現場経費だけ登録できます。各作業員ごとに早出・残業や手当を入力できます。</div>
         <div id="entrySavePreview" class="helper" role="status" aria-live="polite" style="margin:10px 0;font-weight:600"></div>
@@ -6526,13 +6525,12 @@
 
   function updateBulkAllowanceButtons(){
     const rows = checkedBulkWorkerRows();
-    [["bulkNightBtn",".bulk-night","夜勤"],["bulkTravelBtn",".bulk-travel","出張"]].forEach(([id,selector,label])=>{
-      const button = $(id);
-      if(!button) return;
-      const allApplied = rows.length>0 && rows.every(row=>row.querySelector(selector)?.checked);
-      button.disabled = rows.length===0;
-      button.dataset.remove = allApplied ? "1" : "0";
-      button.textContent = `${label}を一括${allApplied ? "解除" : "追加"}`;
+    [["bulkNightCheck",".bulk-night"],["bulkTravelCheck",".bulk-travel"]].forEach(([id,selector])=>{
+      const control = $(id);
+      const checkedCount = rows.filter(row=>row.querySelector(selector)?.checked).length;
+      control.disabled = rows.length===0;
+      control.checked = rows.length>0 && checkedCount===rows.length;
+      control.indeterminate = checkedCount>0 && checkedCount<rows.length;
     });
   }
 
@@ -6713,20 +6711,19 @@
     if(event.target.matches(".bulk-early,.bulk-overtime")) updateBulkAllowanceSummary(event.target.closest(".member-allowance-details"));
   });
 
-  $("bulkAllowanceDetails").addEventListener("click",event=>{
-    const button = event.target.closest("[data-bulk-allowance]");
-    if(!button || button.disabled) return;
-    const selector = button.dataset.bulkAllowance === "night" ? ".bulk-night" : ".bulk-travel";
-    const apply = button.dataset.remove !== "1";
-    checkedBulkWorkerRows().forEach(row=>{
-      const checkbox = row.querySelector(selector);
-      if(!checkbox) return;
-      checkbox.checked = apply;
-      bulkAllowanceDefaultApplied.add(checkbox.dataset.workerId);
-      updateBulkAllowanceSummary(row.querySelector(".member-allowance-details"));
+  [["bulkNightCheck",".bulk-night"],["bulkTravelCheck",".bulk-travel"]].forEach(([id,selector])=>{
+    $(id).addEventListener("change",()=>{
+      const apply = $(id).checked;
+      checkedBulkWorkerRows().forEach(row=>{
+        const checkbox = row.querySelector(selector);
+        if(!checkbox) return;
+        checkbox.checked = apply;
+        bulkAllowanceDefaultApplied.add(checkbox.dataset.workerId);
+        updateBulkAllowanceSummary(row.querySelector(".member-allowance-details"));
+      });
+      updateBulkAllowanceButtons();
+      updateEntrySavePreview();
     });
-    updateBulkAllowanceButtons();
-    updateEntrySavePreview();
   });
 
   ["entrySite","siteClient","workerCompany","bulkCompanyFilter","summarySite","invoiceClient"].forEach(id=>{
