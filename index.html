@@ -214,6 +214,10 @@
     @media(max-width:430px){
       .member-row{grid-template-columns:34px minmax(0,1fr) 70px;gap:6px;padding:9px 8px}
       .member-name{font-size:13px}
+      .bulk-allowance-switches{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:8px}
+      .bulk-allowance-switches>span{font-size:clamp(9px,2.8vw,11px);white-space:nowrap;margin-right:0}
+      .bulk-allowance-switches label{font-size:11px;gap:3px;white-space:nowrap}
+      .bulk-allowance-switches input[type="checkbox"]{width:18px;height:18px;min-height:18px}
     }
   
     input,textarea{box-sizing:border-box;max-width:100%;min-width:0}
