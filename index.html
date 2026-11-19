@@ -10799,7 +10799,7 @@ function getContractBillingIncluded(siteId, month){
   function clearTutorialHighlight(){
     document.querySelectorAll(".tutorial-highlight").forEach(el=>el.classList.remove("tutorial-highlight"));
     document.querySelectorAll(".tutorial-tab-highlight").forEach(el=>el.classList.remove("tutorial-tab-highlight"));
-    document.querySelector("nav")?.classList.remove("tutorial-nav-front");
+    document.querySelector('nav button[data-view="input"]')?.parentElement?.classList.remove("tutorial-nav-front");
   }
 
   function positionTutorialCard(target){
@@ -10807,7 +10807,7 @@ function getContractBillingIncluded(siteId, month){
     if(!card) return;
 
     const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
-    const nav = document.querySelector("nav");
+    const nav = document.querySelector('nav button[data-view="input"]')?.parentElement;
     const navRect = nav ? nav.getBoundingClientRect() : null;
 
     // 説明カードは全ステップで、下部タブのすぐ上に固定する。
@@ -10844,7 +10844,7 @@ function getContractBillingIncluded(siteId, month){
       setSummaryMode("monthly");
     }
 
-    const tutorialNav = document.querySelector("nav");
+    const tutorialNav = document.querySelector('nav button[data-view="input"]')?.parentElement;
     if(tutorialNav) tutorialNav.classList.add("tutorial-nav-front");
 
     const tutorialTab = document.querySelector(`nav button[data-view="${step.view}"]`);
