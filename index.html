@@ -4115,6 +4115,23 @@
     }
   }
 
+
+  /* iOS版の30〜35行もPCと同じ1ページへ。明細だけを控えめに詰める。 */
+  @media print{
+    html.ios-print-device #invoicePreview .invoice-page-ios-dense .invoice-upper{
+      min-height:225px !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page-ios-dense .invoice-detail-table td{
+      height:16px !important;
+      padding-top:1px !important;
+      padding-bottom:1px !important;
+      line-height:1 !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page-ios-dense .invoice-bottom-area{
+      margin-top:8px !important;
+    }
+  }
+
   /* iPhone / iPad用PDF生成時は、画面の縮小表示を解除してA4比率で撮影する */
   .invoice-pdf-export #invoicePreview{
     position:fixed !important;
@@ -10404,7 +10421,7 @@ function getContractBillingIncluded(siteId, month){
     }
     // デザイン形式は1行目を白、最下段を色付きにする偶数行で固定し、
     // 明細欄を合計欄直前の黒ラインまで伸ばす。
-    const firstCapacity = isDesignFormat ? 24 : (isIOSPrintDevice ? 29 : 35);
+    const firstCapacity = isDesignFormat ? 24 : 35;
     // 複数ページでは合計・振込先は最終ページに移るため、その空き分を1ページ目の明細に使う。
     // 1ページに収まる請求書の行数とレイアウトは従来どおりにする。
     const multiPageFirstCapacity = isDesignFormat ? 32 : (isIOSPrintDevice ? 39 : 43);
@@ -10417,7 +10434,7 @@ function getContractBillingIncluded(siteId, month){
       while(pageRows.length < firstCapacity) pageRows.push(blankDetailRow());
 
       pages.push(`
-        <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last">
+        <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last ${!isDesignFormat && isIOSPrintDevice && actualRows.length > 29 ? "invoice-page-ios-dense" : ""}">
           <div class="invoice-paper-inner">
             ${invoiceCompanyLogoHtml()}
             ${pageFirstHeaderHtml()}
