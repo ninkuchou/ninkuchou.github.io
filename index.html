@@ -4822,7 +4822,7 @@
     <section id="view-workers" class="view">
       <div class="card">
         <h2>所属会社登録</h2>
-        <div class="helper" style="margin-bottom:10px">所属会社は作業員が所属する会社です。自社・協力会社などを登録してください。</div>
+        <div class="helper" style="margin-bottom:10px">所属会社は作業員が所属する会社です。「自社」は初期登録済みなので、必要に応じて協力会社などを追加してください。</div>
         <label>会社名</label>
         <input id="workerCompanyName" placeholder="例：自社 / ○○興業">
         <label>基本支払人工単価</label>
@@ -5370,7 +5370,26 @@
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
   const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", bankName:"", bankBranch:"", bankAccountType:"", bankAccountNumber:"", bankAccountHolder:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"} };
+  // 所属会社には初回のみ「自社」を自動登録。既に手動登録された自社は再利用する。
+  // 初回登録済みフラグを残し、後から名前変更・削除しても勝手に復活させない。
+  function ensureInitialOwnWorkerCompany(target){
+    if(!target || typeof target !== "object") return false;
+    if(!Array.isArray(target.workerCompanies)) target.workerCompanies = [];
+    if(!target.recentSelects || typeof target.recentSelects !== "object") target.recentSelects = {};
+    if(target.recentSelects.__ownWorkerCompanySeeded === true) return false;
+    const alreadyRegistered = target.workerCompanies.some(c=>String(c?.name || "").trim() === "自社");
+    if(!alreadyRegistered){
+      target.workerCompanies.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+        name:"自社", rate:0
+      });
+    }
+    target.recentSelects.__ownWorkerCompanySeeded = true;
+    return true;
+  }
+
   let state = load();
+  ensureInitialOwnWorkerCompany(state);
   let editingClientId = "";
   let editingSiteId = "";
   let editingWorkerCompanyId = "";
@@ -10993,7 +11012,7 @@ function getContractBillingIncluded(siteId, month){
       view:"workers",
       target:"#workerCompanyName",
       title:"③ 所属会社を登録",
-      text:"所属会社は作業員が所属する会社です。自社・協力会社などを登録してください。元請け会社（請求先）とは別の項目です。登録した所属会社は、作業員登録時に選択できます。"
+      text:"所属会社は作業員が所属する会社です。「自社」は初期登録済みなので、必要に応じて協力会社などを追加してください。元請け会社（請求先）とは別の項目です。登録した所属会社は、作業員登録時に選択できます。"
     },
     {
       view:"workers",
@@ -12321,6 +12340,7 @@ function getContractBillingIncluded(siteId, month){
     // クラウドを正として扱う。
     // 端末内に旧データが残っていても、ログイン時に自動送信・自動移行しない。
     cloudReady = true;
+    let seededOwnWorkerCompany = false;
 
     if(cloud.initialized){
       state = normalizeImportedState(cloud.state);
@@ -12328,13 +12348,16 @@ function getContractBillingIncluded(siteId, month){
       if(pendingLocalState){
         state = mergePendingLocalState(state, pendingLocalState);
       }
-      saveLocalOnly();
+      seededOwnWorkerCompany = ensureInitialOwnWorkerCompany(state);
+      if(seededOwnWorkerCompany) save();
+      else saveLocalOnly();
       setCloudStatus("クラウド保存済み", "ok");
     }else{
       // 同じ会社の未送信データがあれば復元し、それ以外は空の状態から開始する。
       state = pendingLocalState
         ? normalizeImportedState(pendingLocalState)
         : normalizeImportedState(defaultState);
+      seededOwnWorkerCompany = ensureInitialOwnWorkerCompany(state);
       saveLocalOnly();
       cloudBaselineRows = Object.fromEntries(
         CLOUD_TABLES_PARENT_FIRST.map(t=>[t, []])
@@ -12345,7 +12368,7 @@ function getContractBillingIncluded(siteId, month){
     bulkWorkerSelectionDraft = null;
     bulkAllowanceDraft.clear();
     renderAll();
-    if(pendingLocalState) scheduleCloudSync();
+    if(pendingLocalState || seededOwnWorkerCompany) scheduleCloudSync();
     refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
     if(!options.suppressTutorial){
       setTimeout(()=>startTutorial(false), 450);
@@ -13120,6 +13143,7 @@ function getContractBillingIncluded(siteId, month){
       }
 
       state = normalized;
+      ensureInitialOwnWorkerCompany(state);
       bulkWorkerSelectionDraft = null;
       bulkAllowanceDraft.clear();
       save();
