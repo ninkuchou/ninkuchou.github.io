@@ -8304,10 +8304,12 @@ function showDayDetail(date){
 
     const byWorker = {};
     entries.forEach(e=>{
-      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0};
+      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0,night:0,travel:0};
       byWorker[e.workerId].jinko += Number(e.jinko||0);
       byWorker[e.workerId].early += Number(e.early||0);
       byWorker[e.workerId].overtime += Number(e.overtime||0);
+      byWorker[e.workerId].night += e.nightShift ? 1 : 0;
+      byWorker[e.workerId].travel += e.businessTrip ? 1 : 0;
       byWorker[e.workerId].cost += workerEntryCost(e);
     });
 
@@ -8322,7 +8324,7 @@ function showDayDetail(date){
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w?.name||"不明")}</strong>
-            <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""}</small>
+            <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""} / 夜勤 ${v.night} / 出張 ${v.travel}</small>
           </div>
           <div style="text-align:right;display:grid;gap:3px;flex:0 0 auto">
             <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
