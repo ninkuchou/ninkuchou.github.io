@@ -1786,13 +1786,19 @@
     }
 
   
+    .excel-template .invoice-number-text{
+      display:block;
+      white-space:nowrap;
+    }
     .excel-template .invoice-page-number{
-      display:inline-block;
-      margin-left:12px;
+      display:block;
+      margin-left:0;
+      margin-top:3px;
       font-size:11px;
       font-weight:700;
       letter-spacing:.04em;
       white-space:nowrap;
+      text-align:right;
     }
     @media print{
       .excel-template .invoice-page-number{
@@ -4643,6 +4649,7 @@
             <button id="summaryWorkerDetailBack" class="edit-link" type="button" hidden>元の表示に戻る</button>
           </div>
           <div id="summaryCalendar"></div>
+          <div id="summaryCalendarSwipeHint" class="helper">カレンダーを左右にスワイプすると月を切り替えられます。</div>
         </div>
 
         <div class="card" id="dayDetailCard">
@@ -6162,6 +6169,7 @@
     if($("summaryMonthWrap")){
       $("summaryMonthWrap").style.display = summaryMode === "monthly" ? "" : "none";
     }
+    if($("summaryCalendarSwipeHint")) $("summaryCalendarSwipeHint").style.display = summaryMode === "monthly" ? "" : "none";
     if($("summarySiteSearch")) $("summarySiteSearch").style.display = summaryMode === "site" ? "" : "none";
     if($("monthlySummaryDetails")){
       $("monthlySummaryDetails").style.display = "";
@@ -6198,6 +6206,38 @@
   $("summaryModeSite")?.addEventListener("click", ()=>setSummaryMode("site"));
   $("summarySiteSearch").addEventListener("input",syncSummarySiteOptions);
   $("summaryMonth").addEventListener("change", renderSummary);
+  function shiftSummaryCalendarMonth(delta){
+    if(summaryMode !== "monthly") return;
+    const current = $("summaryMonth").value || monthLocal();
+    const [year,month] = current.split("-").map(Number);
+    const next = new Date(year, month - 1 + delta, 1);
+    $("summaryMonth").value = `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,"0")}`;
+    $("dayDetail").className = "empty";
+    $("dayDetail").textContent = "カレンダーの日付を押してください。";
+    renderSummary();
+  }
+  let summaryCalendarTouchStart = null;
+  $("summaryCalendarCard").addEventListener("touchstart",event=>{
+    if(summaryMode !== "monthly" || event.touches.length !== 1){
+      summaryCalendarTouchStart = null;
+      return;
+    }
+    summaryCalendarTouchStart = {x:event.touches[0].clientX,y:event.touches[0].clientY};
+  },{passive:true});
+  $("summaryCalendarCard").addEventListener("touchmove",event=>{
+    if(event.touches.length !== 1) summaryCalendarTouchStart = null;
+  },{passive:true});
+  $("summaryCalendarCard").addEventListener("touchend",event=>{
+    const start = summaryCalendarTouchStart;
+    summaryCalendarTouchStart = null;
+    if(!start || summaryMode !== "monthly" || !event.changedTouches.length) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if(Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    event.preventDefault();
+    shiftSummaryCalendarMonth(dx < 0 ? 1 : -1);
+  },{passive:false});
+  $("summaryCalendarCard").addEventListener("touchcancel",()=>{ summaryCalendarTouchStart = null; },{passive:true});
   $("summaryStartDay").addEventListener("change",()=>{
     state.recentSelects.summaryStartDay=Number($("summaryStartDay").value);
     save();
@@ -10293,7 +10333,7 @@ function getContractBillingIncluded(siteId, month){
         </div>
 
         <div class="invoice-number">
-          NO　${escapeHtml(number||"-")}
+          <span class="invoice-number-text">NO　${escapeHtml(number||"-")}</span>
           ${pageLabel ? `<span class="invoice-page-number">${escapeHtml(pageLabel)}</span>` : ""}
         </div>
 
@@ -10321,7 +10361,7 @@ function getContractBillingIncluded(siteId, month){
       <div class="invoice-continuation-head">
         <div class="invoice-doc-title">御請求明細書</div>
         <div class="invoice-number">
-          NO　${escapeHtml(number||"-")}
+          <span class="invoice-number-text">NO　${escapeHtml(number||"-")}</span>
           ${pageLabel ? `<span class="invoice-page-number">${escapeHtml(pageLabel)}</span>` : ""}
         </div>
       </div>
