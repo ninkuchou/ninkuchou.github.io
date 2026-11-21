@@ -4115,144 +4115,6 @@
     }
   }
 
-
-  /* iOS版の30〜35行もPCと同じ1ページへ。明細だけを控えめに詰める。 */
-  @media print{
-    html.ios-print-device #invoicePreview .invoice-page-ios-dense .invoice-upper{
-      min-height:225px !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page-ios-dense .invoice-detail-table td{
-      height:16px !important;
-      padding-top:1px !important;
-      padding-bottom:1px !important;
-      line-height:1 !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page-ios-dense .invoice-bottom-area{
-      margin-top:8px !important;
-    }
-  }
-
-
-  /* シンプル・カラーのA4余白対策：残り高さを明細欄で使い切る。
-     表の空行を均等に伸ばすので、実データ・合計欄の位置関係は保持する。
-     デザイン形式には適用しない。 */
-  @media print{
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-paper-inner,
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-paper-inner{
-      display:flex !important;
-      flex-direction:column !important;
-      padding-bottom:12mm !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill,
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill{
-      flex:1 1 auto !important;
-      min-height:0 !important;
-      display:flex !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill > table,
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill > table{
-      height:100% !important;
-      width:100% !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-bottom-area,
-    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-bottom-area{
-      flex:0 0 auto !important;
-    }
-  }
-  /* PDF撮影エンジン側にも同じA4埋め処理を反映 */
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-paper-inner,
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-paper-inner{
-    display:flex !important;
-    flex-direction:column !important;
-    padding-bottom:45px !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill,
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill{
-    flex:1 1 auto !important;
-    display:flex !important;
-    min-height:0 !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill > table,
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill > table{
-    width:100% !important;
-    height:100% !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-bottom-area,
-  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-bottom-area{
-    flex:0 0 auto !important;
-  }
-
-  /* 2026-11-21: シンプル・カラー 明細と合計欄の重なり防止。
-     A4の残高を「ヘッダー・明細・合計欄」の3段に割り当てる。
-     合計欄は縮めず、明細の表だけ残高内で伸縮させる。 */
-  @media print{
-    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-paper-inner{
-      display:grid !important;
-      grid-template-columns:minmax(0,1fr) !important;
-      grid-template-rows:auto minmax(0,1fr) auto !important;
-      align-content:stretch !important;
-      row-gap:0 !important;
-      padding-bottom:12mm !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill{
-      display:flex !important;
-      min-width:0 !important;
-      min-height:0 !important;
-      height:auto !important;
-      overflow:visible !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill > table{
-      height:auto !important;
-      min-height:0 !important;
-      max-height:100% !important;
-      align-self:stretch !important;
-      margin-bottom:0 !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-bottom-area{
-      min-height:max-content !important;
-      margin-top:14px !important;
-      position:relative !important;
-      z-index:1 !important;
-    }
-    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-table td{
-      height:16px !important;
-      padding-top:1px !important;
-      padding-bottom:1px !important;
-      line-height:1 !important;
-    }
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-paper-inner{
-    display:grid !important;
-    grid-template-columns:minmax(0,1fr) !important;
-    grid-template-rows:auto minmax(0,1fr) auto !important;
-    align-content:stretch !important;
-    row-gap:0 !important;
-    padding-bottom:45px !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill{
-    display:flex !important;
-    height:auto !important;
-    min-width:0 !important;
-    min-height:0 !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill > table{
-    height:auto !important;
-    max-height:100% !important;
-    align-self:stretch !important;
-    margin-bottom:0 !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-bottom-area{
-    min-height:max-content !important;
-    margin-top:14px !important;
-    position:relative !important;
-    z-index:1 !important;
-  }
-  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-table td{
-    height:16px !important;
-    padding-top:1px !important;
-    padding-bottom:1px !important;
-  }
-
   /* iPhone / iPad用PDF生成時は、画面の縮小表示を解除してA4比率で撮影する */
   .invoice-pdf-export #invoicePreview{
     position:fixed !important;
@@ -4345,142 +4207,6 @@
     display:block;
     white-space:nowrap;
   }
-
-
-  /* 2026-11-21: PDF/ブラウザー印刷時の発行者情報と挨拶文の衝突防止。
-     絶対配置だった発行者情報と挨拶文を同じグリッドの別行に置き、
-     情報が長い場合もヘッダー自身が必要な高さを確保する。
-     2ページ目以降の続紙・デザイン専用レイアウトには適用しない。 */
-  @media print {
-    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-upper {
-      display:grid !important;
-      grid-template-columns:minmax(0,56%) minmax(0,44%) !important;
-      grid-template-rows:auto auto auto !important;
-      align-items:start !important;
-      align-content:start !important;
-      height:auto !important;
-      min-height:0 !important;
-      padding-bottom:0 !important;
-    }
-    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-doc-title {
-      grid-column:1 !important;
-      grid-row:1 !important;
-    }
-    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-client-block {
-      grid-column:1 !important;
-      grid-row:2 !important;
-      min-width:0 !important;
-      width:auto !important;
-      margin-right:8px !important;
-    }
-    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-issuer-block {
-      grid-column:2 !important;
-      grid-row:2 !important;
-      position:relative !important;
-      top:auto !important;
-      right:auto !important;
-      bottom:auto !important;
-      left:auto !important;
-      width:auto !important;
-      min-width:0 !important;
-      margin:0 12px 0 0 !important;
-    }
-    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-greeting {
-      grid-column:1 / -1 !important;
-      grid-row:3 !important;
-      position:static !important;
-      inset:auto !important;
-      margin:12px 8px 4px !important;
-      padding:0 !important;
-      align-self:start !important;
-    }
-  }
-
-
-/* 2026-11-21: 複数ページの印刷余白修正。
-   上段や挨拶文に余白を割り当てず、明細テーブルだけを伸ばす。
-   デザイン形式・単ページには適用しない。 */
-@media print {
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) {
-    height:265mm !important;
-    min-height:265mm !important;
-    max-height:265mm !important;
-    box-sizing:border-box !important;
-    overflow:hidden !important;
-  }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner,
-  html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner {
-    display:flex !important;
-    flex-direction:column !important;
-    justify-content:flex-start !important;
-    align-items:stretch !important;
-    height:100% !important;
-    min-height:0 !important;
-    max-height:100% !important;
-    box-sizing:border-box !important;
-    padding-bottom:8mm !important;
-    overflow:hidden !important;
-  }
-  /* grid の auto 行が伸びて、挨拶文の上に大きな空白を作るのを防止 */
-  #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-last) .invoice-upper {
-    flex:0 0 auto !important;
-    height:auto !important;
-    min-height:0 !important;
-    grid-template-rows:max-content max-content max-content !important;
-    align-content:start !important;
-    align-items:start !important;
-    margin-bottom:12px !important;
-  }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-continuation-head {
-    flex:0 0 auto !important;
-  }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill,
-  html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill {
-    display:flex !important;
-    flex:1 1 0 !important;
-    flex-direction:column !important;
-    min-height:0 !important;
-    height:auto !important;
-    max-height:none !important;
-    margin:0 !important;
-    overflow:hidden !important;
-  }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table,
-  html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table {
-    flex:1 1 auto !important;
-    width:100% !important;
-    height:100% !important;
-    min-height:0 !important;
-    max-height:none !important;
-    margin:0 !important;
-  }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-bottom-area {
-    flex:0 0 auto !important;
-    position:relative !important;
-    z-index:1 !important;
-    margin-top:12px !important;
-    align-self:stretch !important;
-  }
-}
-/* Safari独自の PDF 画像変換にも同じルールを適用 */
-.invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner {
-  display:flex !important;
-  flex-direction:column !important;
-  justify-content:flex-start !important;
-  align-items:stretch !important;
-  padding-bottom:45px !important;
-}
-.invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill {
-  display:flex !important;
-  flex:1 1 0 !important;
-  height:auto !important;
-  min-height:0 !important;
-  max-height:none !important;
-}
-.invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table {
-  height:100% !important;
-  max-height:none !important;
-}
 
 </style>
 
@@ -4822,7 +4548,7 @@
     <section id="view-workers" class="view">
       <div class="card">
         <h2>所属会社登録</h2>
-        <div class="helper" style="margin-bottom:10px">所属会社は作業員が所属する会社です。「自社」は初期登録済みなので、必要に応じて協力会社などを追加してください。</div>
+        <div class="helper" style="margin-bottom:10px">所属会社は作業員が所属する会社です。自社・協力会社などを登録してください。</div>
         <label>会社名</label>
         <input id="workerCompanyName" placeholder="例：自社 / ○○興業">
         <label>基本支払人工単価</label>
@@ -5370,26 +5096,7 @@
   const BILLING_PAST_DUE_GRACE_DAYS = 7;
 
   const defaultState = { clients: [], workerCompanies: [], sites: [], workers: [], entries: [], siteExpenses: [], recentSelects: {}, bulkCompanyFilter:"all", invoiceNumbers: [], progressBillings: [], contractBillingIncludes: [], companyInfo: {name:"", postalCode:"", address:"", title:"", personName:"", phone:"", invoiceNumber:"", bankAccount:"", bankName:"", bankBranch:"", bankAccountType:"", bankAccountNumber:"", bankAccountHolder:"", invoiceFormat:"color", invoiceFont:"hiragino", invoiceColor:"navy"} };
-  // 所属会社には初回のみ「自社」を自動登録。既に手動登録された自社は再利用する。
-  // 初回登録済みフラグを残し、後から名前変更・削除しても勝手に復活させない。
-  function ensureInitialOwnWorkerCompany(target){
-    if(!target || typeof target !== "object") return false;
-    if(!Array.isArray(target.workerCompanies)) target.workerCompanies = [];
-    if(!target.recentSelects || typeof target.recentSelects !== "object") target.recentSelects = {};
-    if(target.recentSelects.__ownWorkerCompanySeeded === true) return false;
-    const alreadyRegistered = target.workerCompanies.some(c=>String(c?.name || "").trim() === "自社");
-    if(!alreadyRegistered){
-      target.workerCompanies.unshift({
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-        name:"自社", rate:0
-      });
-    }
-    target.recentSelects.__ownWorkerCompanySeeded = true;
-    return true;
-  }
-
   let state = load();
-  ensureInitialOwnWorkerCompany(state);
   let editingClientId = "";
   let editingSiteId = "";
   let editingWorkerCompanyId = "";
@@ -8304,12 +8011,10 @@ function showDayDetail(date){
 
     const byWorker = {};
     entries.forEach(e=>{
-      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0,night:0,travel:0};
+      if(!byWorker[e.workerId]) byWorker[e.workerId]={jinko:0,cost:0,early:0,overtime:0};
       byWorker[e.workerId].jinko += Number(e.jinko||0);
       byWorker[e.workerId].early += Number(e.early||0);
       byWorker[e.workerId].overtime += Number(e.overtime||0);
-      byWorker[e.workerId].night += e.nightShift ? 1 : 0;
-      byWorker[e.workerId].travel += e.businessTrip ? 1 : 0;
       byWorker[e.workerId].cost += workerEntryCost(e);
     });
 
@@ -8324,7 +8029,7 @@ function showDayDetail(date){
         <div class="item-line">
           <div>
             <strong>${escapeHtml(w?.name||"不明")}</strong>
-            <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""} / 夜勤 ${v.night} / 出張 ${v.travel}</small>
+            <small>${w?.companyId && workerCompanyById(w.companyId) ? escapeHtml(workerCompanyById(w.companyId).name) + " / " : ""}${v.jinko.toFixed(2)}人工${v.early ? " / 早出 " + v.early.toFixed(1) + "h" : ""}${v.overtime ? " / 残業 " + v.overtime.toFixed(1) + "h" : ""}</small>
           </div>
           <div style="text-align:right;display:grid;gap:3px;flex:0 0 auto">
             <span><small style="display:inline">人件費</small> <b>${yen(v.cost)}</b></span>
@@ -10264,10 +9969,11 @@ function getContractBillingIncluded(siteId, month){
           ? r.progressAmount : Math.floor(cumulative * pct / 100);
         const lineAmount = nextBilled - billed;
         billed = nextBilled;
+        // 出来高率は金額列のみに適用し、単価・数量・単位は契約時の値を表示する。
         const quantity = item.pricingConfigured
-          ? Number((item.quantity*pct/100).toFixed(6)).toLocaleString("ja-JP",{maximumFractionDigits:6}) : "1";
+          ? Number(item.quantity).toLocaleString("ja-JP",{maximumFractionDigits:6}) : "1";
         const unit = item.pricingConfigured ? item.unit : "式";
-        const price = item.pricingConfigured ? Number(item.unitPrice) : lineAmount;
+        const price = item.pricingConfigured ? Number(item.unitPrice) : Number(item.amount);
         detailRows.push(`
           <tr>
             <td class="date"></td>
@@ -10416,7 +10122,6 @@ function getContractBillingIncluded(siteId, month){
     `;
 
     const detailTableHtml = (pageRows) => `
-      <div class="invoice-detail-fill">
       <table class="invoice-detail-table">
         <colgroup>
           <col style="width:10%">
@@ -10440,7 +10145,6 @@ function getContractBillingIncluded(siteId, month){
         </thead>
         <tbody>${pageRows.join("")}</tbody>
       </table>
-      </div>
     `;
 
     const toDesignDetailRow = (rowHtml) => {
@@ -10701,13 +10405,11 @@ function getContractBillingIncluded(siteId, month){
     }
     // デザイン形式は1行目を白、最下段を色付きにする偶数行で固定し、
     // 明細欄を合計欄直前の黒ラインまで伸ばす。
-    const firstCapacity = isDesignFormat ? 24 : 35;
+    const firstCapacity = isDesignFormat ? 24 : (isIOSPrintDevice ? 29 : 35);
     // 複数ページでは合計・振込先は最終ページに移るため、その空き分を1ページ目の明細に使う。
     // 1ページに収まる請求書の行数とレイアウトは従来どおりにする。
-    const multiPageFirstCapacity = isDesignFormat ? 30 : (isIOSPrintDevice ? 39 : 43);
-    // デザイン形式は最終ページに合計・振込先・街並みが入るため、
-    // 明細の最大行数を控えめにし、下部の固定領域との重なりを防ぐ。
-    const continuationCapacity = isDesignFormat ? 27 : (isIOSPrintDevice ? 36 : 40);
+    const multiPageFirstCapacity = isDesignFormat ? 32 : (isIOSPrintDevice ? 39 : 43);
+    const continuationCapacity = isDesignFormat ? 36 : (isIOSPrintDevice ? 36 : 40);
     const actualRows = [...detailRows];
     const pages = [];
 
@@ -10716,7 +10418,7 @@ function getContractBillingIncluded(siteId, month){
       while(pageRows.length < firstCapacity) pageRows.push(blankDetailRow());
 
       pages.push(`
-        <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last ${!isDesignFormat && isIOSPrintDevice && actualRows.length > 29 ? "invoice-page-ios-dense" : ""}">
+        <div class="invoice-sheet excel-template invoice-page invoice-page-first invoice-page-last">
           <div class="invoice-paper-inner">
             ${invoiceCompanyLogoHtml()}
             ${pageFirstHeaderHtml()}
@@ -11014,7 +10716,7 @@ function getContractBillingIncluded(siteId, month){
       view:"workers",
       target:"#workerCompanyName",
       title:"③ 所属会社を登録",
-      text:"所属会社は作業員が所属する会社です。「自社」は初期登録済みなので、必要に応じて協力会社などを追加してください。元請け会社（請求先）とは別の項目です。登録した所属会社は、作業員登録時に選択できます。"
+      text:"所属会社は作業員が所属する会社です。自社・協力会社などを登録してください。元請け会社（請求先）とは別の項目です。登録した所属会社は、作業員登録時に選択できます。"
     },
     {
       view:"workers",
@@ -12342,7 +12044,6 @@ function getContractBillingIncluded(siteId, month){
     // クラウドを正として扱う。
     // 端末内に旧データが残っていても、ログイン時に自動送信・自動移行しない。
     cloudReady = true;
-    let seededOwnWorkerCompany = false;
 
     if(cloud.initialized){
       state = normalizeImportedState(cloud.state);
@@ -12350,16 +12051,13 @@ function getContractBillingIncluded(siteId, month){
       if(pendingLocalState){
         state = mergePendingLocalState(state, pendingLocalState);
       }
-      seededOwnWorkerCompany = ensureInitialOwnWorkerCompany(state);
-      if(seededOwnWorkerCompany) save();
-      else saveLocalOnly();
+      saveLocalOnly();
       setCloudStatus("クラウド保存済み", "ok");
     }else{
       // 同じ会社の未送信データがあれば復元し、それ以外は空の状態から開始する。
       state = pendingLocalState
         ? normalizeImportedState(pendingLocalState)
         : normalizeImportedState(defaultState);
-      seededOwnWorkerCompany = ensureInitialOwnWorkerCompany(state);
       saveLocalOnly();
       cloudBaselineRows = Object.fromEntries(
         CLOUD_TABLES_PARENT_FIRST.map(t=>[t, []])
@@ -12370,7 +12068,7 @@ function getContractBillingIncluded(siteId, month){
     bulkWorkerSelectionDraft = null;
     bulkAllowanceDraft.clear();
     renderAll();
-    if(pendingLocalState || seededOwnWorkerCompany) scheduleCloudSync();
+    if(pendingLocalState) scheduleCloudSync();
     refreshPasskeyList().catch(err=>console.warn("passkey list refresh", err));
     if(!options.suppressTutorial){
       setTimeout(()=>startTutorial(false), 450);
@@ -13145,7 +12843,6 @@ function getContractBillingIncluded(siteId, month){
       }
 
       state = normalized;
-      ensureInitialOwnWorkerCompany(state);
       bulkWorkerSelectionDraft = null;
       bulkAllowanceDraft.clear();
       save();
