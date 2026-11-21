@@ -10393,6 +10393,9 @@ function getContractBillingIncluded(siteId, month){
     // デザイン形式は1行目を白、最下段を色付きにする偶数行で固定し、
     // 明細欄を合計欄直前の黒ラインまで伸ばす。
     const firstCapacity = isDesignFormat ? 24 : (isIOSPrintDevice ? 29 : 35);
+    // 複数ページでは合計・振込先は最終ページに移るため、その空き分を1ページ目の明細に使う。
+    // 1ページに収まる請求書の行数とレイアウトは従来どおりにする。
+    const multiPageFirstCapacity = isDesignFormat ? 32 : (isIOSPrintDevice ? 39 : 43);
     const continuationCapacity = isDesignFormat ? 36 : (isIOSPrintDevice ? 36 : 40);
     const actualRows = [...detailRows];
     const pages = [];
@@ -10413,12 +10416,13 @@ function getContractBillingIncluded(siteId, month){
         </div>
       `);
     }else{
-      const remainingCount = actualRows.length - firstCapacity;
+      // 合計欄を載せる続紙を必ず1枚残す。境界付近でも明細や合計が消えないようにする。
+      const firstRowCount = Math.min(multiPageFirstCapacity, actualRows.length - 1);
+      const remainingCount = actualRows.length - firstRowCount;
       const continuationPages = Math.ceil(remainingCount / continuationCapacity);
       const totalPages = 1 + continuationPages;
 
-      const firstRows = actualRows.slice(0, firstCapacity);
-      while(firstRows.length < firstCapacity) firstRows.push(blankDetailRow());
+      const firstRows = actualRows.slice(0, firstRowCount);
 
       pages.push(`
         <div class="invoice-sheet excel-template invoice-page invoice-page-first">
@@ -10431,7 +10435,7 @@ function getContractBillingIncluded(siteId, month){
         </div>
       `);
 
-      let remaining = actualRows.slice(firstCapacity);
+      let remaining = actualRows.slice(firstRowCount);
       let pageNo = 2;
 
       while(remaining.length){
