@@ -4132,6 +4132,56 @@
     }
   }
 
+
+  /* シンプル・カラーのA4余白対策：残り高さを明細欄で使い切る。
+     表の空行を均等に伸ばすので、実データ・合計欄の位置関係は保持する。
+     デザイン形式には適用しない。 */
+  @media print{
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-paper-inner,
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-paper-inner{
+      display:flex !important;
+      flex-direction:column !important;
+      padding-bottom:12mm !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill,
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill{
+      flex:1 1 auto !important;
+      min-height:0 !important;
+      display:flex !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill > table,
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill > table{
+      height:100% !important;
+      width:100% !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-color .invoice-bottom-area,
+    html.ios-print-device #invoicePreview .invoice-page.invoice-format-simple .invoice-bottom-area{
+      flex:0 0 auto !important;
+    }
+  }
+  /* PDF撮影エンジン側にも同じA4埋め処理を反映 */
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-paper-inner,
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-paper-inner{
+    display:flex !important;
+    flex-direction:column !important;
+    padding-bottom:45px !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill,
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill{
+    flex:1 1 auto !important;
+    display:flex !important;
+    min-height:0 !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-detail-fill > table,
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-detail-fill > table{
+    width:100% !important;
+    height:100% !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-color .invoice-bottom-area,
+  .invoice-pdf-export #invoicePreview .invoice-page.invoice-format-simple .invoice-bottom-area{
+    flex:0 0 auto !important;
+  }
+
   /* iPhone / iPad用PDF生成時は、画面の縮小表示を解除してA4比率で撮影する */
   .invoice-pdf-export #invoicePreview{
     position:fixed !important;
@@ -10138,6 +10188,7 @@ function getContractBillingIncluded(siteId, month){
     `;
 
     const detailTableHtml = (pageRows) => `
+      <div class="invoice-detail-fill">
       <table class="invoice-detail-table">
         <colgroup>
           <col style="width:10%">
@@ -10161,6 +10212,7 @@ function getContractBillingIncluded(siteId, month){
         </thead>
         <tbody>${pageRows.join("")}</tbody>
       </table>
+      </div>
     `;
 
     const toDesignDetailRow = (rowHtml) => {
