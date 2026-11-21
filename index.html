@@ -134,7 +134,12 @@
     .cal-chip{display:block;width:100%;max-width:100%;min-width:0;font-size:9px;line-height:1.1;background:#eef0f3;border-radius:5px;padding:2px 2px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cal-worker-cost{display:block;font-size:11px;font-weight:800;color:#1d4ed8;white-space:nowrap;letter-spacing:-.05em}
     .summary-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-    .summary-calendar-head h2{margin-bottom:8px}
+    .summary-calendar-head h2{margin-bottom:8px;min-width:0}
+    .summary-calendar-month-controls{display:flex;align-items:center;gap:6px;margin-left:auto}
+    .summary-calendar-month-controls button{
+      border:1px solid #d1d5db;background:#eef0f3;color:#374151;
+      border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;white-space:nowrap;
+    }
     .worker-detail-active{background:#eff6ff;border-color:#93c5fd}
     .worker-detail-button,#summaryWorkerDetailBack,.recent-edit-button{
       border:1px solid #d1d5db;background:#eef0f3;color:#374151;
@@ -4646,6 +4651,10 @@
         <div class="card" id="summaryCalendarCard">
           <div class="summary-calendar-head">
             <h2 id="summaryCalendarTitle">月間カレンダー</h2>
+            <div id="summaryCalendarMonthControls" class="summary-calendar-month-controls">
+              <button id="summaryCalendarPrevMonth" type="button" aria-label="先月のカレンダーを表示">先月</button>
+              <button id="summaryCalendarNextMonth" type="button" aria-label="翌月のカレンダーを表示">翌月</button>
+            </div>
             <button id="summaryWorkerDetailBack" class="edit-link" type="button" hidden>元の表示に戻る</button>
           </div>
           <div id="summaryCalendar"></div>
@@ -6170,6 +6179,7 @@
       $("summaryMonthWrap").style.display = summaryMode === "monthly" ? "" : "none";
     }
     if($("summaryCalendarSwipeHint")) $("summaryCalendarSwipeHint").style.display = summaryMode === "monthly" ? "" : "none";
+    $("summaryCalendarMonthControls").style.display = summaryMode === "monthly" ? "flex" : "none";
     if($("summarySiteSearch")) $("summarySiteSearch").style.display = summaryMode === "site" ? "" : "none";
     if($("monthlySummaryDetails")){
       $("monthlySummaryDetails").style.display = "";
@@ -6216,6 +6226,8 @@
     $("dayDetail").textContent = "カレンダーの日付を押してください。";
     renderSummary();
   }
+  $("summaryCalendarPrevMonth").addEventListener("click",()=>shiftSummaryCalendarMonth(-1));
+  $("summaryCalendarNextMonth").addEventListener("click",()=>shiftSummaryCalendarMonth(1));
   let summaryCalendarTouchStart = null;
   $("summaryCalendarCard").addEventListener("touchstart",event=>{
     if(summaryMode !== "monthly" || event.touches.length !== 1){
