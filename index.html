@@ -4182,6 +4182,77 @@
     flex:0 0 auto !important;
   }
 
+  /* 2026-11-21: シンプル・カラー 明細と合計欄の重なり防止。
+     A4の残高を「ヘッダー・明細・合計欄」の3段に割り当てる。
+     合計欄は縮めず、明細の表だけ残高内で伸縮させる。 */
+  @media print{
+    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-paper-inner{
+      display:grid !important;
+      grid-template-columns:minmax(0,1fr) !important;
+      grid-template-rows:auto minmax(0,1fr) auto !important;
+      align-content:stretch !important;
+      row-gap:0 !important;
+      padding-bottom:12mm !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill{
+      display:flex !important;
+      min-width:0 !important;
+      min-height:0 !important;
+      height:auto !important;
+      overflow:visible !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill > table{
+      height:auto !important;
+      min-height:0 !important;
+      max-height:100% !important;
+      align-self:stretch !important;
+      margin-bottom:0 !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-bottom-area{
+      min-height:max-content !important;
+      margin-top:14px !important;
+      position:relative !important;
+      z-index:1 !important;
+    }
+    html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-table td{
+      height:16px !important;
+      padding-top:1px !important;
+      padding-bottom:1px !important;
+      line-height:1 !important;
+    }
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-paper-inner{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    grid-template-rows:auto minmax(0,1fr) auto !important;
+    align-content:stretch !important;
+    row-gap:0 !important;
+    padding-bottom:45px !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill{
+    display:flex !important;
+    height:auto !important;
+    min-width:0 !important;
+    min-height:0 !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-fill > table{
+    height:auto !important;
+    max-height:100% !important;
+    align-self:stretch !important;
+    margin-bottom:0 !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-bottom-area{
+    min-height:max-content !important;
+    margin-top:14px !important;
+    position:relative !important;
+    z-index:1 !important;
+  }
+  .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-color,.invoice-format-simple) .invoice-detail-table td{
+    height:16px !important;
+    padding-top:1px !important;
+    padding-bottom:1px !important;
+  }
+
   /* iPhone / iPad用PDF生成時は、画面の縮小表示を解除してA4比率で撮影する */
   .invoice-pdf-export #invoicePreview{
     position:fixed !important;
