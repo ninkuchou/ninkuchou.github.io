@@ -4397,9 +4397,9 @@
   }
 
 
-/* 2026-11-21 複数ページ専用：明細の罫線をA4の使用可能領域まで伸ばす。
-   直前の「空行を足す」試行は採用せず、元の明細行数を保つ。
-   1ページだけの請求書・デザイン形式には影響させない。 */
+/* 2026-11-21: 複数ページの印刷余白修正。
+   上段や挨拶文に余白を割り当てず、明細テーブルだけを伸ばす。
+   デザイン形式・単ページには適用しない。 */
 @media print {
   #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) {
     height:265mm !important;
@@ -4408,62 +4408,78 @@
     box-sizing:border-box !important;
     overflow:hidden !important;
   }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner {
-    display:grid !important;
-    grid-template-columns:minmax(0,1fr) !important;
-    grid-template-rows:auto minmax(0,1fr) auto !important;
+  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner,
+  html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner {
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:flex-start !important;
+    align-items:stretch !important;
     height:100% !important;
     min-height:0 !important;
     max-height:100% !important;
     box-sizing:border-box !important;
     padding-bottom:8mm !important;
     overflow:hidden !important;
-    align-content:stretch !important;
   }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill {
-    display:flex !important;
-    flex-direction:column !important;
-    height:100% !important;
+  /* grid の auto 行が伸びて、挨拶文の上に大きな空白を作るのを防止 */
+  #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-last) .invoice-upper {
+    flex:0 0 auto !important;
+    height:auto !important;
     min-height:0 !important;
-    max-height:100% !important;
+    grid-template-rows:max-content max-content max-content !important;
+    align-content:start !important;
+    align-items:start !important;
+    margin-bottom:12px !important;
+  }
+  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-continuation-head {
+    flex:0 0 auto !important;
+  }
+  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill,
+  html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill {
+    display:flex !important;
+    flex:1 1 0 !important;
+    flex-direction:column !important;
+    min-height:0 !important;
+    height:auto !important;
+    max-height:none !important;
+    margin:0 !important;
     overflow:hidden !important;
   }
-  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table {
+  #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table,
+  html.ios-print-device #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table {
+    flex:1 1 auto !important;
     width:100% !important;
     height:100% !important;
     min-height:0 !important;
-    max-height:100% !important;
+    max-height:none !important;
     margin:0 !important;
   }
   #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-bottom-area {
+    flex:0 0 auto !important;
     position:relative !important;
     z-index:1 !important;
     margin-top:12px !important;
-    min-height:max-content !important;
-    align-self:end !important;
+    align-self:stretch !important;
   }
 }
-/* PDF画像生成でも同じ原理を適用。単ページ表示は既存仕様のまま。 */
+/* Safari独自の PDF 画像変換にも同じルールを適用 */
 .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) > .invoice-paper-inner {
-  display:grid !important;
-  grid-template-columns:minmax(0,1fr) !important;
-  grid-template-rows:auto minmax(0,1fr) auto !important;
-  height:100% !important;
-  max-height:100% !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:flex-start !important;
+  align-items:stretch !important;
   padding-bottom:45px !important;
-  overflow:hidden !important;
 }
 .invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill {
   display:flex !important;
-  height:100% !important;
-  max-height:100% !important;
+  flex:1 1 0 !important;
+  height:auto !important;
   min-height:0 !important;
-  overflow:hidden !important;
+  max-height:none !important;
 }
-.invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-table {
+.invoice-pdf-export #invoicePreview .invoice-page:is(.invoice-format-simple,.invoice-format-color):not(.invoice-page-first.invoice-page-last) .invoice-detail-fill > .invoice-detail-table {
   height:100% !important;
-  max-height:100% !important;
-  min-height:0 !important;
+  max-height:none !important;
 }
 
 </style>
