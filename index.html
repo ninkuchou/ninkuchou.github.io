@@ -4346,6 +4346,56 @@
     white-space:nowrap;
   }
 
+
+  /* 2026-11-21: PDF/ブラウザー印刷時の発行者情報と挨拶文の衝突防止。
+     絶対配置だった発行者情報と挨拶文を同じグリッドの別行に置き、
+     情報が長い場合もヘッダー自身が必要な高さを確保する。
+     2ページ目以降の続紙・デザイン専用レイアウトには適用しない。 */
+  @media print {
+    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-upper {
+      display:grid !important;
+      grid-template-columns:minmax(0,56%) minmax(0,44%) !important;
+      grid-template-rows:auto auto auto !important;
+      align-items:start !important;
+      align-content:start !important;
+      height:auto !important;
+      min-height:0 !important;
+      padding-bottom:0 !important;
+    }
+    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-doc-title {
+      grid-column:1 !important;
+      grid-row:1 !important;
+    }
+    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-client-block {
+      grid-column:1 !important;
+      grid-row:2 !important;
+      min-width:0 !important;
+      width:auto !important;
+      margin-right:8px !important;
+    }
+    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-issuer-block {
+      grid-column:2 !important;
+      grid-row:2 !important;
+      position:relative !important;
+      top:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      left:auto !important;
+      width:auto !important;
+      min-width:0 !important;
+      margin:0 12px 0 0 !important;
+    }
+    #invoicePreview .invoice-page-first:is(.invoice-format-simple,.invoice-format-color) .invoice-greeting {
+      grid-column:1 / -1 !important;
+      grid-row:3 !important;
+      position:static !important;
+      inset:auto !important;
+      margin:12px 8px 4px !important;
+      padding:0 !important;
+      align-self:start !important;
+    }
+  }
+
 </style>
 
   <link rel="manifest" href="/manifest.webmanifest">
@@ -10547,8 +10597,10 @@ function getContractBillingIncluded(siteId, month){
     const firstCapacity = isDesignFormat ? 24 : 35;
     // 複数ページでは合計・振込先は最終ページに移るため、その空き分を1ページ目の明細に使う。
     // 1ページに収まる請求書の行数とレイアウトは従来どおりにする。
-    const multiPageFirstCapacity = isDesignFormat ? 32 : (isIOSPrintDevice ? 39 : 43);
-    const continuationCapacity = isDesignFormat ? 36 : (isIOSPrintDevice ? 36 : 40);
+    const multiPageFirstCapacity = isDesignFormat ? 30 : (isIOSPrintDevice ? 39 : 43);
+    // デザイン形式は最終ページに合計・振込先・街並みが入るため、
+    // 明細の最大行数を控えめにし、下部の固定領域との重なりを防ぐ。
+    const continuationCapacity = isDesignFormat ? 27 : (isIOSPrintDevice ? 36 : 40);
     const actualRows = [...detailRows];
     const pages = [];
 
